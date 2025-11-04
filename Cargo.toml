@@ -1,0 +1,38 @@
+[package]
+name = "charl"
+version = "0.1.0"
+edition = "2021"
+authors = ["Charl Team"]
+description = "A revolutionary programming language for AI and Deep Learning"
+license = "MIT"
+
+[[bin]]
+name = "charl"
+path = "src/main.rs"
+
+[[bin]]
+name = "codegen_vs_interpreter"
+path = "benches/codegen_vs_interpreter.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+
+# GPU Support (Phase 8)
+wgpu = { version = "0.19", default-features = false, features = ["wgsl", "dx12"] }  # WebGPU for cross-platform GPU compute
+bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy casting for GPU buffers
+pollster = "0.3"           # Async executor for wgpu setup
+
+# LLVM Support (Phase 7 - requires llvm-config, Linux recommended)
+# inkwell = { version = "0.5", features = ["llvm16-0"] }  # Requires llvm-config (not included in Windows LLVM)
+# TODO: Install LLVM from source or use Linux for full LLVM support
+
+[dev-dependencies]
+# criterion = "0.5"  # Temporarily disabled due to dlltool issues
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
