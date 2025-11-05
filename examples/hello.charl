@@ -1,0 +1,4 @@
+// Hello World in Charl
+let message = "Hello from Charl!"
+let x = 42
+let y = x * 2

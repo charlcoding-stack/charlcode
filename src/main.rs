@@ -10,6 +10,11 @@
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use std::fs;
+use std::io::{self, Write};
+use charl::lexer::Lexer;
+use charl::parser::Parser as CharlParser;
+use charl::interpreter::Interpreter;
 
 #[derive(Parser)]
 #[command(name = "charl")]
@@ -51,17 +56,149 @@ enum Commands {
     Version,
 }
 
+fn run_repl() {
+    println!("╔═══════════════════════════════════════════════════════════╗");
+    println!("║           Charl REPL v0.1.0 - Interactive Mode           ║");
+    println!("╚═══════════════════════════════════════════════════════════╝");
+    println!();
+    println!("Type Charl expressions and statements. Use Ctrl+C or 'exit' to quit.");
+    println!("Examples:");
+    println!("  > let x = 42");
+    println!("  > x * 2");
+    println!("  > fn add(a: int32, b: int32) -> int32 {{ return a + b }}");
+    println!("  > add(5, 7)");
+    println!();
+
+    let mut interpreter = Interpreter::new();
+    let stdin = io::stdin();
+    let mut line_number = 1;
+
+    loop {
+        // Print prompt
+        print!("charl:{:03}> ", line_number);
+        io::stdout().flush().unwrap();
+
+        // Read line
+        let mut input = String::new();
+        match stdin.read_line(&mut input) {
+            Ok(0) => {
+                // EOF (Ctrl+D)
+                println!("\nGoodbye!");
+                break;
+            }
+            Ok(_) => {
+                let input = input.trim();
+
+                // Check for exit command
+                if input == "exit" || input == "quit" {
+                    println!("Goodbye!");
+                    break;
+                }
+
+                // Skip empty lines
+                if input.is_empty() {
+                    continue;
+                }
+
+                // Evaluate expression
+                let lexer = Lexer::new(input);
+                let mut parser = CharlParser::new(lexer);
+
+                match parser.parse_program() {
+                    Ok(program) => {
+                        match interpreter.eval(program) {
+                            Ok(result) => {
+                                println!("=> {:?}", result);
+                            }
+                            Err(e) => {
+                                eprintln!("Runtime error: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Parse error: {}", e);
+                    }
+                }
+
+                line_number += 1;
+            }
+            Err(e) => {
+                eprintln!("Error reading input: {}", e);
+                break;
+            }
+        }
+    }
+}
+
+fn run_script(file: &PathBuf, verbose: bool) {
+    if verbose {
+        println!("🚀 Running Charl script: {}", file.display());
+    }
+
+    // Read source file
+    let source = match fs::read_to_string(file) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("❌ Error reading file: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if verbose {
+        println!("📝 Source code ({} bytes):", source.len());
+        println!("{}", "-".repeat(50));
+        println!("{}", source);
+        println!("{}", "-".repeat(50));
+    }
+
+    // Lexing
+    if verbose {
+        println!("\n🔤 Lexing...");
+    }
+    let lexer = Lexer::new(&source);
+
+    // Parsing
+    if verbose {
+        println!("🌳 Parsing...");
+    }
+    let mut parser = CharlParser::new(lexer);
+    let program = match parser.parse_program() {
+        Ok(prog) => prog,
+        Err(e) => {
+            eprintln!("❌ Parse error:\n{}", e);
+            std::process::exit(1);
+        }
+    };
+
+    if verbose {
+        println!("✅ Parsed {} statements", program.statements.len());
+    }
+
+    // Interpreting
+    if verbose {
+        println!("⚡ Executing...\n");
+    }
+    let mut interpreter = Interpreter::new();
+    match interpreter.eval(program) {
+        Ok(result) => {
+            if verbose {
+                println!("\n✅ Execution completed successfully");
+                println!("📊 Result: {:?}", result);
+            }
+        }
+        Err(e) => {
+            eprintln!("❌ Runtime error:\n{}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
         Some(Commands::Run { file, verbose }) => {
-            println!("🚀 Running Charl script: {}", file.display());
-            if verbose {
-                println!("📝 Verbose mode enabled");
-            }
-            println!("⚠️  Full interpreter integration coming soon!");
-            println!("💡 For now, use the library API from Rust code");
+            run_script(&file, verbose);
         }
 
         Some(Commands::Build { file, output, release }) => {
@@ -76,9 +213,7 @@ fn main() {
         }
 
         Some(Commands::Repl) => {
-            println!("🎯 Charl REPL v0.1.0");
-            println!("⚠️  Interactive REPL coming soon!");
-            println!("💡 For now, use `cargo test` to run Charl code");
+            run_repl();
         }
 
         Some(Commands::Version) | None => {
@@ -158,12 +293,14 @@ fn print_version() {
     println!("  • Examples: https://charlbase.org/examples");
     println!();
     println!("🚀 Quick Start:");
-    println!("  charl run hello.charl      # Run a script (coming soon)");
+    println!("  charl run hello.charl      # Run a script");
+    println!("  charl run hello.charl -v   # Run with verbose output");
+    println!("  charl repl                 # Interactive REPL");
     println!("  charl build app.charl      # Compile to native (coming soon)");
-    println!("  charl repl                 # Interactive REPL (coming soon)");
     println!();
-    println!("⚠️  Note: CLI integration in progress. Use library API for now:");
-    println!("   cargo test                # Run all tests");
-    println!("   cargo bench              # Run benchmarks");
+    println!("📚 Examples:");
+    println!("  examples/hello.charl       # Variables and basic operations");
+    println!("  examples/function.charl    # Function definitions");
+    println!("  examples/arrays.charl      # Array operations");
     println!();
 }

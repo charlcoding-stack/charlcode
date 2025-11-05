@@ -1,0 +1,7 @@
+// Function definition and call with type annotations
+fn square(x: int32) -> int32 {
+    return x * x
+}
+
+let num = 5
+let result = square(num)
