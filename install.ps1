@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 $CHARL_VERSION = "0.1.0"
 $INSTALL_DIR = "$env:USERPROFILE\.charl"
 $BIN_DIR = "$INSTALL_DIR\bin"
+$GITHUB_REPO = "charlcoding-stack/charlcode"
 
 Write-Host "╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║           Charl Language Installer v$CHARL_VERSION              ║" -ForegroundColor Cyan
@@ -18,6 +19,12 @@ $OS = "Windows"
 $ARCH = $env:PROCESSOR_ARCHITECTURE
 if ($ARCH -eq "AMD64") {
     $ARCH = "x86_64"
+} elseif ($ARCH -eq "ARM64") {
+    $ARCH = "arm64"
+} else {
+    Write-Host "❌ Unsupported architecture: $ARCH" -ForegroundColor Red
+    Write-Host "   Supported: AMD64 (x86_64)" -ForegroundColor Yellow
+    exit 1
 }
 
 Write-Host "🔍 Detected system:" -ForegroundColor Yellow
@@ -25,69 +32,131 @@ Write-Host "   OS: $OS"
 Write-Host "   Architecture: $ARCH"
 Write-Host ""
 
-# Check if Rust is installed
-Write-Host "🔍 Checking for Rust..." -ForegroundColor Yellow
-$rustInstalled = Get-Command rustc -ErrorAction SilentlyContinue
-
-if (-not $rustInstalled) {
-    Write-Host "⚠️  Rust not found. Installing Rust first..." -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "Please install Rust from: https://rustup.rs/" -ForegroundColor Cyan
-    Write-Host "After installing Rust, run this installer again." -ForegroundColor Cyan
-    Write-Host ""
-    # Open browser to rustup.rs
-    Start-Process "https://rustup.rs/"
-    exit 1
-} else {
-    $rustVersion = & rustc --version
-    Write-Host "✅ Rust found: $rustVersion" -ForegroundColor Green
-}
-Write-Host ""
-
 # Create installation directory
 Write-Host "📁 Creating installation directory..." -ForegroundColor Yellow
 New-Item -ItemType Directory -Force -Path $BIN_DIR | Out-Null
 
-# Option 1: Download pre-built binary (production)
-# Option 2: Build from source (development)
-
-$downloadUrl = "https://github.com/charlcoding-stack/charlcode/releases/download/v$CHARL_VERSION/charl-windows-x86_64.zip"
-$zipPath = "$env:TEMP\charl-windows-x86_64.zip"
+# Try to download pre-built binary
+$downloadUrl = "https://github.com/$GITHUB_REPO/releases/download/v$CHARL_VERSION/charl-windows-$ARCH.zip"
+$zipPath = "$env:TEMP\charl-windows-$ARCH.zip"
 
 Write-Host "📥 Downloading Charl binary..." -ForegroundColor Yellow
-Write-Host "   URL: $downloadUrl"
+Write-Host "   URL: $downloadUrl" -ForegroundColor Gray
 Write-Host ""
 
 try {
     # Try to download pre-built binary
     Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -ErrorAction Stop
 
+    Write-Host "✅ Download successful" -ForegroundColor Green
+    Write-Host ""
+
     Write-Host "📦 Extracting binary..." -ForegroundColor Yellow
     Expand-Archive -Path $zipPath -DestinationPath $BIN_DIR -Force
     Remove-Item $zipPath
 
-    Write-Host "✅ Binary installed successfully" -ForegroundColor Green
+    # Verify binary exists
+    if (Test-Path "$BIN_DIR\charl.exe") {
+        Write-Host "✅ Binary installed successfully" -ForegroundColor Green
+    } else {
+        Write-Host "❌ Error: Binary not found after extraction" -ForegroundColor Red
+        exit 1
+    }
 } catch {
-    Write-Host "⚠️  Pre-built binary not available. Building from source..." -ForegroundColor Yellow
+    Write-Host "⚠️  Pre-built binary not available for your platform" -ForegroundColor Yellow
+    Write-Host "   Falling back to building from source..." -ForegroundColor Yellow
     Write-Host ""
 
+    # Check if Rust is installed
+    Write-Host "🔍 Checking for Rust..." -ForegroundColor Yellow
+    $rustInstalled = Get-Command rustc -ErrorAction SilentlyContinue
+
+    if (-not $rustInstalled) {
+        Write-Host "📦 Rust is required to build from source" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Please install Rust from: https://rustup.rs/" -ForegroundColor Cyan
+        Write-Host "After installing Rust, run this installer again." -ForegroundColor Cyan
+        Write-Host ""
+        # Open browser to rustup.rs
+        Start-Process "https://rustup.rs/"
+        exit 1
+    } else {
+        $rustVersion = & rustc --version
+        Write-Host "✅ Rust found: $rustVersion" -ForegroundColor Green
+    }
+    Write-Host ""
+
+    # Check if Git is installed
+    $gitInstalled = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitInstalled) {
+        Write-Host "❌ Error: git is required to build from source" -ForegroundColor Red
+        Write-Host "   Please install git from: https://git-scm.com/" -ForegroundColor Cyan
+        exit 1
+    }
+
     # Build from source
-    $TEMP_DIR = "$env:TEMP\charl-build"
+    $TEMP_DIR = "$env:TEMP\charl-build-$(Get-Random)"
     New-Item -ItemType Directory -Force -Path $TEMP_DIR | Out-Null
-    Set-Location $TEMP_DIR
 
-    Write-Host "📥 Cloning Charl repository..." -ForegroundColor Yellow
-    git clone https://github.com/charlcoding-stack/charlcode.git .
+    try {
+        Set-Location $TEMP_DIR
 
-    Write-Host "🔧 Compiling Charl (this may take a few minutes)..." -ForegroundColor Yellow
-    cargo build --release --bin charl
+        Write-Host "📥 Cloning Charl repository..." -ForegroundColor Yellow
+        git clone "https://github.com/$GITHUB_REPO.git" . 2>&1 | Out-Null
 
-    Write-Host "📦 Installing binary..." -ForegroundColor Yellow
-    Copy-Item "target\release\charl.exe" "$BIN_DIR\charl.exe"
+        # Find VS Developer Command Prompt
+        $vsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+        $vsDevCmd = "$vsPath\Common7\Tools\VsDevCmd.bat"
 
-    # Cleanup
-    Set-Location $env:USERPROFILE
-    Remove-Item -Recurse -Force $TEMP_DIR
+        if (Test-Path $vsDevCmd) {
+            Write-Host "✅ Found Visual Studio Build Tools" -ForegroundColor Green
+            Write-Host "🔧 Compiling Charl with MSVC environment (5-10 minutes)..." -ForegroundColor Yellow
+            Write-Host "   This resolves link.exe conflicts with Git" -ForegroundColor Gray
+            Write-Host ""
+
+            # Use Developer Command Prompt to compile
+            $buildScript = @"
+call "$vsDevCmd" >nul 2>&1
+cd "$TEMP_DIR"
+cargo build --release --bin charl 2>&1
+"@
+            $buildScript | Out-File -FilePath "$TEMP_DIR\build.bat" -Encoding ASCII
+
+            $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "$TEMP_DIR\build.bat" -Wait -PassThru -NoNewWindow -RedirectStandardOutput "$TEMP_DIR\build.log" -RedirectStandardError "$TEMP_DIR\build.err"
+
+            if ($proc.ExitCode -eq 0 -and (Test-Path "$TEMP_DIR\target\release\charl.exe")) {
+                Write-Host "✅ Compilation successful" -ForegroundColor Green
+            } else {
+                Write-Host "❌ Compilation failed" -ForegroundColor Red
+                if (Test-Path "$TEMP_DIR\build.log") {
+                    Get-Content "$TEMP_DIR\build.log" | Select-String -Pattern "error" | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+                }
+                throw "Compilation failed"
+            }
+        } else {
+            Write-Host "⚠️  VS Build Tools not found, trying standard compilation..." -ForegroundColor Yellow
+            cargo build --release --bin charl 2>&1 | Select-String -Pattern "(Compiling|Finished|error)" | Write-Host
+        }
+
+        Write-Host "📦 Installing binary..." -ForegroundColor Yellow
+        Copy-Item "target\release\charl.exe" "$BIN_DIR\charl.exe" -Force
+
+        Write-Host "✅ Binary compiled and installed successfully" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Build failed: $_" -ForegroundColor Red
+        Write-Host "" -ForegroundColor Red
+        Write-Host "Troubleshooting:" -ForegroundColor Yellow
+        Write-Host "1. Ensure Visual Studio Build Tools is installed" -ForegroundColor White
+        Write-Host "2. Try running build-windows.bat manually from the repo" -ForegroundColor White
+        Write-Host "3. See: https://github.com/$GITHUB_REPO/issues" -ForegroundColor White
+        exit 1
+    } finally {
+        # Cleanup
+        Set-Location $env:USERPROFILE
+        if (Test-Path $TEMP_DIR) {
+            Remove-Item -Recurse -Force $TEMP_DIR -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # Add to PATH

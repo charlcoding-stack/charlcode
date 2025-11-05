@@ -11,6 +11,7 @@ set -e
 CHARL_VERSION="0.1.0"
 INSTALL_DIR="$HOME/.charl"
 BIN_DIR="$INSTALL_DIR/bin"
+GITHUB_REPO="charlcoding-stack/charlcode"
 
 echo "╔═══════════════════════════════════════════════════════════╗"
 echo "║           Charl Language Installer v${CHARL_VERSION}              ║"
@@ -27,48 +28,108 @@ echo "   OS: $OS"
 echo "   Architecture: $ARCH"
 echo ""
 
-# Check if Rust is installed (needed for from-source installation)
-if ! command -v cargo &> /dev/null; then
-    echo "⚠️  Rust not found. Installing Rust first..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source "$HOME/.cargo/env"
-    echo "✅ Rust installed successfully"
-else
-    echo "✅ Rust found: $(rustc --version)"
-fi
-echo ""
+# Map architecture names
+case "$ARCH" in
+    x86_64|amd64)
+        ARCH="x86_64"
+        ;;
+    aarch64|arm64)
+        ARCH="arm64"
+        ;;
+    *)
+        echo "❌ Unsupported architecture: $ARCH"
+        echo "   Supported: x86_64, aarch64/arm64"
+        exit 1
+        ;;
+esac
+
+# Determine binary URL based on platform
+case "$OS" in
+    linux)
+        BINARY_FILE="charl-linux-${ARCH}.tar.gz"
+        ;;
+    darwin)
+        BINARY_FILE="charl-macos-${ARCH}.tar.gz"
+        ;;
+    *)
+        echo "❌ Unsupported OS: $OS"
+        echo "   Supported: Linux, macOS"
+        echo "   For Windows, use: irm https://charlbase.org/install.ps1 | iex"
+        exit 1
+        ;;
+esac
+
+BINARY_URL="https://github.com/${GITHUB_REPO}/releases/download/v${CHARL_VERSION}/${BINARY_FILE}"
 
 # Create installation directory
 echo "📁 Creating installation directory..."
 mkdir -p "$BIN_DIR"
 
-# For now, build from source (in production, download pre-built binaries)
-echo "🔨 Building Charl from source..."
-echo "   (In production, this would download pre-built binaries)"
+# Try to download pre-built binary
+echo "📥 Downloading Charl binary..."
+echo "   URL: $BINARY_URL"
 echo ""
 
-# Clone repository (or in production, download release tarball)
 TEMP_DIR=$(mktemp -d)
-cd "$TEMP_DIR"
+DOWNLOAD_PATH="$TEMP_DIR/$BINARY_FILE"
 
-echo "📥 Downloading Charl source code..."
-# In production:
-# curl -L "https://github.com/YOUR_USERNAME/charl/archive/refs/tags/v${CHARL_VERSION}.tar.gz" | tar xz
+if curl -fL "$BINARY_URL" -o "$DOWNLOAD_PATH" 2>/dev/null; then
+    echo "✅ Download successful"
+    echo ""
 
-# For now, copy from current directory (if running locally)
-if [ -f "../Cargo.toml" ]; then
-    echo "   Using local source"
-    cp -r ../* .
+    # Extract binary
+    echo "📦 Extracting binary..."
+    tar -xzf "$DOWNLOAD_PATH" -C "$BIN_DIR/"
+
+    if [ -f "$BIN_DIR/charl" ]; then
+        chmod +x "$BIN_DIR/charl"
+        echo "✅ Binary installed successfully"
+    else
+        echo "❌ Error: Binary not found after extraction"
+        exit 1
+    fi
+
+    # Cleanup
+    rm -rf "$TEMP_DIR"
 else
-    echo "❌ Error: No Cargo.toml found. Cannot build."
-    exit 1
+    echo "⚠️  Pre-built binary not available for your platform"
+    echo "   Falling back to building from source..."
+    echo ""
+
+    # Check if Rust is installed
+    if ! command -v cargo &> /dev/null; then
+        echo "📦 Rust is required to build from source"
+        echo "   Installing Rust..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source "$HOME/.cargo/env"
+        echo "✅ Rust installed successfully"
+    else
+        echo "✅ Rust found: $(rustc --version)"
+    fi
+    echo ""
+
+    # Clone repository
+    cd "$TEMP_DIR"
+    echo "📥 Cloning Charl repository..."
+    if command -v git &> /dev/null; then
+        git clone "https://github.com/${GITHUB_REPO}.git" .
+    else
+        echo "❌ Error: git is required to build from source"
+        echo "   Please install git and try again"
+        exit 1
+    fi
+
+    echo "🔧 Compiling Charl (this may take a few minutes)..."
+    cargo build --release --bin charl
+
+    echo "📦 Installing binary..."
+    cp target/release/charl "$BIN_DIR/"
+    chmod +x "$BIN_DIR/charl"
+
+    # Cleanup
+    cd ..
+    rm -rf "$TEMP_DIR"
 fi
-
-echo "🔧 Compiling Charl (this may take a few minutes)..."
-cargo build --release --bin charl
-
-echo "📦 Installing binary..."
-cp target/release/charl "$BIN_DIR/"
 
 # Add to PATH
 echo ""

@@ -74,3 +74,7 @@ LLVM_BACKEND_PLAN.md
 PROGRESS_SESSION_*.md
 benchmarks/BENCHMARK_RESULTS.md
 benchmarks/PROGRESS_SESSION_*.md
+
+# Release binaries (upload to GitHub Releases instead)
+releases/*.tar.gz
+releases/*.zip
