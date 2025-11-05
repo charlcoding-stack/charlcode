@@ -1,0 +1,31 @@
+=================================================
+MNIST Training Benchmark - PyTorch Implementation
+=================================================
+
+Configuration:
+  Samples: 1000
+  Batch size: 32
+  Epochs: 5
+  Learning rate: 0.001
+
+Generating training data... Done (2.79ms)
+Creating model... Done (0.62ms)
+
+Model: MnistClassifier
+Total params: 109386
+Trainable params: 109386
+
+Training:
+  Epoch 1/5: Loss = 2.3030, Time = 2435.52ms
+  Epoch 2/5: Loss = 2.2809, Time = 2193.69ms
+  Epoch 3/5: Loss = 2.2012, Time = 3535.91ms
+  Epoch 4/5: Loss = 2.0010, Time = 3253.10ms
+  Epoch 5/5: Loss = 1.7932, Time = 1979.44ms
+
+=================================================
+Results:
+=================================================
+Total training time: 13.398s
+Average time per epoch: 2.680s
+Samples per second: 373.20
+=================================================

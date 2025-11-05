@@ -1,0 +1,41 @@
+=================================================
+MNIST Training Benchmark - Charl Implementation
+=================================================
+
+Configuration:
+  Samples: 1000
+  Batch size: 32
+  Epochs: 5
+  Learning rate: 0.001
+
+Generating training data... Done (5.98ms)
+Creating model... Done (1.53ms)
+Model: MnistClassifier
+======================================================================
+Layer (type)         Output Shape         Param #             
+----------------------------------------------------------------------
+Dense (0)            N/A                  100480              
+Dropout (1)          N/A                  0                   
+Dense (2)            N/A                  8256                
+Dropout (3)          N/A                  0                   
+Dense (4)            N/A                  650                 
+======================================================================
+Total params: 109386
+Trainable params: 109386
+Non-trainable params: 0
+======================================================================
+
+Training:
+  Epoch 1/5: Loss = 2.3059, Time = 87.57ms
+  Epoch 2/5: Loss = 2.3059, Time = 91.21ms
+  Epoch 3/5: Loss = 2.3059, Time = 78.62ms
+  Epoch 4/5: Loss = 2.3059, Time = 81.86ms
+  Epoch 5/5: Loss = 2.3059, Time = 75.11ms
+
+=================================================
+Results:
+=================================================
+Total training time: 414.43ms
+Average time per epoch: 82.89ms
+Samples per second: 12064.66
+=================================================
