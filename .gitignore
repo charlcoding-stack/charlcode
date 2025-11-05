@@ -3,6 +3,14 @@
 **/*.rs.bk
 *.pdb
 
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
 # Cargo
 Cargo.lock
 
