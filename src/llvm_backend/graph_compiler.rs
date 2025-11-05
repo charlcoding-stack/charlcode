@@ -55,9 +55,7 @@ impl<'ctx> CompiledGraph<'ctx> {
 
         // TODO: Implementación completa
         // Por ahora, solo verificamos que podemos acceder al grafo
-        let _output = graph
-            .get_node(output_id)
-            .ok_or("Output node not found")?;
+        let _output = graph.get_node(output_id).ok_or("Output node not found")?;
 
         // Generar funciones básicas como demostración
         self.codegen.gen_element_wise_add();
@@ -77,12 +75,7 @@ impl<'ctx> CompiledGraph<'ctx> {
     ///
     /// Por ahora: ejecuta operaciones individuales
     /// Futuro: ejecuta función fusionada completa
-    pub fn execute_add(
-        &self,
-        a: &[f32],
-        b: &[f32],
-        output: &mut [f32],
-    ) -> Result<(), String> {
+    pub fn execute_add(&self, a: &[f32], b: &[f32], output: &mut [f32]) -> Result<(), String> {
         let jit = self.jit.as_ref().ok_or("Graph not compiled yet")?;
 
         if a.len() != b.len() || a.len() != output.len() {
@@ -97,12 +90,7 @@ impl<'ctx> CompiledGraph<'ctx> {
     }
 
     /// Ejecutar multiplicación element-wise
-    pub fn execute_mul(
-        &self,
-        a: &[f32],
-        b: &[f32],
-        output: &mut [f32],
-    ) -> Result<(), String> {
+    pub fn execute_mul(&self, a: &[f32], b: &[f32], output: &mut [f32]) -> Result<(), String> {
         let jit = self.jit.as_ref().ok_or("Graph not compiled yet")?;
 
         if a.len() != b.len() || a.len() != output.len() {

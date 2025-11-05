@@ -52,8 +52,9 @@ impl Optimizer for SGD {
                 let param_id = param.id;
 
                 // Initialize velocity if not exists
-                if !self.velocity.contains_key(&param_id) {
-                    self.velocity.insert(param_id, vec![0.0; param.data.len()]);
+                if let std::collections::hash_map::Entry::Vacant(e) = self.velocity.entry(param_id)
+                {
+                    e.insert(vec![0.0; param.data.len()]);
                 }
 
                 let velocity = self.velocity.get_mut(&param_id).unwrap();
@@ -105,7 +106,7 @@ pub struct Adam {
     pub weight_decay: f64,
     m: HashMap<usize, Vec<f64>>, // First moment
     v: HashMap<usize, Vec<f64>>, // Second moment
-    t: usize, // Time step
+    t: usize,                    // Time step
 }
 
 impl Adam {
@@ -147,8 +148,8 @@ impl Optimizer for Adam {
                 let param_id = param.id;
 
                 // Initialize moments if not exists
-                if !self.m.contains_key(&param_id) {
-                    self.m.insert(param_id, vec![0.0; param.data.len()]);
+                if let std::collections::hash_map::Entry::Vacant(e) = self.m.entry(param_id) {
+                    e.insert(vec![0.0; param.data.len()]);
                     self.v.insert(param_id, vec![0.0; param.data.len()]);
                 }
 
@@ -240,8 +241,8 @@ impl Optimizer for RMSprop {
                 let param_id = param.id;
 
                 // Initialize moving average if not exists
-                if !self.v.contains_key(&param_id) {
-                    self.v.insert(param_id, vec![0.0; param.data.len()]);
+                if let std::collections::hash_map::Entry::Vacant(e) = self.v.entry(param_id) {
+                    e.insert(vec![0.0; param.data.len()]);
                 }
 
                 let v = self.v.get_mut(&param_id).unwrap();
@@ -317,8 +318,10 @@ impl Optimizer for AdaGrad {
                 let param_id = param.id;
 
                 // Initialize sum if not exists
-                if !self.sum_squared_grad.contains_key(&param_id) {
-                    self.sum_squared_grad.insert(param_id, vec![0.0; param.data.len()]);
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    self.sum_squared_grad.entry(param_id)
+                {
+                    e.insert(vec![0.0; param.data.len()]);
                 }
 
                 let sum_sq = self.sum_squared_grad.get_mut(&param_id).unwrap();
@@ -477,6 +480,12 @@ pub struct Metrics {
     pub loss: f64,
 }
 
+impl Default for Metrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Metrics {
     pub fn new() -> Self {
         Metrics {
@@ -510,7 +519,11 @@ impl Metrics {
 
         let accuracy = (tp + tn) / (tp + tn + fp + fn_count);
         let precision = if tp + fp > 0.0 { tp / (tp + fp) } else { 0.0 };
-        let recall = if tp + fn_count > 0.0 { tp / (tp + fn_count) } else { 0.0 };
+        let recall = if tp + fn_count > 0.0 {
+            tp / (tp + fn_count)
+        } else {
+            0.0
+        };
         let f1_score = if precision + recall > 0.0 {
             2.0 * precision * recall / (precision + recall)
         } else {
@@ -562,6 +575,12 @@ pub struct History {
     pub val_losses: Vec<f64>,
     pub train_accuracies: Vec<f64>,
     pub val_accuracies: Vec<f64>,
+}
+
+impl Default for History {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl History {

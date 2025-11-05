@@ -22,9 +22,9 @@
 // - Zhang et al. (2023): "Multimodal Chain-of-Thought Reasoning in Language Models"
 // - Zellers et al. (2021): "From Recognition to Cognition: Visual Commonsense Reasoning"
 
-use crate::reasoning::chain_of_thought::{ChainOfThought, ReasoningStep};
 use crate::multimodal::scene_understanding::{SceneGraph, SceneObject, SpatialRelation};
-use crate::multimodal::vision_language::{Image, CLIPEncoder, MultimodalEmbedding};
+use crate::multimodal::vision_language::CLIPEncoder;
+use crate::reasoning::chain_of_thought::{ChainOfThought, ReasoningStep};
 
 /// Modality of a reasoning step
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -50,7 +50,11 @@ pub struct MultimodalReasoningStep {
 }
 
 impl MultimodalReasoningStep {
-    pub fn new(step_number: usize, thought: impl Into<String>, modality: ReasoningModality) -> Self {
+    pub fn new(
+        step_number: usize,
+        thought: impl Into<String>,
+        modality: ReasoningModality,
+    ) -> Self {
         Self {
             step_number,
             thought: thought.into(),
@@ -220,7 +224,7 @@ impl MultimodalReasoner {
             cot = cot.add_step(MultimodalReasoningStep::new(
                 1,
                 "Analyzing scene",
-                ReasoningModality::Visual
+                ReasoningModality::Visual,
             ));
         }
 
@@ -229,25 +233,37 @@ impl MultimodalReasoner {
     }
 
     /// Reason about "what" questions
-    fn reason_what(&self, question: &str, scene: &SceneGraph, mut cot: MultimodalCoT) -> MultimodalCoT {
+    fn reason_what(
+        &self,
+        question: &str,
+        scene: &SceneGraph,
+        mut cot: MultimodalCoT,
+    ) -> MultimodalCoT {
         // Step 1: Identify objects
         let obj_count = scene.objects.len();
-        cot = cot.add_step(MultimodalReasoningStep::new(
-            1,
-            format!("Detected {} objects in scene", obj_count),
-            ReasoningModality::Visual
-        ).with_confidence(0.9));
+        cot = cot.add_step(
+            MultimodalReasoningStep::new(
+                1,
+                format!("Detected {} objects in scene", obj_count),
+                ReasoningModality::Visual,
+            )
+            .with_confidence(0.9),
+        );
 
         // Step 2: Match question to objects
         let matches = self.grounding.ground_phrase(question, scene);
 
         if let Some((obj_id, sim)) = matches.first() {
             if let Some(obj) = scene.objects.get(obj_id) {
-                cot = cot.add_step(MultimodalReasoningStep::new(
-                    2,
-                    format!("Found relevant object: {}", obj.class),
-                    ReasoningModality::CrossModal
-                ).with_object(obj_id.clone()).with_confidence(*sim));
+                cot = cot.add_step(
+                    MultimodalReasoningStep::new(
+                        2,
+                        format!("Found relevant object: {}", obj.class),
+                        ReasoningModality::CrossModal,
+                    )
+                    .with_object(obj_id.clone())
+                    .with_confidence(*sim),
+                );
 
                 cot = cot.with_answer(obj.class.clone());
             }
@@ -257,18 +273,26 @@ impl MultimodalReasoner {
     }
 
     /// Reason about "where" questions
-    fn reason_where(&self, question: &str, scene: &SceneGraph, mut cot: MultimodalCoT) -> MultimodalCoT {
+    fn reason_where(
+        &self,
+        question: &str,
+        scene: &SceneGraph,
+        mut cot: MultimodalCoT,
+    ) -> MultimodalCoT {
         // Find referenced object
         let matches = self.grounding.ground_phrase(question, scene);
 
         if let Some((obj_id, _)) = matches.first() {
             // Step 1: Identify object
             if let Some(obj) = scene.objects.get(obj_id) {
-                cot = cot.add_step(MultimodalReasoningStep::new(
-                    1,
-                    format!("Located object: {}", obj.class),
-                    ReasoningModality::Visual
-                ).with_object(obj_id.clone()));
+                cot = cot.add_step(
+                    MultimodalReasoningStep::new(
+                        1,
+                        format!("Located object: {}", obj.class),
+                        ReasoningModality::Visual,
+                    )
+                    .with_object(obj_id.clone()),
+                );
 
                 // Step 2: Find spatial relations
                 let relations = scene.get_relations_for(obj_id);
@@ -277,11 +301,20 @@ impl MultimodalReasoner {
                     if let Some(ref_obj) = scene.objects.get(&rel.object) {
                         cot = cot.add_step(MultimodalReasoningStep::new(
                             2,
-                            format!("The {} is {} the {}", obj.class, rel.relation.as_str(), ref_obj.class),
-                            ReasoningModality::CrossModal
+                            format!(
+                                "The {} is {} the {}",
+                                obj.class,
+                                rel.relation.as_str(),
+                                ref_obj.class
+                            ),
+                            ReasoningModality::CrossModal,
                         ));
 
-                        cot = cot.with_answer(format!("{} the {}", rel.relation.as_str(), ref_obj.class));
+                        cot = cot.with_answer(format!(
+                            "{} the {}",
+                            rel.relation.as_str(),
+                            ref_obj.class
+                        ));
                     }
                 }
             }
@@ -291,19 +324,24 @@ impl MultimodalReasoner {
     }
 
     /// Reason about counting questions
-    fn reason_count(&self, question: &str, scene: &SceneGraph, mut cot: MultimodalCoT) -> MultimodalCoT {
+    fn reason_count(
+        &self,
+        _question: &str,
+        scene: &SceneGraph,
+        mut cot: MultimodalCoT,
+    ) -> MultimodalCoT {
         // Step 1: Count objects
         let count = scene.objects.len();
         cot = cot.add_step(MultimodalReasoningStep::new(
             1,
-            format!("Counting objects in scene"),
-            ReasoningModality::Visual
+            "Counting objects in scene".to_string(),
+            ReasoningModality::Visual,
         ));
 
         cot = cot.add_step(MultimodalReasoningStep::new(
             2,
             format!("Found {} objects", count),
-            ReasoningModality::CrossModal
+            ReasoningModality::CrossModal,
         ));
 
         cot = cot.with_answer(count.to_string());
@@ -318,7 +356,7 @@ impl MultimodalReasoner {
         for step in &multimodal_cot.steps {
             cot = cot.add_step(
                 ReasoningStep::new(step.step_number, &step.thought)
-                    .with_confidence(step.confidence)
+                    .with_confidence(step.confidence),
             );
         }
 
@@ -363,16 +401,25 @@ mod tests {
 
     #[test]
     fn test_multimodal_cot_add_step() {
-        let cot = MultimodalCoT::new("Question")
-            .add_step(MultimodalReasoningStep::new(1, "Step 1", ReasoningModality::Visual));
+        let cot = MultimodalCoT::new("Question").add_step(MultimodalReasoningStep::new(
+            1,
+            "Step 1",
+            ReasoningModality::Visual,
+        ));
         assert_eq!(cot.steps.len(), 1);
     }
 
     #[test]
     fn test_multimodal_cot_compute_confidence() {
         let mut cot = MultimodalCoT::new("Question")
-            .add_step(MultimodalReasoningStep::new(1, "Step 1", ReasoningModality::Visual).with_confidence(0.8))
-            .add_step(MultimodalReasoningStep::new(2, "Step 2", ReasoningModality::Textual).with_confidence(0.9));
+            .add_step(
+                MultimodalReasoningStep::new(1, "Step 1", ReasoningModality::Visual)
+                    .with_confidence(0.8),
+            )
+            .add_step(
+                MultimodalReasoningStep::new(2, "Step 2", ReasoningModality::Textual)
+                    .with_confidence(0.9),
+            );
 
         cot.compute_confidence();
         assert!((cot.confidence - 0.85).abs() < 1e-5); // Average of 0.8 and 0.9
@@ -474,7 +521,11 @@ mod tests {
         let reasoner = MultimodalReasoner::new(grounding);
 
         let multimodal_cot = MultimodalCoT::new("Test question")
-            .add_step(MultimodalReasoningStep::new(1, "Step 1", ReasoningModality::Visual))
+            .add_step(MultimodalReasoningStep::new(
+                1,
+                "Step 1",
+                ReasoningModality::Visual,
+            ))
             .with_answer("Test answer")
             .with_confidence(0.9);
 
@@ -504,10 +555,12 @@ mod tests {
 
         // Create complex scene
         let mut scene = SceneGraph::new();
-        scene.add_object(SceneObject::new("cat1", "cat", (0.2, 0.1, 0.2, 0.2))
-            .with_attribute("orange"));
-        scene.add_object(SceneObject::new("mat1", "mat", (0.0, 0.6, 0.8, 0.2))
-            .with_attribute("blue"));
+        scene.add_object(
+            SceneObject::new("cat1", "cat", (0.2, 0.1, 0.2, 0.2)).with_attribute("orange"),
+        );
+        scene.add_object(
+            SceneObject::new("mat1", "mat", (0.0, 0.6, 0.8, 0.2)).with_attribute("blue"),
+        );
         let _ = scene.add_relation(ObjectRelation::new("cat1", SpatialRelation::Above, "mat1"));
 
         let cot = reasoner.reason("What is above the mat?", &scene);

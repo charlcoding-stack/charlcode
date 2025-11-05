@@ -49,35 +49,27 @@
 // let counterfactual_graph = intervention.apply(&graph);
 // ```
 
-pub mod chain_of_thought;
-pub mod working_memory;
-pub mod tree_of_thoughts;
 pub mod causal;
+pub mod chain_of_thought;
+pub mod tree_of_thoughts;
 pub mod verification;
+pub mod working_memory;
 
 // Re-export main types
 pub use chain_of_thought::{
-    ChainOfThought, ReasoningStep,
-    SelfConsistency, AggregationStrategy,
-    LeastToMost,
+    AggregationStrategy, ChainOfThought, LeastToMost, ReasoningStep, SelfConsistency,
 };
 
 pub use working_memory::{
-    WorkingMemorySystem, ShortTermMemory, LongTermMemory,
-    MemoryItem, MemoryType,
+    LongTermMemory, MemoryItem, MemoryType, ShortTermMemory, WorkingMemorySystem,
 };
 
-pub use tree_of_thoughts::{
-    TreeOfThoughts, ThoughtNode, SearchStrategy,
-};
+pub use tree_of_thoughts::{SearchStrategy, ThoughtNode, TreeOfThoughts};
 
-pub use causal::{
-    CausalGraph, Variable, CausalEdge,
-    Intervention, Counterfactual, Confounder,
-};
+pub use causal::{CausalEdge, CausalGraph, Confounder, Counterfactual, Intervention, Variable};
 
 pub use verification::{
-    ReasoningVerifier, VerificationResult, VerificationStatus, VerificationType,
-    SelfCritique, Critique, CritiqueQuality,
-    UncertaintyEstimate, UncertaintyType, UncertaintyQuantifier,
+    Critique, CritiqueQuality, ReasoningVerifier, SelfCritique, UncertaintyEstimate,
+    UncertaintyQuantifier, UncertaintyType, VerificationResult, VerificationStatus,
+    VerificationType,
 };

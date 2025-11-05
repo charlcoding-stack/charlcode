@@ -233,10 +233,18 @@ mod tests {
 
         // After normalization, mean should be ~0, std should be ~1
         let out_mean = LayerNorm::compute_mean(&output);
-        assert!(out_mean.abs() < 1e-5, "Mean should be close to 0, got {}", out_mean);
+        assert!(
+            out_mean.abs() < 1e-5,
+            "Mean should be close to 0, got {}",
+            out_mean
+        );
 
         let out_std = LayerNorm::compute_std(&output, out_mean, 0.0);
-        assert!((out_std - 1.0).abs() < 1e-4, "Std should be close to 1, got {}", out_std);
+        assert!(
+            (out_std - 1.0).abs() < 1e-4,
+            "Std should be close to 1, got {}",
+            out_std
+        );
     }
 
     #[test]
@@ -269,7 +277,7 @@ mod tests {
 
         // Input with varying values
         let input = vec![
-            1.0, 2.0, 3.0, 4.0,  // position 0
+            1.0, 2.0, 3.0, 4.0, // position 0
         ];
 
         let output = ln.forward(&input, (1, 1, 4)).unwrap();
@@ -341,9 +349,9 @@ mod tests {
 
         // Input: (1, 3, 2) - 1 sample, 3 positions, 2 features
         let input = vec![
-            1.0, 5.0,  // pos 0: mean=3, will normalize
-            2.0, 4.0,  // pos 1: mean=3, will normalize
-            0.0, 6.0,  // pos 2: mean=3, will normalize
+            1.0, 5.0, // pos 0: mean=3, will normalize
+            2.0, 4.0, // pos 1: mean=3, will normalize
+            0.0, 6.0, // pos 2: mean=3, will normalize
         ];
 
         let output = ln.forward(&input, (1, 3, 2)).unwrap();

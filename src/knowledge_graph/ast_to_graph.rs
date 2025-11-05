@@ -13,11 +13,8 @@
 // let graph = AstToGraphConverter::convert(&program);
 // ```
 
-use crate::ast::{
-    Program, Statement, Expression, FunctionStatement,
-    LetStatement, Parameter
-};
-use crate::knowledge_graph::{KnowledgeGraph, EntityId, EntityType, RelationType, Triple};
+use crate::ast::{Expression, FunctionStatement, LetStatement, Parameter, Program, Statement};
+use crate::knowledge_graph::{EntityId, EntityType, KnowledgeGraph, RelationType, Triple};
 use std::collections::HashMap;
 
 /// Converter that builds a knowledge graph from AST
@@ -74,10 +71,9 @@ impl AstToGraphConverter {
     /// Process let statement (variable declaration)
     fn process_let(&mut self, let_stmt: &LetStatement) {
         // Create variable entity
-        let var_id = self.graph.add_entity(
-            EntityType::Variable,
-            let_stmt.name.clone(),
-        );
+        let var_id = self
+            .graph
+            .add_entity(EntityType::Variable, let_stmt.name.clone());
 
         // Add to symbol table
         self.symbols.insert(let_stmt.name.clone(), var_id);
@@ -98,10 +94,9 @@ impl AstToGraphConverter {
     /// Process function statement
     fn process_function(&mut self, func_stmt: &FunctionStatement) {
         // Create function entity
-        let func_id = self.graph.add_entity(
-            EntityType::Function,
-            func_stmt.name.clone(),
-        );
+        let func_id = self
+            .graph
+            .add_entity(EntityType::Function, func_stmt.name.clone());
 
         // Add to symbol table
         self.symbols.insert(func_stmt.name.clone(), func_id);
@@ -127,10 +122,9 @@ impl AstToGraphConverter {
     /// Process function parameter
     fn process_parameter(&mut self, param: &Parameter, func_id: EntityId) {
         // Create parameter as a variable
-        let param_id = self.graph.add_entity(
-            EntityType::Variable,
-            param.name.clone(),
-        );
+        let param_id = self
+            .graph
+            .add_entity(EntityType::Variable, param.name.clone());
 
         // Add to symbol table
         self.symbols.insert(param.name.clone(), param_id);
@@ -143,16 +137,26 @@ impl AstToGraphConverter {
     /// Process expression (recursively)
     fn process_expression(&mut self, expr: &Expression) {
         match expr {
-            Expression::Call { function, arguments } => {
+            Expression::Call {
+                function,
+                arguments,
+            } => {
                 self.process_call(function, arguments);
             }
 
-            Expression::Binary { left, operator: _, right } => {
+            Expression::Binary {
+                left,
+                operator: _,
+                right,
+            } => {
                 self.process_expression(left);
                 self.process_expression(right);
             }
 
-            Expression::Unary { operator: _, operand } => {
+            Expression::Unary {
+                operator: _,
+                operand,
+            } => {
                 self.process_expression(operand);
             }
 
@@ -172,11 +176,11 @@ impl AstToGraphConverter {
             }
 
             // Literals don't need processing
-            Expression::Identifier(_) |
-            Expression::IntegerLiteral(_) |
-            Expression::FloatLiteral(_) |
-            Expression::BooleanLiteral(_) |
-            Expression::StringLiteral(_) => {}
+            Expression::Identifier(_)
+            | Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::StringLiteral(_) => {}
         }
     }
 
@@ -215,16 +219,26 @@ impl AstToGraphConverter {
                 }
             }
 
-            Expression::Binary { left, operator: _, right } => {
+            Expression::Binary {
+                left,
+                operator: _,
+                right,
+            } => {
                 self.extract_expression_dependencies(left, dependent_id, relation.clone());
                 self.extract_expression_dependencies(right, dependent_id, relation);
             }
 
-            Expression::Unary { operator: _, operand } => {
+            Expression::Unary {
+                operator: _,
+                operand,
+            } => {
                 self.extract_expression_dependencies(operand, dependent_id, relation);
             }
 
-            Expression::Call { function, arguments } => {
+            Expression::Call {
+                function,
+                arguments,
+            } => {
                 self.extract_expression_dependencies(function, dependent_id, relation.clone());
                 for arg in arguments {
                     self.extract_expression_dependencies(arg, dependent_id, relation.clone());
@@ -247,10 +261,10 @@ impl AstToGraphConverter {
             }
 
             // Literals don't have dependencies
-            Expression::IntegerLiteral(_) |
-            Expression::FloatLiteral(_) |
-            Expression::BooleanLiteral(_) |
-            Expression::StringLiteral(_) => {}
+            Expression::IntegerLiteral(_)
+            | Expression::FloatLiteral(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::StringLiteral(_) => {}
         }
     }
 }
@@ -264,7 +278,7 @@ impl Default for AstToGraphConverter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::{*, BinaryOperator};
+    use crate::ast::{BinaryOperator, *};
 
     #[test]
     fn test_empty_program() {
@@ -278,13 +292,11 @@ mod tests {
     #[test]
     fn test_single_variable() {
         let program = Program {
-            statements: vec![
-                Statement::Let(LetStatement {
-                    name: "x".to_string(),
-                    type_annotation: Some(TypeAnnotation::Int32),
-                    value: Expression::IntegerLiteral(42),
-                }),
-            ],
+            statements: vec![Statement::Let(LetStatement {
+                name: "x".to_string(),
+                type_annotation: Some(TypeAnnotation::Int32),
+                value: Expression::IntegerLiteral(42),
+            })],
         };
 
         let graph = AstToGraphConverter::convert(&program);
@@ -334,31 +346,27 @@ mod tests {
     fn test_function_declaration() {
         // fn add(a: Int32, b: Int32) { return a + b }
         let program = Program {
-            statements: vec![
-                Statement::Function(FunctionStatement {
-                    name: "add".to_string(),
-                    parameters: vec![
-                        Parameter {
-                            name: "a".to_string(),
-                            type_annotation: TypeAnnotation::Int32,
-                        },
-                        Parameter {
-                            name: "b".to_string(),
-                            type_annotation: TypeAnnotation::Int32,
-                        },
-                    ],
-                    return_type: Some(TypeAnnotation::Int32),
-                    body: vec![
-                        Statement::Return(ReturnStatement {
-                            value: Expression::Binary {
-                                left: Box::new(Expression::Identifier("a".to_string())),
-                                operator: BinaryOperator::Add,
-                                right: Box::new(Expression::Identifier("b".to_string())),
-                            },
-                        }),
-                    ],
-                }),
-            ],
+            statements: vec![Statement::Function(FunctionStatement {
+                name: "add".to_string(),
+                parameters: vec![
+                    Parameter {
+                        name: "a".to_string(),
+                        type_annotation: TypeAnnotation::Int32,
+                    },
+                    Parameter {
+                        name: "b".to_string(),
+                        type_annotation: TypeAnnotation::Int32,
+                    },
+                ],
+                return_type: Some(TypeAnnotation::Int32),
+                body: vec![Statement::Return(ReturnStatement {
+                    value: Expression::Binary {
+                        left: Box::new(Expression::Identifier("a".to_string())),
+                        operator: BinaryOperator::Add,
+                        right: Box::new(Expression::Identifier("b".to_string())),
+                    },
+                })],
+            })],
         };
 
         let graph = AstToGraphConverter::convert(&program);
@@ -392,14 +400,12 @@ mod tests {
                     name: "bar".to_string(),
                     parameters: vec![],
                     return_type: None,
-                    body: vec![
-                        Statement::Expression(ExpressionStatement {
-                            expression: Expression::Call {
-                                function: Box::new(Expression::Identifier("foo".to_string())),
-                                arguments: vec![],
-                            },
-                        }),
-                    ],
+                    body: vec![Statement::Expression(ExpressionStatement {
+                        expression: Expression::Call {
+                            function: Box::new(Expression::Identifier("foo".to_string())),
+                            arguments: vec![],
+                        },
+                    })],
                 }),
             ],
         };
@@ -482,32 +488,30 @@ mod tests {
         //     return x + y
         // }
         let program = Program {
-            statements: vec![
-                Statement::Function(FunctionStatement {
-                    name: "calculate".to_string(),
-                    parameters: vec![],
-                    return_type: Some(TypeAnnotation::Int32),
-                    body: vec![
-                        Statement::Let(LetStatement {
-                            name: "x".to_string(),
-                            type_annotation: Some(TypeAnnotation::Int32),
-                            value: Expression::IntegerLiteral(10),
-                        }),
-                        Statement::Let(LetStatement {
-                            name: "y".to_string(),
-                            type_annotation: Some(TypeAnnotation::Int32),
-                            value: Expression::IntegerLiteral(20),
-                        }),
-                        Statement::Return(ReturnStatement {
-                            value: Expression::Binary {
-                                left: Box::new(Expression::Identifier("x".to_string())),
-                                operator: BinaryOperator::Add,
-                                right: Box::new(Expression::Identifier("y".to_string())),
-                            },
-                        }),
-                    ],
-                }),
-            ],
+            statements: vec![Statement::Function(FunctionStatement {
+                name: "calculate".to_string(),
+                parameters: vec![],
+                return_type: Some(TypeAnnotation::Int32),
+                body: vec![
+                    Statement::Let(LetStatement {
+                        name: "x".to_string(),
+                        type_annotation: Some(TypeAnnotation::Int32),
+                        value: Expression::IntegerLiteral(10),
+                    }),
+                    Statement::Let(LetStatement {
+                        name: "y".to_string(),
+                        type_annotation: Some(TypeAnnotation::Int32),
+                        value: Expression::IntegerLiteral(20),
+                    }),
+                    Statement::Return(ReturnStatement {
+                        value: Expression::Binary {
+                            left: Box::new(Expression::Identifier("x".to_string())),
+                            operator: BinaryOperator::Add,
+                            right: Box::new(Expression::Identifier("y".to_string())),
+                        },
+                    }),
+                ],
+            })],
         };
 
         let graph = AstToGraphConverter::convert(&program);

@@ -11,8 +11,8 @@
 // - Fast queries by subject/predicate/object O(log n)
 // - Reasonable memory usage
 
-use std::collections::{HashMap, HashSet};
 use super::triple::{Entity, EntityId, EntityType, RelationType, Triple};
+use std::collections::{HashMap, HashSet};
 
 /// Knowledge Graph - stores entities and their relationships
 pub struct KnowledgeGraph {
@@ -74,10 +74,7 @@ impl KnowledgeGraph {
 
     /// Find entities by name
     pub fn find_entities_by_name(&self, name: &str) -> Vec<&Entity> {
-        self.entities
-            .values()
-            .filter(|e| e.name == name)
-            .collect()
+        self.entities.values().filter(|e| e.name == name).collect()
     }
 
     /// Find entities by type
@@ -103,17 +100,17 @@ impl KnowledgeGraph {
         // Update indexes
         self.subject_index
             .entry(triple.subject)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(triple_idx);
 
         self.predicate_index
             .entry(triple.predicate.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(triple_idx);
 
         self.object_index
             .entry(triple.object)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(triple_idx);
 
         // Store triple

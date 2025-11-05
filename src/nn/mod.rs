@@ -31,12 +31,11 @@ impl Activation {
 
     pub fn backward(&self, x: &[f64], grad: &[f64]) -> Vec<f64> {
         match self {
-            Activation::ReLU => {
-                x.iter()
-                    .zip(grad.iter())
-                    .map(|(&v, &g)| if v > 0.0 { g } else { 0.0 })
-                    .collect()
-            }
+            Activation::ReLU => x
+                .iter()
+                .zip(grad.iter())
+                .map(|(&v, &g)| if v > 0.0 { g } else { 0.0 })
+                .collect(),
             Activation::Sigmoid => {
                 let sigmoid: Vec<f64> = x.iter().map(|&v| 1.0 / (1.0 + (-v).exp())).collect();
                 sigmoid
@@ -94,7 +93,9 @@ impl Initializer {
             }
             Initializer::Uniform { low, high } => {
                 let range = high - low;
-                (0..size).map(|i| low + pseudo_random(i).abs() * range).collect()
+                (0..size)
+                    .map(|i| low + pseudo_random(i).abs() * range)
+                    .collect()
             }
             Initializer::Normal { mean, std } => {
                 (0..size).map(|i| mean + pseudo_random(i) * std).collect()
@@ -291,13 +292,17 @@ impl Sequential {
         self.layers.push(layer);
     }
 
-    pub fn forward(&mut self, input: &Tensor, graph: &mut ComputationGraph) -> Result<Tensor, String> {
+    pub fn forward(
+        &mut self,
+        input: &Tensor,
+        graph: &mut ComputationGraph,
+    ) -> Result<Tensor, String> {
         let mut current = input.clone();
 
         for (i, layer) in self.layers.iter_mut().enumerate() {
-            current = layer.forward(&current, graph).map_err(|e| {
-                format!("Error in layer {} ({}): {}", i, layer.layer_type(), e)
-            })?;
+            current = layer
+                .forward(&current, graph)
+                .map_err(|e| format!("Error in layer {} ({}): {}", i, layer.layer_type(), e))?;
         }
 
         Ok(current)
@@ -318,16 +323,16 @@ impl Sequential {
     }
 
     pub fn parameter_count(&self) -> usize {
-        self.parameters()
-            .iter()
-            .map(|p| p.data.len())
-            .sum()
+        self.parameters().iter().map(|p| p.data.len()).sum()
     }
 
     pub fn summary(&self) {
         println!("Model: {}", self.name);
         println!("{}", "=".repeat(70));
-        println!("{:<20} {:<20} {:<20}", "Layer (type)", "Output Shape", "Param #");
+        println!(
+            "{:<20} {:<20} {:<20}",
+            "Layer (type)", "Output Shape", "Param #"
+        );
         println!("{}", "-".repeat(70));
 
         let mut total_params = 0;
@@ -351,8 +356,8 @@ impl Sequential {
 // Loss functions
 #[derive(Debug, Clone, PartialEq)]
 pub enum Loss {
-    MSE,           // Mean Squared Error
-    CrossEntropy,  // Cross Entropy
+    MSE,          // Mean Squared Error
+    CrossEntropy, // Cross Entropy
     BinaryCrossEntropy,
 }
 

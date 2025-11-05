@@ -56,7 +56,7 @@ impl MultiHeadAttention {
     /// * `dropout` - Dropout probability
     pub fn new(d_model: usize, num_heads: usize, dropout: f64) -> Result<Self, String> {
         // Validate that d_model is divisible by num_heads
-        if d_model % num_heads != 0 {
+        if !d_model.is_multiple_of(num_heads) {
             return Err(format!(
                 "d_model ({}) must be divisible by num_heads ({})",
                 d_model, num_heads
@@ -134,10 +134,7 @@ impl MultiHeadAttention {
         let (_, seq_len_v, d_model_v) = value_shape;
 
         // Validate dimensions
-        if d_model_q != self.d_model
-            || d_model_k != self.d_model
-            || d_model_v != self.d_model
-        {
+        if d_model_q != self.d_model || d_model_k != self.d_model || d_model_v != self.d_model {
             return Err("Input dimensions don't match d_model".to_string());
         }
 
@@ -152,8 +149,7 @@ impl MultiHeadAttention {
 
         // Step 2: Split into heads
         // (batch, seq_len, d_model) -> (batch, num_heads, seq_len, d_k)
-        let q_heads =
-            self.split_heads(&q_projected, (batch_size, seq_len_q, self.d_model))?;
+        let q_heads = self.split_heads(&q_projected, (batch_size, seq_len_q, self.d_model))?;
         let k_heads = self.split_heads(&k_projected, (batch_size, seq_len_k, self.d_model))?;
         let v_heads = self.split_heads(&v_projected, (batch_size, seq_len_v, self.d_model))?;
 
@@ -187,16 +183,17 @@ impl MultiHeadAttention {
         let concat = self.concatenate_heads(&all_head_outputs, batch_size, seq_len_q)?;
 
         // Step 5: Final linear projection
-        let output = self.linear_projection(
-            &concat,
-            &self.w_o,
-            (batch_size, seq_len_q, self.d_model),
-        )?;
+        let output =
+            self.linear_projection(&concat, &self.w_o, (batch_size, seq_len_q, self.d_model))?;
 
         // Combine attention weights from all heads
         // (num_heads, batch, seq_len_q, seq_len_k) -> (batch, num_heads, seq_len_q, seq_len_k)
-        let combined_weights =
-            self.combine_attention_weights(&all_attention_weights, batch_size, seq_len_q, seq_len_k);
+        let combined_weights = self.combine_attention_weights(
+            &all_attention_weights,
+            batch_size,
+            seq_len_q,
+            seq_len_k,
+        );
 
         Ok((output, combined_weights))
     }
@@ -241,11 +238,7 @@ impl MultiHeadAttention {
 
     /// Split tensor into multiple heads
     /// (batch, seq_len, d_model) -> (batch, num_heads, seq_len, d_k)
-    fn split_heads(
-        &self,
-        input: &[f64],
-        shape: (usize, usize, usize),
-    ) -> Result<Vec<f64>, String> {
+    fn split_heads(&self, input: &[f64], shape: (usize, usize, usize)) -> Result<Vec<f64>, String> {
         let (batch_size, seq_len, d_model) = shape;
 
         if d_model != self.d_model {
@@ -260,8 +253,7 @@ impl MultiHeadAttention {
                 for h in 0..self.num_heads {
                     for k in 0..self.d_k {
                         let input_idx = b * (seq_len * d_model) + s * d_model + h * self.d_k + k;
-                        let output_idx =
-                            b * (self.num_heads * seq_len * self.d_k)
+                        let output_idx = b * (self.num_heads * seq_len * self.d_k)
                             + h * (seq_len * self.d_k)
                             + s * self.d_k
                             + k;
@@ -343,8 +335,7 @@ impl MultiHeadAttention {
         seq_len_q: usize,
         seq_len_k: usize,
     ) -> Vec<f64> {
-        let mut combined =
-            vec![0.0; batch_size * self.num_heads * seq_len_q * seq_len_k];
+        let mut combined = vec![0.0; batch_size * self.num_heads * seq_len_q * seq_len_k];
 
         for h in 0..self.num_heads {
             for b in 0..batch_size {

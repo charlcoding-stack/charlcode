@@ -15,69 +15,69 @@ pub enum TokenType {
     Eof,
 
     // Identifiers and literals
-    Ident,      // variable names, function names
-    Int,        // integer literals: 42, 100
-    Float,      // float literals: 3.14, 2.718
-    String,     // string literals: "hello"
+    Ident,  // variable names, function names
+    Int,    // integer literals: 42, 100
+    Float,  // float literals: 3.14, 2.718
+    String, // string literals: "hello"
 
     // Operators
-    Assign,     // =
-    Plus,       // +
-    Minus,      // -
-    Multiply,   // *
-    Divide,     // /
-    Modulo,     // %
-    MatMul,     // @ (matrix multiplication)
+    Assign,   // =
+    Plus,     // +
+    Minus,    // -
+    Multiply, // *
+    Divide,   // /
+    Modulo,   // %
+    MatMul,   // @ (matrix multiplication)
 
     // Comparison operators
-    Equal,      // ==
-    NotEqual,   // !=
-    LessThan,   // <
-    LessEqual,  // <=
-    GreaterThan,// >
-    GreaterEqual,// >=
+    Equal,        // ==
+    NotEqual,     // !=
+    LessThan,     // <
+    LessEqual,    // <=
+    GreaterThan,  // >
+    GreaterEqual, // >=
 
     // Logical operators
-    And,        // and
-    Or,         // or
-    Not,        // not
+    And, // and
+    Or,  // or
+    Not, // not
 
     // Delimiters
-    Comma,      // ,
-    Semicolon,  // ;
-    Colon,      // :
-    Arrow,      // ->
+    Comma,     // ,
+    Semicolon, // ;
+    Colon,     // :
+    Arrow,     // ->
 
     // Brackets
-    LParen,     // (
-    RParen,     // )
-    LBrace,     // {
-    RBrace,     // }
-    LBracket,   // [
-    RBracket,   // ]
-    LAngle,     // < (also used for generics)
-    RAngle,     // > (also used for generics)
+    LParen,   // (
+    RParen,   // )
+    LBrace,   // {
+    RBrace,   // }
+    LBracket, // [
+    RBracket, // ]
+    LAngle,   // < (also used for generics)
+    RAngle,   // > (also used for generics)
 
     // Keywords
-    Let,        // let
-    Fn,         // fn
-    Return,     // return
-    If,         // if
-    Else,       // else
-    For,        // for
-    While,      // while
-    Break,      // break
-    Continue,   // continue
-    True,       // true
-    False,      // false
+    Let,      // let
+    Fn,       // fn
+    Return,   // return
+    If,       // if
+    Else,     // else
+    For,      // for
+    While,    // while
+    Break,    // break
+    Continue, // continue
+    True,     // true
+    False,    // false
 
     // Type keywords
-    Int32,      // int32
-    Int64,      // int64
-    Float32,    // float32
-    Float64,    // float64
-    Bool,       // bool
-    Tensor,     // tensor
+    Int32,   // int32
+    Int64,   // int64
+    Float32, // float32
+    Float64, // float64
+    Bool,    // bool
+    Tensor,  // tensor
 
     // AI/ML specific keywords
     Model,      // model
@@ -91,10 +91,10 @@ pub enum TokenType {
     Dropout,    // dropout
 
     // Activation functions
-    Relu,       // relu
-    Sigmoid,    // sigmoid
-    Tanh,       // tanh
-    Softmax,    // softmax
+    Relu,    // relu
+    Sigmoid, // sigmoid
+    Tanh,    // tanh
+    Softmax, // softmax
 }
 
 impl TokenType {

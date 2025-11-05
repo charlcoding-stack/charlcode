@@ -1,8 +1,8 @@
 // Parser module - Syntax analysis and AST construction
 // Phase 1.2: Convert tokens into Abstract Syntax Tree
 
-use crate::lexer::{Lexer, Token, TokenType};
 use crate::ast::*;
+use crate::lexer::{Lexer, Token, TokenType};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum Precedence {
@@ -85,9 +85,10 @@ impl Parser {
         match token_type {
             TokenType::And | TokenType::Or => Precedence::Logical,
             TokenType::Equal | TokenType::NotEqual => Precedence::Equals,
-            TokenType::LessThan | TokenType::LessEqual | TokenType::GreaterThan | TokenType::GreaterEqual => {
-                Precedence::LessGreater
-            }
+            TokenType::LessThan
+            | TokenType::LessEqual
+            | TokenType::GreaterThan
+            | TokenType::GreaterEqual => Precedence::LessGreater,
             TokenType::Plus | TokenType::Minus => Precedence::Sum,
             TokenType::Multiply | TokenType::Divide | TokenType::Modulo => Precedence::Product,
             TokenType::MatMul => Precedence::MatMul,
@@ -322,7 +323,9 @@ impl Parser {
                 })?;
                 Ok(Expression::FloatLiteral(value))
             }
-            TokenType::String => Ok(Expression::StringLiteral(self.current_token.literal.clone())),
+            TokenType::String => Ok(Expression::StringLiteral(
+                self.current_token.literal.clone(),
+            )),
             TokenType::True => Ok(Expression::BooleanLiteral(true)),
             TokenType::False => Ok(Expression::BooleanLiteral(false)),
             TokenType::LBracket => self.parse_array_literal(),
@@ -502,9 +505,11 @@ impl Parser {
                 let mut shape = vec![];
                 loop {
                     if let TokenType::Int = self.current_token.token_type {
-                        let dim = self.current_token.literal.parse::<usize>().map_err(|_| {
-                            "Invalid dimension in tensor shape".to_string()
-                        })?;
+                        let dim = self
+                            .current_token
+                            .literal
+                            .parse::<usize>()
+                            .map_err(|_| "Invalid dimension in tensor shape".to_string())?;
                         shape.push(dim);
                     } else {
                         return Err("Expected integer for tensor dimension".to_string());
@@ -534,7 +539,10 @@ impl Parser {
         }
     }
 
-    fn token_type_to_binary_operator(&self, token_type: &TokenType) -> Result<BinaryOperator, String> {
+    fn token_type_to_binary_operator(
+        &self,
+        token_type: &TokenType,
+    ) -> Result<BinaryOperator, String> {
         match token_type {
             TokenType::Plus => Ok(BinaryOperator::Add),
             TokenType::Minus => Ok(BinaryOperator::Subtract),
@@ -726,7 +734,10 @@ mod tests {
 
     #[test]
     fn test_parse_unary_expressions() {
-        let tests = vec![("-5", UnaryOperator::Negate), ("not true", UnaryOperator::Not)];
+        let tests = vec![
+            ("-5", UnaryOperator::Negate),
+            ("not true", UnaryOperator::Not),
+        ];
 
         for (input, expected_op) in tests {
             let lexer = Lexer::new(input);

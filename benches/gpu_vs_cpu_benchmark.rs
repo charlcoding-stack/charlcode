@@ -3,8 +3,8 @@
 //
 // Target: Validate 100-500x speedup claims
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use charl::gpu::{ComputeBackend, cpu::CPUBackend, wgpu_backend::WgpuBackend};
+use charl::gpu::{cpu::CPUBackend, wgpu_backend::WgpuBackend, ComputeBackend};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 /// Benchmark vector addition: CPU vs GPU
 fn benchmark_vector_add(c: &mut Criterion) {
@@ -111,16 +111,18 @@ fn benchmark_matmul(c: &mut Criterion) {
 
     // Test different matrix sizes: MxN * NxP
     let sizes = vec![
-        (64, 64, 64),     // Small
-        (128, 128, 128),  // Medium
-        (256, 256, 256),  // Large
+        (64, 64, 64),    // Small
+        (128, 128, 128), // Medium
+        (256, 256, 256), // Large
     ];
 
     for (m, n, p) in sizes {
         let size_str = format!("{}x{}", m, p);
 
         // CPU Benchmark
-        group.bench_with_input(BenchmarkId::new("cpu", &size_str), &(m, n, p),
+        group.bench_with_input(
+            BenchmarkId::new("cpu", &size_str),
+            &(m, n, p),
             |b, &(m, n, p)| {
                 let mut cpu = CPUBackend::new();
 
@@ -137,11 +139,13 @@ fn benchmark_matmul(c: &mut Criterion) {
                 b.iter(|| {
                     cpu.matmul(&buf_a, &buf_b, &buf_result, m, n, p).unwrap();
                 });
-            }
+            },
         );
 
         // GPU Benchmark
-        group.bench_with_input(BenchmarkId::new("gpu", &size_str), &(m, n, p),
+        group.bench_with_input(
+            BenchmarkId::new("gpu", &size_str),
+            &(m, n, p),
             |b, &(m, n, p)| {
                 let mut gpu = WgpuBackend::new_sync().unwrap();
 
@@ -159,7 +163,7 @@ fn benchmark_matmul(c: &mut Criterion) {
                     gpu.matmul(&buf_a, &buf_b, &buf_result, m, n, p).unwrap();
                     gpu.synchronize().unwrap();
                 });
-            }
+            },
         );
     }
 

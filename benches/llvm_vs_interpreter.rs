@@ -35,30 +35,32 @@ fn benchmark_add(c: &mut Criterion) {
         let b: Vec<f32> = (0..*size).map(|i| (i * 2) as f32).collect();
 
         // Benchmark interpreter
-        group.bench_with_input(BenchmarkId::new("interpreter", size), size, |bencher, &size| {
-            let mut output = vec![0.0f32; size];
-            bencher.iter(|| {
-                interpreter_add(
-                    black_box(&a),
-                    black_box(&b),
-                    black_box(&mut output),
-                );
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("interpreter", size),
+            size,
+            |bencher, &size| {
+                let mut output = vec![0.0f32; size];
+                bencher.iter(|| {
+                    interpreter_add(black_box(&a), black_box(&b), black_box(&mut output));
+                });
+            },
+        );
 
         // Benchmark LLVM JIT
-        group.bench_with_input(BenchmarkId::new("llvm_jit", size), size, |bencher, &size| {
-            // Setup JIT (done once)
-            let context = Context::create();
-            let codegen = LLVMCodegen::new(&context, "bench_add");
-            codegen.gen_element_wise_add();
-            codegen.verify().unwrap();
-            let jit = JITEngine::new(codegen.module()).unwrap();
+        group.bench_with_input(
+            BenchmarkId::new("llvm_jit", size),
+            size,
+            |bencher, &size| {
+                // Setup JIT (done once)
+                let context = Context::create();
+                let codegen = LLVMCodegen::new(&context, "bench_add");
+                codegen.gen_element_wise_add();
+                codegen.verify().unwrap();
+                let jit = JITEngine::new(codegen.module()).unwrap();
 
-            let mut output = vec![0.0f32; size];
+                let mut output = vec![0.0f32; size];
 
-            bencher.iter(|| {
-                unsafe {
+                bencher.iter(|| unsafe {
                     jit.execute_tensor_add(
                         black_box(a.as_ptr()),
                         black_box(b.as_ptr()),
@@ -66,9 +68,9 @@ fn benchmark_add(c: &mut Criterion) {
                         size,
                     )
                     .unwrap();
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     group.finish();
@@ -83,29 +85,31 @@ fn benchmark_mul(c: &mut Criterion) {
         let b: Vec<f32> = (0..*size).map(|i| (i * 2) as f32).collect();
 
         // Interpreter
-        group.bench_with_input(BenchmarkId::new("interpreter", size), size, |bencher, &size| {
-            let mut output = vec![0.0f32; size];
-            bencher.iter(|| {
-                interpreter_mul(
-                    black_box(&a),
-                    black_box(&b),
-                    black_box(&mut output),
-                );
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("interpreter", size),
+            size,
+            |bencher, &size| {
+                let mut output = vec![0.0f32; size];
+                bencher.iter(|| {
+                    interpreter_mul(black_box(&a), black_box(&b), black_box(&mut output));
+                });
+            },
+        );
 
         // LLVM JIT
-        group.bench_with_input(BenchmarkId::new("llvm_jit", size), size, |bencher, &size| {
-            let context = Context::create();
-            let codegen = LLVMCodegen::new(&context, "bench_mul");
-            codegen.gen_element_wise_mul();
-            codegen.verify().unwrap();
-            let jit = JITEngine::new(codegen.module()).unwrap();
+        group.bench_with_input(
+            BenchmarkId::new("llvm_jit", size),
+            size,
+            |bencher, &size| {
+                let context = Context::create();
+                let codegen = LLVMCodegen::new(&context, "bench_mul");
+                codegen.gen_element_wise_mul();
+                codegen.verify().unwrap();
+                let jit = JITEngine::new(codegen.module()).unwrap();
 
-            let mut output = vec![0.0f32; size];
+                let mut output = vec![0.0f32; size];
 
-            bencher.iter(|| {
-                unsafe {
+                bencher.iter(|| unsafe {
                     jit.execute_tensor_mul(
                         black_box(a.as_ptr()),
                         black_box(b.as_ptr()),
@@ -113,9 +117,9 @@ fn benchmark_mul(c: &mut Criterion) {
                         size,
                     )
                     .unwrap();
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     group.finish();

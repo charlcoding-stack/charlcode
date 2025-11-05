@@ -214,9 +214,7 @@ impl ComputeBackend for CPUBackend {
 
         for i in 0..size {
             if b_data[i] == 0.0 {
-                return Err(BackendError::ComputeFailed(
-                    "Division by zero".to_string(),
-                ));
+                return Err(BackendError::ComputeFailed("Division by zero".to_string()));
             }
             result_data[i] = a_data[i] / b_data[i];
         }
@@ -428,12 +426,8 @@ mod tests {
         let b = backend.allocate(4).unwrap();
         let result = backend.allocate(4).unwrap();
 
-        backend
-            .copy_to_device(&[1.0, 2.0, 3.0, 4.0], &a)
-            .unwrap();
-        backend
-            .copy_to_device(&[5.0, 6.0, 7.0, 8.0], &b)
-            .unwrap();
+        backend.copy_to_device(&[1.0, 2.0, 3.0, 4.0], &a).unwrap();
+        backend.copy_to_device(&[5.0, 6.0, 7.0, 8.0], &b).unwrap();
 
         backend.add(&a, &b, &result, 4).unwrap();
 

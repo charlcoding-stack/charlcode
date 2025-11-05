@@ -17,15 +17,15 @@ fn next_id() -> usize {
 // Operation types in the computational graph
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
-    Leaf,                           // Leaf node (input/constant)
-    Add(usize, usize),              // Addition
-    Sub(usize, usize),              // Subtraction
-    Mul(usize, usize),              // Multiplication
-    Div(usize, usize),              // Division
-    Neg(usize),                     // Negation
-    Pow(usize, f64),                // Power (x^n)
-    Sum(usize),                     // Sum all elements
-    MatMul(usize, usize),           // Matrix multiplication
+    Leaf,                 // Leaf node (input/constant)
+    Add(usize, usize),    // Addition
+    Sub(usize, usize),    // Subtraction
+    Mul(usize, usize),    // Multiplication
+    Div(usize, usize),    // Division
+    Neg(usize),           // Negation
+    Pow(usize, f64),      // Power (x^n)
+    Sum(usize),           // Sum all elements
+    MatMul(usize, usize), // Matrix multiplication
 }
 
 // Tensor data structure for autograd
@@ -94,7 +94,10 @@ impl Tensor {
         if self.data.len() == 1 {
             Ok(self.data[0])
         } else {
-            Err(format!("item() only works on 1-element tensors, got {} elements", self.data.len()))
+            Err(format!(
+                "item() only works on 1-element tensors, got {} elements",
+                self.data.len()
+            ))
         }
     }
 }
@@ -102,6 +105,12 @@ impl Tensor {
 // Computational graph for tracking operations
 pub struct ComputationGraph {
     nodes: HashMap<usize, Tensor>,
+}
+
+impl Default for ComputationGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ComputationGraph {
@@ -130,7 +139,8 @@ impl ComputationGraph {
 
     // Perform backward pass from a given node
     pub fn backward(&mut self, output_id: usize) -> Result<(), String> {
-        let output = self.get_node(output_id)
+        let output = self
+            .get_node(output_id)
             .ok_or_else(|| "Output node not found in graph".to_string())?;
 
         // Initialize gradient of output to 1.0 (for scalar) or ones (for tensor)
@@ -154,7 +164,10 @@ impl ComputationGraph {
                 continue;
             }
 
-            let node_grad = node.grad.clone().unwrap_or_else(|| vec![0.0; node.data.len()]);
+            let node_grad = node
+                .grad
+                .clone()
+                .unwrap_or_else(|| vec![0.0; node.data.len()]);
 
             match &node.op {
                 Op::Leaf => {
@@ -218,7 +231,8 @@ impl ComputationGraph {
 
         temp_mark.insert(node_id, true);
 
-        let node = self.get_node(node_id)
+        let node = self
+            .get_node(node_id)
             .ok_or_else(|| format!("Node {} not found", node_id))?;
 
         // Visit dependencies based on operation
@@ -242,7 +256,12 @@ impl ComputationGraph {
 
     // Backward pass implementations for each operation
 
-    fn backward_add(&mut self, left_id: usize, right_id: usize, grad: &[f64]) -> Result<(), String> {
+    fn backward_add(
+        &mut self,
+        left_id: usize,
+        right_id: usize,
+        grad: &[f64],
+    ) -> Result<(), String> {
         // d(a+b)/da = 1, d(a+b)/db = 1
         if let Some(left) = self.get_node_mut(left_id) {
             if left.requires_grad {
@@ -267,7 +286,12 @@ impl ComputationGraph {
         Ok(())
     }
 
-    fn backward_sub(&mut self, left_id: usize, right_id: usize, grad: &[f64]) -> Result<(), String> {
+    fn backward_sub(
+        &mut self,
+        left_id: usize,
+        right_id: usize,
+        grad: &[f64],
+    ) -> Result<(), String> {
         // d(a-b)/da = 1, d(a-b)/db = -1
         if let Some(left) = self.get_node_mut(left_id) {
             if left.requires_grad {
@@ -292,7 +316,12 @@ impl ComputationGraph {
         Ok(())
     }
 
-    fn backward_mul(&mut self, left_id: usize, right_id: usize, grad: &[f64]) -> Result<(), String> {
+    fn backward_mul(
+        &mut self,
+        left_id: usize,
+        right_id: usize,
+        grad: &[f64],
+    ) -> Result<(), String> {
         // d(a*b)/da = b, d(a*b)/db = a
         let left_data = self.get_node(left_id).unwrap().data.clone();
         let right_data = self.get_node(right_id).unwrap().data.clone();
@@ -320,7 +349,12 @@ impl ComputationGraph {
         Ok(())
     }
 
-    fn backward_div(&mut self, left_id: usize, right_id: usize, grad: &[f64]) -> Result<(), String> {
+    fn backward_div(
+        &mut self,
+        left_id: usize,
+        right_id: usize,
+        grad: &[f64],
+    ) -> Result<(), String> {
         // d(a/b)/da = 1/b, d(a/b)/db = -a/b^2
         let left_data = self.get_node(left_id).unwrap().data.clone();
         let right_data = self.get_node(right_id).unwrap().data.clone();
@@ -399,7 +433,12 @@ impl ComputationGraph {
         Ok(())
     }
 
-    fn backward_matmul(&mut self, _left_id: usize, _right_id: usize, _grad: &[f64]) -> Result<(), String> {
+    fn backward_matmul(
+        &mut self,
+        _left_id: usize,
+        _right_id: usize,
+        _grad: &[f64],
+    ) -> Result<(), String> {
         // TODO: Implement matrix multiplication gradient
         // This is complex and will be implemented in a later phase
         Err("Matrix multiplication gradients not yet implemented".to_string())
@@ -413,7 +452,12 @@ pub fn add(graph: &mut ComputationGraph, a: &Tensor, b: &Tensor) -> Result<Tenso
         return Err(format!("Shape mismatch: {:?} vs {:?}", a.shape, b.shape));
     }
 
-    let data: Vec<f64> = a.data.iter().zip(b.data.iter()).map(|(x, y)| x + y).collect();
+    let data: Vec<f64> = a
+        .data
+        .iter()
+        .zip(b.data.iter())
+        .map(|(x, y)| x + y)
+        .collect();
     let requires_grad = a.requires_grad || b.requires_grad;
 
     let mut result = Tensor::new(data, a.shape.clone());
@@ -432,7 +476,12 @@ pub fn sub(graph: &mut ComputationGraph, a: &Tensor, b: &Tensor) -> Result<Tenso
         return Err(format!("Shape mismatch: {:?} vs {:?}", a.shape, b.shape));
     }
 
-    let data: Vec<f64> = a.data.iter().zip(b.data.iter()).map(|(x, y)| x - y).collect();
+    let data: Vec<f64> = a
+        .data
+        .iter()
+        .zip(b.data.iter())
+        .map(|(x, y)| x - y)
+        .collect();
     let requires_grad = a.requires_grad || b.requires_grad;
 
     let mut result = Tensor::new(data, a.shape.clone());
@@ -451,7 +500,12 @@ pub fn mul(graph: &mut ComputationGraph, a: &Tensor, b: &Tensor) -> Result<Tenso
         return Err(format!("Shape mismatch: {:?} vs {:?}", a.shape, b.shape));
     }
 
-    let data: Vec<f64> = a.data.iter().zip(b.data.iter()).map(|(x, y)| x * y).collect();
+    let data: Vec<f64> = a
+        .data
+        .iter()
+        .zip(b.data.iter())
+        .map(|(x, y)| x * y)
+        .collect();
     let requires_grad = a.requires_grad || b.requires_grad;
 
     let mut result = Tensor::new(data, a.shape.clone());
@@ -477,7 +531,12 @@ pub fn div(graph: &mut ComputationGraph, a: &Tensor, b: &Tensor) -> Result<Tenso
         }
     }
 
-    let data: Vec<f64> = a.data.iter().zip(b.data.iter()).map(|(x, y)| x / y).collect();
+    let data: Vec<f64> = a
+        .data
+        .iter()
+        .zip(b.data.iter())
+        .map(|(x, y)| x / y)
+        .collect();
     let requires_grad = a.requires_grad || b.requires_grad;
 
     let mut result = Tensor::new(data, a.shape.clone());

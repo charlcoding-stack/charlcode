@@ -2,14 +2,11 @@
 // Phase 8: Cross-platform GPU compute via WebGPU
 // Target: 100-500x speedup vs CPU
 
-use super::{ComputeBackend, DeviceType, TensorBuffer, BackendError};
-use std::collections::HashMap;
-use wgpu::{
-    Adapter, Device, Queue, Buffer, BufferUsages,
-    ComputePipeline
-};
-use wgpu::util::DeviceExt;
+use super::{BackendError, ComputeBackend, DeviceType, TensorBuffer};
 use bytemuck;
+use std::collections::HashMap;
+use wgpu::util::DeviceExt;
+use wgpu::{Adapter, Buffer, BufferUsages, ComputePipeline, Device, Queue};
 
 /// wgpu GPU Backend
 ///
@@ -41,13 +38,20 @@ impl WgpuBackend {
             "vector_mul" => include_str!("shaders/vector_mul.wgsl"),
             "matmul" => include_str!("shaders/matmul.wgsl"),
             "relu" => include_str!("shaders/relu.wgsl"),
-            _ => return Err(BackendError::ComputeFailed(format!("Unknown shader: {}", shader_name))),
+            _ => {
+                return Err(BackendError::ComputeFailed(format!(
+                    "Unknown shader: {}",
+                    shader_name
+                )))
+            }
         };
 
-        Ok(self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(shader_name),
-            source: wgpu::ShaderSource::Wgsl(shader_source.into()),
-        }))
+        Ok(self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(shader_name),
+                source: wgpu::ShaderSource::Wgsl(shader_source.into()),
+            }))
     }
 
     /// Get or create a compute pipeline for a shader
@@ -63,9 +67,10 @@ impl WgpuBackend {
 
         // Create bind group layout based on shader type
         let bind_group_layout = match shader_name {
-                "vector_add" | "vector_mul" => {
-                    // 3 storage buffers: input_a, input_b, output
-                    self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            "vector_add" | "vector_mul" => {
+                // 3 storage buffers: input_a, input_b, output
+                self.device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                         label: Some(&format!("{}_bind_group_layout", shader_name)),
                         entries: &[
                             wgpu::BindGroupLayoutEntry {
@@ -100,10 +105,11 @@ impl WgpuBackend {
                             },
                         ],
                     })
-                }
-                "relu" => {
-                    // 2 storage buffers: input, output
-                    self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            }
+            "relu" => {
+                // 2 storage buffers: input, output
+                self.device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                         label: Some("relu_bind_group_layout"),
                         entries: &[
                             wgpu::BindGroupLayoutEntry {
@@ -128,10 +134,11 @@ impl WgpuBackend {
                             },
                         ],
                     })
-                }
-                "matmul" => {
-                    // 3 storage buffers + 1 uniform buffer for dimensions
-                    self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            }
+            "matmul" => {
+                // 3 storage buffers + 1 uniform buffer for dimensions
+                self.device
+                    .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                         label: Some("matmul_bind_group_layout"),
                         entries: &[
                             wgpu::BindGroupLayoutEntry {
@@ -176,19 +183,23 @@ impl WgpuBackend {
                             },
                         ],
                     })
-                }
-                _ => return Err(BackendError::ComputeFailed("Unknown shader".to_string())),
-            };
+            }
+            _ => return Err(BackendError::ComputeFailed("Unknown shader".to_string())),
+        };
 
-            // Create pipeline layout
-            let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        // Create pipeline layout
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some(&format!("{}_pipeline_layout", shader_name)),
                 bind_group_layouts: &[&bind_group_layout],
                 push_constant_ranges: &[],
             });
 
-            // Create compute pipeline
-            let pipeline = self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+        // Create compute pipeline
+        let pipeline = self
+            .device
+            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some(&format!("{}_pipeline", shader_name)),
                 layout: Some(&pipeline_layout),
                 module: &shader,
@@ -218,7 +229,7 @@ impl WgpuBackend {
             })
             .await
             .ok_or(BackendError::DeviceNotAvailable(
-                "No compatible GPU found".to_string()
+                "No compatible GPU found".to_string(),
             ))?;
 
         // Get device limits and features
@@ -277,11 +288,12 @@ impl WgpuBackend {
     fn create_staging_buffer(&self, data: &[f32]) -> Buffer {
         let byte_data = bytemuck::cast_slice(data);
 
-        self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Staging Buffer"),
-            contents: byte_data,
-            usage: BufferUsages::COPY_SRC,
-        })
+        self.device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Staging Buffer"),
+                contents: byte_data,
+                usage: BufferUsages::COPY_SRC,
+            })
     }
 
     /// Read buffer from GPU to CPU
@@ -293,9 +305,11 @@ impl WgpuBackend {
         );
 
         // Copy GPU buffer to staging buffer
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Read Buffer Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Read Buffer Encoder"),
+            });
 
         encoder.copy_buffer_to_buffer(
             buffer,
@@ -317,10 +331,12 @@ impl WgpuBackend {
 
         self.device.poll(wgpu::Maintain::Wait);
 
-        let mapping_result = receiver.receive().await
-            .ok_or(BackendError::MemoryError("Buffer mapping failed".to_string()))?;
+        let mapping_result = receiver.receive().await.ok_or(BackendError::MemoryError(
+            "Buffer mapping failed".to_string(),
+        ))?;
 
-        mapping_result.map_err(|e| BackendError::MemoryError(format!("Buffer map error: {:?}", e)))?;
+        mapping_result
+            .map_err(|e| BackendError::MemoryError(format!("Buffer map error: {:?}", e)))?;
 
         // Read data
         let data = buffer_slice.get_mapped_range();
@@ -378,7 +394,9 @@ impl ComputeBackend for WgpuBackend {
     }
 
     fn copy_to_device(&mut self, data: &[f32], buffer: &TensorBuffer) -> Result<(), BackendError> {
-        let gpu_buffer = self.buffers.get(&buffer.id)
+        let gpu_buffer = self
+            .buffers
+            .get(&buffer.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Write data directly to GPU buffer
@@ -388,8 +406,14 @@ impl ComputeBackend for WgpuBackend {
         Ok(())
     }
 
-    fn copy_from_device(&mut self, buffer: &TensorBuffer, data: &mut [f32]) -> Result<(), BackendError> {
-        let gpu_buffer = self.buffers.get(&buffer.id)
+    fn copy_from_device(
+        &mut self,
+        buffer: &TensorBuffer,
+        data: &mut [f32],
+    ) -> Result<(), BackendError> {
+        let gpu_buffer = self
+            .buffers
+            .get(&buffer.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Read buffer from GPU (requires async, using pollster for sync API)
@@ -406,16 +430,22 @@ impl ComputeBackend for WgpuBackend {
     // TODO: Implement compute operations (add, mul, matmul, etc.)
     // These will use compute shaders (WGSL)
 
-    fn add(&mut self, a: &TensorBuffer, b: &TensorBuffer, result: &TensorBuffer, size: usize) -> Result<(), BackendError> {
+    fn add(
+        &mut self,
+        a: &TensorBuffer,
+        b: &TensorBuffer,
+        result: &TensorBuffer,
+        size: usize,
+    ) -> Result<(), BackendError> {
         // Ensure pipeline exists
         self.ensure_pipeline_exists("vector_add")?;
 
         // Get GPU buffers
-        let buffer_a = self.buffers.get(&a.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_b = self.buffers.get(&b.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_result = self.buffers.get(&result.id)
+        let buffer_a = self.buffers.get(&a.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_b = self.buffers.get(&b.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_result = self
+            .buffers
+            .get(&result.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Get pipeline (we know it exists now)
@@ -442,9 +472,11 @@ impl ComputeBackend for WgpuBackend {
         });
 
         // Create command encoder
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("vector_add_encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("vector_add_encoder"),
+            });
 
         // Dispatch compute shader
         {
@@ -457,7 +489,7 @@ impl ComputeBackend for WgpuBackend {
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
             // Dispatch workgroups: ceil(size / 256)
-            let workgroups = (size + 255) / 256;
+            let workgroups = size.div_ceil(256);
             compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
         }
 
@@ -467,16 +499,22 @@ impl ComputeBackend for WgpuBackend {
         Ok(())
     }
 
-    fn mul(&mut self, a: &TensorBuffer, b: &TensorBuffer, result: &TensorBuffer, size: usize) -> Result<(), BackendError> {
+    fn mul(
+        &mut self,
+        a: &TensorBuffer,
+        b: &TensorBuffer,
+        result: &TensorBuffer,
+        size: usize,
+    ) -> Result<(), BackendError> {
         // Ensure pipeline exists
         self.ensure_pipeline_exists("vector_mul")?;
 
         // Get GPU buffers
-        let buffer_a = self.buffers.get(&a.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_b = self.buffers.get(&b.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_result = self.buffers.get(&result.id)
+        let buffer_a = self.buffers.get(&a.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_b = self.buffers.get(&b.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_result = self
+            .buffers
+            .get(&result.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Get pipeline
@@ -503,9 +541,11 @@ impl ComputeBackend for WgpuBackend {
         });
 
         // Create command encoder and dispatch
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("vector_mul_encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("vector_mul_encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -516,7 +556,7 @@ impl ComputeBackend for WgpuBackend {
             compute_pass.set_pipeline(pipeline);
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
-            let workgroups = (size + 255) / 256;
+            let workgroups = size.div_ceil(256);
             compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
         }
 
@@ -524,24 +564,48 @@ impl ComputeBackend for WgpuBackend {
         Ok(())
     }
 
-    fn sub(&mut self, _a: &TensorBuffer, _b: &TensorBuffer, _result: &TensorBuffer, _size: usize) -> Result<(), BackendError> {
-        Err(BackendError::NotImplemented("sub not yet implemented".to_string()))
+    fn sub(
+        &mut self,
+        _a: &TensorBuffer,
+        _b: &TensorBuffer,
+        _result: &TensorBuffer,
+        _size: usize,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::NotImplemented(
+            "sub not yet implemented".to_string(),
+        ))
     }
 
-    fn div(&mut self, _a: &TensorBuffer, _b: &TensorBuffer, _result: &TensorBuffer, _size: usize) -> Result<(), BackendError> {
-        Err(BackendError::NotImplemented("div not yet implemented".to_string()))
+    fn div(
+        &mut self,
+        _a: &TensorBuffer,
+        _b: &TensorBuffer,
+        _result: &TensorBuffer,
+        _size: usize,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::NotImplemented(
+            "div not yet implemented".to_string(),
+        ))
     }
 
-    fn matmul(&mut self, a: &TensorBuffer, b: &TensorBuffer, result: &TensorBuffer, m: usize, n: usize, p: usize) -> Result<(), BackendError> {
+    fn matmul(
+        &mut self,
+        a: &TensorBuffer,
+        b: &TensorBuffer,
+        result: &TensorBuffer,
+        m: usize,
+        n: usize,
+        p: usize,
+    ) -> Result<(), BackendError> {
         // Ensure pipeline exists
         self.ensure_pipeline_exists("matmul")?;
 
         // Get GPU buffers
-        let buffer_a = self.buffers.get(&a.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_b = self.buffers.get(&b.id)
-            .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_result = self.buffers.get(&result.id)
+        let buffer_a = self.buffers.get(&a.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_b = self.buffers.get(&b.id).ok_or(BackendError::InvalidBuffer)?;
+        let buffer_result = self
+            .buffers
+            .get(&result.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Get pipeline
@@ -549,11 +613,13 @@ impl ComputeBackend for WgpuBackend {
 
         // Create uniform buffer for dimensions (M, N, P)
         let dims_data = [m as u32, n as u32, p as u32];
-        let dims_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("matmul_dims"),
-            contents: bytemuck::cast_slice(&dims_data),
-            usage: BufferUsages::UNIFORM,
-        });
+        let dims_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("matmul_dims"),
+                contents: bytemuck::cast_slice(&dims_data),
+                usage: BufferUsages::UNIFORM,
+            });
 
         // Create bind group
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -580,9 +646,11 @@ impl ComputeBackend for WgpuBackend {
         });
 
         // Create command encoder and dispatch
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("matmul_encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("matmul_encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -594,8 +662,8 @@ impl ComputeBackend for WgpuBackend {
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
             // Dispatch 16x16 workgroups to cover MxP output matrix
-            let workgroups_x = (m + 15) / 16;
-            let workgroups_y = (p + 15) / 16;
+            let workgroups_x = m.div_ceil(16);
+            let workgroups_y = p.div_ceil(16);
             compute_pass.dispatch_workgroups(workgroups_x as u32, workgroups_y as u32, 1);
         }
 
@@ -603,18 +671,35 @@ impl ComputeBackend for WgpuBackend {
         Ok(())
     }
 
-    fn transpose(&mut self, _input: &TensorBuffer, _output: &TensorBuffer, _rows: usize, _cols: usize) -> Result<(), BackendError> {
-        Err(BackendError::NotImplemented("transpose not yet implemented".to_string()))
+    fn transpose(
+        &mut self,
+        _input: &TensorBuffer,
+        _output: &TensorBuffer,
+        _rows: usize,
+        _cols: usize,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::NotImplemented(
+            "transpose not yet implemented".to_string(),
+        ))
     }
 
-    fn relu(&mut self, input: &TensorBuffer, output: &TensorBuffer, size: usize) -> Result<(), BackendError> {
+    fn relu(
+        &mut self,
+        input: &TensorBuffer,
+        output: &TensorBuffer,
+        size: usize,
+    ) -> Result<(), BackendError> {
         // Ensure pipeline exists
         self.ensure_pipeline_exists("relu")?;
 
         // Get GPU buffers
-        let buffer_input = self.buffers.get(&input.id)
+        let buffer_input = self
+            .buffers
+            .get(&input.id)
             .ok_or(BackendError::InvalidBuffer)?;
-        let buffer_output = self.buffers.get(&output.id)
+        let buffer_output = self
+            .buffers
+            .get(&output.id)
             .ok_or(BackendError::InvalidBuffer)?;
 
         // Get pipeline
@@ -637,9 +722,11 @@ impl ComputeBackend for WgpuBackend {
         });
 
         // Create command encoder and dispatch
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("relu_encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("relu_encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -650,7 +737,7 @@ impl ComputeBackend for WgpuBackend {
             compute_pass.set_pipeline(pipeline);
             compute_pass.set_bind_group(0, &bind_group, &[]);
 
-            let workgroups = (size + 255) / 256;
+            let workgroups = size.div_ceil(256);
             compute_pass.dispatch_workgroups(workgroups as u32, 1, 1);
         }
 
@@ -658,20 +745,38 @@ impl ComputeBackend for WgpuBackend {
         Ok(())
     }
 
-    fn sigmoid(&mut self, _input: &TensorBuffer, _output: &TensorBuffer, _size: usize) -> Result<(), BackendError> {
-        Err(BackendError::NotImplemented("sigmoid not yet implemented".to_string()))
+    fn sigmoid(
+        &mut self,
+        _input: &TensorBuffer,
+        _output: &TensorBuffer,
+        _size: usize,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::NotImplemented(
+            "sigmoid not yet implemented".to_string(),
+        ))
     }
 
-    fn tanh(&mut self, _input: &TensorBuffer, _output: &TensorBuffer, _size: usize) -> Result<(), BackendError> {
-        Err(BackendError::NotImplemented("tanh not yet implemented".to_string()))
+    fn tanh(
+        &mut self,
+        _input: &TensorBuffer,
+        _output: &TensorBuffer,
+        _size: usize,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::NotImplemented(
+            "tanh not yet implemented".to_string(),
+        ))
     }
 
     fn sum(&mut self, _input: &TensorBuffer, _size: usize) -> Result<f32, BackendError> {
-        Err(BackendError::NotImplemented("sum not yet implemented".to_string()))
+        Err(BackendError::NotImplemented(
+            "sum not yet implemented".to_string(),
+        ))
     }
 
     fn max(&mut self, _input: &TensorBuffer, _size: usize) -> Result<f32, BackendError> {
-        Err(BackendError::NotImplemented("max not yet implemented".to_string()))
+        Err(BackendError::NotImplemented(
+            "max not yet implemented".to_string(),
+        ))
     }
 
     fn synchronize(&mut self) -> Result<(), BackendError> {
@@ -762,7 +867,11 @@ mod tests {
 
             // Verify
             for i in 0..1024 {
-                assert!((result[i] - 3.0).abs() < 0.001, "Expected 3.0, got {}", result[i]);
+                assert!(
+                    (result[i] - 3.0).abs() < 0.001,
+                    "Expected 3.0, got {}",
+                    result[i]
+                );
             }
 
             println!("✅ GPU vector addition works correctly!");
@@ -795,7 +904,11 @@ mod tests {
             backend.copy_from_device(&buf_result, &mut result).unwrap();
 
             for i in 0..512 {
-                assert!((result[i] - 6.0).abs() < 0.001, "Expected 6.0, got {}", result[i]);
+                assert!(
+                    (result[i] - 6.0).abs() < 0.001,
+                    "Expected 6.0, got {}",
+                    result[i]
+                );
             }
 
             println!("✅ GPU vector multiplication works correctly!");
@@ -819,24 +932,17 @@ mod tests {
             let buf_result = backend.allocate(m * p).unwrap();
 
             // Matrix A: [[1,2,3], [1,2,3], [1,2,3], [1,2,3]]
-            let data_a = vec![
-                1.0, 2.0, 3.0,
-                1.0, 2.0, 3.0,
-                1.0, 2.0, 3.0,
-                1.0, 2.0, 3.0,
-            ];
+            let data_a = vec![1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0];
 
             // Matrix B: [[1,2], [1,2], [1,2]]
-            let data_b = vec![
-                1.0, 2.0,
-                1.0, 2.0,
-                1.0, 2.0,
-            ];
+            let data_b = vec![1.0, 2.0, 1.0, 2.0, 1.0, 2.0];
 
             backend.copy_to_device(&data_a, &buf_a).unwrap();
             backend.copy_to_device(&data_b, &buf_b).unwrap();
 
-            backend.matmul(&buf_a, &buf_b, &buf_result, m, n, p).unwrap();
+            backend
+                .matmul(&buf_a, &buf_b, &buf_result, m, n, p)
+                .unwrap();
             backend.synchronize().unwrap();
 
             let mut result = vec![0.0; m * p];
@@ -847,8 +953,13 @@ mod tests {
             let expected = vec![6.0, 12.0, 6.0, 12.0, 6.0, 12.0, 6.0, 12.0];
 
             for i in 0..result.len() {
-                assert!((result[i] - expected[i]).abs() < 0.001,
-                    "At index {}: expected {}, got {}", i, expected[i], result[i]);
+                assert!(
+                    (result[i] - expected[i]).abs() < 0.001,
+                    "At index {}: expected {}, got {}",
+                    i,
+                    expected[i],
+                    result[i]
+                );
             }
 
             println!("✅ GPU matrix multiplication works correctly!");
@@ -880,8 +991,13 @@ mod tests {
             let expected = vec![0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 10.0];
 
             for i in 0..result.len() {
-                assert!((result[i] - expected[i]).abs() < 0.001,
-                    "At index {}: expected {}, got {}", i, expected[i], result[i]);
+                assert!(
+                    (result[i] - expected[i]).abs() < 0.001,
+                    "At index {}: expected {}, got {}",
+                    i,
+                    expected[i],
+                    result[i]
+                );
             }
 
             println!("✅ GPU ReLU activation works correctly!");

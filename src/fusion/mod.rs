@@ -8,14 +8,14 @@
 //
 // Expected speedup: 2-4x for chains of element-wise operations
 
-pub mod patterns;
 pub mod optimizer;
+pub mod patterns;
 
 #[cfg(feature = "llvm")]
 pub mod llvm_fusion;
 
-pub use patterns::{FusionPattern, FusionOpportunity};
 pub use optimizer::FusionOptimizer;
+pub use patterns::{FusionOpportunity, FusionPattern};
 
 /// Types of fusion opportunities
 #[derive(Debug, Clone, PartialEq)]

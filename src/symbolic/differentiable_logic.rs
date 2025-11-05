@@ -188,18 +188,12 @@ impl FuzzyLogic {
 
     /// Fuzzy EQUIVALENT: p ↔ q = (p → q) ∧ (q → p)
     pub fn equivalent(p: FuzzyValue, q: FuzzyValue) -> FuzzyValue {
-        Self::and(
-            Self::implies(p, q),
-            Self::implies(q, p),
-        )
+        Self::and(Self::implies(p, q), Self::implies(q, p))
     }
 
     /// Fuzzy XOR: p ⊕ q = (p ∨ q) ∧ ¬(p ∧ q)
     pub fn xor(p: FuzzyValue, q: FuzzyValue) -> FuzzyValue {
-        Self::and(
-            Self::or(p, q),
-            Self::not(Self::and(p, q)),
-        )
+        Self::and(Self::or(p, q), Self::not(Self::and(p, q)))
     }
 }
 
@@ -392,7 +386,7 @@ impl ProbabilisticTruth {
     pub fn uncertain() -> Self {
         ProbabilisticTruth {
             mean: 0.5,
-            variance: 0.25,  // Maximum variance at p=0.5
+            variance: 0.25, // Maximum variance at p=0.5
             confidence: 0.0,
         }
     }
@@ -427,19 +421,21 @@ impl ProbabilisticTruth {
 
     /// 95% confidence interval
     pub fn confidence_interval_95(&self) -> (f64, f64) {
-        let z = 1.96;  // 95% confidence
+        let z = 1.96; // 95% confidence
         let margin = z * self.std_dev();
-        (
-            (self.mean - margin).max(0.0),
-            (self.mean + margin).min(1.0),
-        )
+        ((self.mean - margin).max(0.0), (self.mean + margin).min(1.0))
     }
 }
 
 impl fmt::Display for ProbabilisticTruth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:.3} ± {:.3} (n={:.0})",
-            self.mean, self.std_dev(), self.confidence)
+        write!(
+            f,
+            "{:.3} ± {:.3} (n={:.0})",
+            self.mean,
+            self.std_dev(),
+            self.confidence
+        )
     }
 }
 

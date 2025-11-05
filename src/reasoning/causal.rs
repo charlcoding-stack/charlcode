@@ -98,7 +98,7 @@ impl CausalGraph {
 
         // Check for cycles (simplified - just check direct reverse edge)
         if self.has_edge(&edge.effect, &edge.cause) {
-            return Err(format!("Adding edge would create cycle"));
+            return Err("Adding edge would create cycle".to_string());
         }
 
         self.edges.push(edge);
@@ -380,7 +380,9 @@ mod tests {
         graph.add_variable(Variable::new("study"));
         graph.add_variable(Variable::new("grade"));
 
-        graph.add_edge(CausalEdge::new("study", "grade", 0.7)).unwrap();
+        graph
+            .add_edge(CausalEdge::new("study", "grade", 0.7))
+            .unwrap();
 
         assert!(graph.causes("study", "grade"));
         assert!(!graph.causes("grade", "study"));

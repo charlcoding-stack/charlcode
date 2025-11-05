@@ -1,7 +1,7 @@
 // End-to-end GPU integration tests
 // Demonstrates real Deep Learning workflows with GPU acceleration
 
-use charl::gpu_tensor::{GPUTensor, GPUOps};
+use charl::gpu_tensor::{GPUOps, GPUTensor};
 
 #[test]
 fn test_simple_neural_network_forward_pass_gpu() {
@@ -12,9 +12,9 @@ fn test_simple_neural_network_forward_pass_gpu() {
 
     // Layer 1: Weights (3x4) and input (4x1) -> hidden (3x1)
     let weights1_data = vec![
-        0.1, 0.2, 0.3, 0.4,  // neuron 1
-        0.5, 0.6, 0.7, 0.8,  // neuron 2
-        0.9, 1.0, 1.1, 1.2,  // neuron 3
+        0.1, 0.2, 0.3, 0.4, // neuron 1
+        0.5, 0.6, 0.7, 0.8, // neuron 2
+        0.9, 1.0, 1.1, 1.2, // neuron 3
     ];
     let mut weights1 = GPUTensor::new(weights1_data, vec![3, 4]);
 
@@ -23,44 +23,57 @@ fn test_simple_neural_network_forward_pass_gpu() {
 
     // Layer 2: Weights (2x3)
     let weights2_data = vec![
-        0.1, 0.2, 0.3,  // output neuron 1
-        0.4, 0.5, 0.6,  // output neuron 2
+        0.1, 0.2, 0.3, // output neuron 1
+        0.4, 0.5, 0.6, // output neuron 2
     ];
     let mut weights2 = GPUTensor::new(weights2_data, vec![2, 3]);
 
     println!("🚀 Starting GPU forward pass...");
 
     // Move all tensors to GPU
-    weights1.to_gpu(gpu_ops.backend()).expect("Failed to move weights1 to GPU");
-    input.to_gpu(gpu_ops.backend()).expect("Failed to move input to GPU");
-    weights2.to_gpu(gpu_ops.backend()).expect("Failed to move weights2 to GPU");
+    weights1
+        .to_gpu(gpu_ops.backend())
+        .expect("Failed to move weights1 to GPU");
+    input
+        .to_gpu(gpu_ops.backend())
+        .expect("Failed to move input to GPU");
+    weights2
+        .to_gpu(gpu_ops.backend())
+        .expect("Failed to move weights2 to GPU");
 
     println!("✅ All tensors on GPU");
 
     // Forward pass Layer 1: hidden = W1 @ input
     // (3x4) @ (4x1) = (3x1)
-    let mut hidden = gpu_ops.matmul(&weights1, &input)
+    let mut hidden = gpu_ops
+        .matmul(&weights1, &input)
         .expect("Failed to compute Layer 1");
 
     println!("✅ Layer 1 matmul complete");
 
     // Apply ReLU activation
-    let mut hidden_relu = gpu_ops.relu(&hidden)
-        .expect("Failed to apply ReLU");
+    let mut hidden_relu = gpu_ops.relu(&hidden).expect("Failed to apply ReLU");
 
     println!("✅ ReLU activation complete");
 
     // Forward pass Layer 2: output = W2 @ hidden_relu
     // (2x3) @ (3x1) = (2x1)
-    let mut output = gpu_ops.matmul(&weights2, &hidden_relu)
+    let mut output = gpu_ops
+        .matmul(&weights2, &hidden_relu)
         .expect("Failed to compute Layer 2");
 
     println!("✅ Layer 2 matmul complete");
 
     // Move results back to CPU for verification
-    hidden.to_cpu(gpu_ops.backend()).expect("Failed to move hidden to CPU");
-    hidden_relu.to_cpu(gpu_ops.backend()).expect("Failed to move hidden_relu to CPU");
-    output.to_cpu(gpu_ops.backend()).expect("Failed to move output to CPU");
+    hidden
+        .to_cpu(gpu_ops.backend())
+        .expect("Failed to move hidden to CPU");
+    hidden_relu
+        .to_cpu(gpu_ops.backend())
+        .expect("Failed to move hidden_relu to CPU");
+    output
+        .to_cpu(gpu_ops.backend())
+        .expect("Failed to move output to CPU");
 
     println!("✅ Results moved back to CPU");
 
@@ -77,16 +90,26 @@ fn test_simple_neural_network_forward_pass_gpu() {
     let expected_hidden = vec![3.0, 7.0, 11.0];
 
     for (i, &val) in hidden.tensor.data.iter().enumerate() {
-        assert!((val - expected_hidden[i]).abs() < 1e-4,
-                "Hidden layer mismatch at {}: {} vs {}", i, val, expected_hidden[i]);
+        assert!(
+            (val - expected_hidden[i]).abs() < 1e-4,
+            "Hidden layer mismatch at {}: {} vs {}",
+            i,
+            val,
+            expected_hidden[i]
+        );
     }
 
     println!("✅ Layer 1 output verified: {:?}", hidden.tensor.data);
 
     // Verify ReLU (should be same since all positive)
     for (i, &val) in hidden_relu.tensor.data.iter().enumerate() {
-        assert!((val - expected_hidden[i]).abs() < 1e-4,
-                "ReLU output mismatch at {}: {} vs {}", i, val, expected_hidden[i]);
+        assert!(
+            (val - expected_hidden[i]).abs() < 1e-4,
+            "ReLU output mismatch at {}: {} vs {}",
+            i,
+            val,
+            expected_hidden[i]
+        );
     }
 
     println!("✅ ReLU output verified: {:?}", hidden_relu.tensor.data);
@@ -98,8 +121,13 @@ fn test_simple_neural_network_forward_pass_gpu() {
     let expected_output = vec![5.0, 11.3];
 
     for (i, &val) in output.tensor.data.iter().enumerate() {
-        assert!((val - expected_output[i]).abs() < 1e-4,
-                "Output mismatch at {}: {} vs {}", i, val, expected_output[i]);
+        assert!(
+            (val - expected_output[i]).abs() < 1e-4,
+            "Output mismatch at {}: {} vs {}",
+            i,
+            val,
+            expected_output[i]
+        );
     }
 
     println!("✅ Layer 2 output verified: {:?}", output.tensor.data);
@@ -114,10 +142,10 @@ fn test_batch_processing_gpu() {
 
     // Batch of 4 examples, each with 8 features
     let batch_data = vec![
-        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,  // example 1
-        2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,  // example 2
+        1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, // example 1
+        2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, // example 2
         3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, // example 3
-        4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0,// example 4
+        4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, // example 4
     ];
     let mut batch = GPUTensor::new(batch_data, vec![4, 8]);
 
@@ -180,8 +208,12 @@ fn test_element_wise_operations_chain_gpu() {
 
     // Verify: (1 + 2) * 3 = 9
     for (i, &val) in result.tensor.data.iter().enumerate() {
-        assert!((val - 9.0).abs() < 1e-5,
-                "Result mismatch at {}: {}", i, val);
+        assert!(
+            (val - 9.0).abs() < 1e-5,
+            "Result mismatch at {}: {}",
+            i,
+            val
+        );
     }
 
     println!("✅ Chained operations complete: all 1000 elements = 9.0");
@@ -220,10 +252,17 @@ fn test_large_matmul_gpu() {
     // Each element should be: 0.1 * 0.2 * 128 = 2.56
     let expected = 0.1 * 0.2 * (size as f64);
     for &val in result.tensor.data.iter().take(10) {
-        assert!((val - expected).abs() < 1e-4,
-                "Result mismatch: {} vs {}", val, expected);
+        assert!(
+            (val - expected).abs() < 1e-4,
+            "Result mismatch: {} vs {}",
+            val,
+            expected
+        );
     }
 
-    println!("✅ Large matmul complete: {}x{} result verified", size, size);
+    println!(
+        "✅ Large matmul complete: {}x{} result verified",
+        size, size
+    );
     println!("🎉 Large GPU matmul SUCCESSFUL!");
 }

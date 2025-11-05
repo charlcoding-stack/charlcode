@@ -10,9 +10,9 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub enum Instruction {
     // Literals
-    LoadConst(f64),                    // Push constant onto stack
-    LoadVar(usize),                     // Load variable by register index
-    StoreVar(usize),                    // Store top of stack to variable
+    LoadConst(f64),  // Push constant onto stack
+    LoadVar(usize),  // Load variable by register index
+    StoreVar(usize), // Store top of stack to variable
 
     // Binary operations
     Add,
@@ -24,21 +24,21 @@ pub enum Instruction {
     Neg,
 
     // Array operations
-    LoadArray(usize),                   // Load array element
-    StoreArray(usize),                  // Store to array element
+    LoadArray(usize),  // Load array element
+    StoreArray(usize), // Store to array element
 
     // Control flow
-    Jump(usize),                        // Unconditional jump
-    JumpIfFalse(usize),                // Conditional jump
+    Jump(usize),        // Unconditional jump
+    JumpIfFalse(usize), // Conditional jump
 
     // Functions
-    Call(String, usize),                // Call function with N args
+    Call(String, usize), // Call function with N args
     Return,
 
     // Special optimized instructions
-    FusedMulAdd(f64),                  // x * const + stack_top (fused multiply-add)
-    VectorAdd(usize, usize),           // Optimized vector addition
-    VectorMul(usize, usize),           // Optimized vector multiplication
+    FusedMulAdd(f64),        // x * const + stack_top (fused multiply-add)
+    VectorAdd(usize, usize), // Optimized vector addition
+    VectorMul(usize, usize), // Optimized vector multiplication
 }
 
 /// Optimized bytecode module
@@ -55,6 +55,12 @@ pub struct BytecodeCompiler {
     constants: Vec<f64>,
     variables: HashMap<String, usize>,
     next_register: usize,
+}
+
+impl Default for BytecodeCompiler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BytecodeCompiler {
@@ -258,13 +264,21 @@ impl VM {
                     self.stack.push(x.mul_add(*constant, y));
                 }
 
-                _ => return Err(format!("Unimplemented instruction: {:?}", module.instructions[self.pc])),
+                _ => {
+                    return Err(format!(
+                        "Unimplemented instruction: {:?}",
+                        module.instructions[self.pc]
+                    ))
+                }
             }
 
             self.pc += 1;
         }
 
-        self.stack.last().copied().ok_or("Empty stack at end of execution".to_string())
+        self.stack
+            .last()
+            .copied()
+            .ok_or("Empty stack at end of execution".to_string())
     }
 }
 
@@ -371,7 +385,10 @@ mod tests {
         compiler.compile_expression(&expr).unwrap();
 
         assert_eq!(compiler.instructions.len(), 1);
-        assert!(matches!(compiler.instructions[0], Instruction::LoadConst(_)));
+        assert!(matches!(
+            compiler.instructions[0],
+            Instruction::LoadConst(_)
+        ));
     }
 
     #[test]

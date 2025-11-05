@@ -203,11 +203,7 @@ mod tests {
 
     #[test]
     fn test_calibrator_min_max() {
-        let mut calibrator = Calibrator::new(
-            CalibrationMethod::MinMax,
-            QuantType::INT8,
-            true,
-        );
+        let mut calibrator = Calibrator::new(CalibrationMethod::MinMax, QuantType::INT8, true);
 
         // Observe some data
         calibrator.observe(&[1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -277,11 +273,7 @@ mod tests {
 
     #[test]
     fn test_calibrator_reset() {
-        let mut calibrator = Calibrator::new(
-            CalibrationMethod::MinMax,
-            QuantType::INT8,
-            true,
-        );
+        let mut calibrator = Calibrator::new(CalibrationMethod::MinMax, QuantType::INT8, true);
 
         calibrator.observe(&[1.0, 2.0, 3.0]);
         assert_eq!(calibrator.num_samples, 3);
@@ -293,11 +285,7 @@ mod tests {
 
     #[test]
     fn test_calibrator_empty_data() {
-        let calibrator = Calibrator::new(
-            CalibrationMethod::MinMax,
-            QuantType::INT8,
-            true,
-        );
+        let calibrator = Calibrator::new(CalibrationMethod::MinMax, QuantType::INT8, true);
 
         let result = calibrator.compute_params();
         assert!(result.is_err());

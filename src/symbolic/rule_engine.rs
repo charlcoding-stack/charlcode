@@ -21,7 +21,7 @@
 // let violations = engine.execute(&knowledge_graph);
 // ```
 
-use crate::knowledge_graph::{KnowledgeGraph, EntityId, EntityType, RelationType};
+use crate::knowledge_graph::{EntityId, EntityType, KnowledgeGraph, RelationType};
 use std::collections::HashSet;
 
 /// Condition that can be evaluated against a knowledge graph
@@ -29,7 +29,7 @@ use std::collections::HashSet;
 pub enum Condition {
     /// Check if entity has specific type
     HasType {
-        entity_pattern: String,  // e.g., "*Controller"
+        entity_pattern: String, // e.g., "*Controller"
         entity_type: EntityType,
     },
 
@@ -49,7 +49,7 @@ pub enum Condition {
     /// Check if entity name matches pattern
     NameMatches {
         entity_id: Option<EntityId>,
-        pattern: String,  // Supports * wildcard
+        pattern: String, // Supports * wildcard
     },
 
     /// Logical AND
@@ -69,20 +69,13 @@ pub enum Condition {
 #[derive(Debug, Clone)]
 pub enum Action {
     /// Report a violation
-    Violation {
-        severity: Severity,
-        message: String,
-    },
+    Violation { severity: Severity, message: String },
 
     /// Report a warning
-    Warning {
-        message: String,
-    },
+    Warning { message: String },
 
     /// Report an info message
-    Info {
-        message: String,
-    },
+    Info { message: String },
 
     /// Add a new fact to the knowledge graph (inference)
     AddFact {
@@ -126,7 +119,9 @@ impl Rule {
             name: name.into(),
             description: String::new(),
             condition: Condition::Always,
-            action: Action::Info { message: "Rule matched".to_string() },
+            action: Action::Info {
+                message: "Rule matched".to_string(),
+            },
             enabled: true,
         }
     }
@@ -182,15 +177,21 @@ impl Rule {
                 (0..graph.num_entities()).collect()
             }
 
-            Condition::HasType { entity_pattern, entity_type } => {
-                graph.find_entities_by_type(entity_type)
-                    .into_iter()
-                    .filter(|e| pattern_matches(&e.name, entity_pattern))
-                    .map(|e| e.id)
-                    .collect()
-            }
+            Condition::HasType {
+                entity_pattern,
+                entity_type,
+            } => graph
+                .find_entities_by_type(entity_type)
+                .into_iter()
+                .filter(|e| pattern_matches(&e.name, entity_pattern))
+                .map(|e| e.id)
+                .collect(),
 
-            Condition::HasRelation { subject_pattern, relation, object_pattern } => {
+            Condition::HasRelation {
+                subject_pattern,
+                relation,
+                object_pattern,
+            } => {
                 let mut matches = Vec::new();
 
                 // Find all triples with this relation
@@ -199,10 +200,11 @@ impl Rule {
                 for triple in triples {
                     if let (Some(subj), Some(obj)) = (
                         graph.get_entity(triple.subject),
-                        graph.get_entity(triple.object)
+                        graph.get_entity(triple.object),
                     ) {
-                        if pattern_matches(&subj.name, subject_pattern) &&
-                           pattern_matches(&obj.name, object_pattern) {
+                        if pattern_matches(&subj.name, subject_pattern)
+                            && pattern_matches(&obj.name, object_pattern)
+                        {
                             matches.push(triple.subject);
                         }
                     }
@@ -211,7 +213,10 @@ impl Rule {
                 matches
             }
 
-            Condition::CircularDependency { relation: _, max_depth } => {
+            Condition::CircularDependency {
+                relation: _,
+                max_depth,
+            } => {
                 let mut circular_entities = Vec::new();
 
                 for entity_id in 0..graph.num_entities() {
@@ -246,21 +251,25 @@ impl Rule {
             }
 
             Condition::And(left, right) => {
-                let left_matches: HashSet<_> = self.evaluate_condition(left, graph).into_iter().collect();
-                let right_matches: HashSet<_> = self.evaluate_condition(right, graph).into_iter().collect();
+                let left_matches: HashSet<_> =
+                    self.evaluate_condition(left, graph).into_iter().collect();
+                let right_matches: HashSet<_> =
+                    self.evaluate_condition(right, graph).into_iter().collect();
 
                 left_matches.intersection(&right_matches).copied().collect()
             }
 
             Condition::Or(left, right) => {
-                let mut matches: HashSet<_> = self.evaluate_condition(left, graph).into_iter().collect();
+                let mut matches: HashSet<_> =
+                    self.evaluate_condition(left, graph).into_iter().collect();
                 matches.extend(self.evaluate_condition(right, graph));
 
                 matches.into_iter().collect()
             }
 
             Condition::Not(inner) => {
-                let inner_matches: HashSet<_> = self.evaluate_condition(inner, graph).into_iter().collect();
+                let inner_matches: HashSet<_> =
+                    self.evaluate_condition(inner, graph).into_iter().collect();
                 let all_entities: HashSet<_> = (0..graph.num_entities()).collect();
 
                 all_entities.difference(&inner_matches).copied().collect()
@@ -277,15 +286,13 @@ fn pattern_matches(text: &str, pattern: &str) -> bool {
 
     if pattern.starts_with('*') && pattern.ends_with('*') {
         // *substring*
-        let substring = &pattern[1..pattern.len()-1];
+        let substring = &pattern[1..pattern.len() - 1];
         text.contains(substring)
-    } else if pattern.starts_with('*') {
+    } else if let Some(suffix) = pattern.strip_prefix('*') {
         // *suffix
-        let suffix = &pattern[1..];
         text.ends_with(suffix)
-    } else if pattern.ends_with('*') {
+    } else if let Some(prefix) = pattern.strip_suffix('*') {
         // prefix*
-        let prefix = &pattern[..pattern.len()-1];
         text.starts_with(prefix)
     } else {
         // Exact match
@@ -301,9 +308,7 @@ pub struct RuleEngine {
 impl RuleEngine {
     /// Create a new rule engine
     pub fn new() -> Self {
-        RuleEngine {
-            rules: Vec::new(),
-        }
+        RuleEngine { rules: Vec::new() }
     }
 
     /// Add a rule
@@ -388,7 +393,9 @@ mod tests {
         let rule = Rule::new("test_rule")
             .description("Test description")
             .condition(Condition::Always)
-            .action(Action::Info { message: "Test".to_string() });
+            .action(Action::Info {
+                message: "Test".to_string(),
+            });
 
         assert_eq!(rule.name, "test_rule");
         assert_eq!(rule.description, "Test description");
@@ -402,11 +409,10 @@ mod tests {
         builder.add_class("TestClass");
         let graph = builder.build();
 
-        let rule = Rule::new("find_functions")
-            .condition(Condition::HasType {
-                entity_pattern: "*".to_string(),
-                entity_type: EntityType::Function,
-            });
+        let rule = Rule::new("find_functions").condition(Condition::HasType {
+            entity_pattern: "*".to_string(),
+            entity_type: EntityType::Function,
+        });
 
         let matches = rule.evaluate(&graph);
         assert_eq!(matches.len(), 1);
@@ -421,12 +427,11 @@ mod tests {
         builder.add_call(a, b);
         let graph = builder.build();
 
-        let rule = Rule::new("find_calls")
-            .condition(Condition::HasRelation {
-                subject_pattern: "*".to_string(),
-                relation: RelationType::Calls,
-                object_pattern: "*".to_string(),
-            });
+        let rule = Rule::new("find_calls").condition(Condition::HasRelation {
+            subject_pattern: "*".to_string(),
+            relation: RelationType::Calls,
+            object_pattern: "*".to_string(),
+        });
 
         let matches = rule.evaluate(&graph);
         assert!(!matches.is_empty());
@@ -440,11 +445,10 @@ mod tests {
         builder.add_class("UserService");
         let graph = builder.build();
 
-        let rule = Rule::new("find_controllers")
-            .condition(Condition::NameMatches {
-                entity_id: None,
-                pattern: "*Controller".to_string(),
-            });
+        let rule = Rule::new("find_controllers").condition(Condition::NameMatches {
+            entity_id: None,
+            pattern: "*Controller".to_string(),
+        });
 
         let matches = rule.evaluate(&graph);
         assert_eq!(matches.len(), 1);
@@ -458,17 +462,16 @@ mod tests {
         builder.add_function("helper");
         let graph = builder.build();
 
-        let rule = Rule::new("find_class_controllers")
-            .condition(Condition::And(
-                Box::new(Condition::HasType {
-                    entity_pattern: "*".to_string(),
-                    entity_type: EntityType::Class,
-                }),
-                Box::new(Condition::NameMatches {
-                    entity_id: None,
-                    pattern: "*Controller".to_string(),
-                }),
-            ));
+        let rule = Rule::new("find_class_controllers").condition(Condition::And(
+            Box::new(Condition::HasType {
+                entity_pattern: "*".to_string(),
+                entity_type: EntityType::Class,
+            }),
+            Box::new(Condition::NameMatches {
+                entity_id: None,
+                pattern: "*Controller".to_string(),
+            }),
+        ));
 
         let matches = rule.evaluate(&graph);
         assert_eq!(matches.len(), 1);
@@ -482,17 +485,16 @@ mod tests {
         builder.add_function("login");
         let graph = builder.build();
 
-        let rule = Rule::new("find_class_or_function")
-            .condition(Condition::Or(
-                Box::new(Condition::HasType {
-                    entity_pattern: "*".to_string(),
-                    entity_type: EntityType::Class,
-                }),
-                Box::new(Condition::HasType {
-                    entity_pattern: "*".to_string(),
-                    entity_type: EntityType::Function,
-                }),
-            ));
+        let rule = Rule::new("find_class_or_function").condition(Condition::Or(
+            Box::new(Condition::HasType {
+                entity_pattern: "*".to_string(),
+                entity_type: EntityType::Class,
+            }),
+            Box::new(Condition::HasType {
+                entity_pattern: "*".to_string(),
+                entity_type: EntityType::Function,
+            }),
+        ));
 
         let matches = rule.evaluate(&graph);
         assert_eq!(matches.len(), 1);
@@ -505,11 +507,15 @@ mod tests {
 
         let rule1 = Rule::new("rule1")
             .condition(Condition::Always)
-            .action(Action::Info { message: "Test".to_string() });
+            .action(Action::Info {
+                message: "Test".to_string(),
+            });
 
         let rule2 = Rule::new("rule2")
             .condition(Condition::Always)
-            .action(Action::Warning { message: "Warning".to_string() });
+            .action(Action::Warning {
+                message: "Warning".to_string(),
+            });
 
         engine.add_rule(rule1);
         engine.add_rule(rule2);
@@ -547,7 +553,7 @@ mod tests {
                 .action(Action::Violation {
                     severity: Severity::High,
                     message: "Clean architecture violation detected".to_string(),
-                })
+                }),
         );
 
         let violations = engine.get_violations(&graph);

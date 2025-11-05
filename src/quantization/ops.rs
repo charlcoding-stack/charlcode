@@ -1,8 +1,8 @@
 // Quantization Operations
 // Core functions for quantizing and dequantizing data
 
+use super::calibration::{CalibrationMethod, Calibrator};
 use super::types::{QuantParams, QuantType, QuantizedTensor};
-use super::calibration::{Calibrator, CalibrationMethod};
 
 /// Quantize a single f32 value
 #[inline]
@@ -39,9 +39,7 @@ pub fn quantize_tensor(data: &[f32], params: &QuantParams) -> Vec<i8> {
 /// # Returns
 /// Vector of dequantized f32 values
 pub fn dequantize_tensor(data: &[i8], params: &QuantParams) -> Vec<f32> {
-    data.iter()
-        .map(|&q| params.dequantize(q as i32))
-        .collect()
+    data.iter().map(|&q| params.dequantize(q as i32)).collect()
 }
 
 /// Post-Training Quantization (PTQ)
@@ -155,7 +153,7 @@ impl QuantizationMetrics {
         let mut signal_power = 0.0;
         let mut noise_power = 0.0;
 
-        for (_i, (&orig, &deq)) in original.iter().zip(dequantized.iter()).enumerate() {
+        for (&orig, &deq) in original.iter().zip(dequantized.iter()) {
             let error = orig - deq;
             mse += error * error;
             mae += error.abs();
@@ -204,7 +202,13 @@ mod tests {
 
         let dequantized = dequantize_tensor(&quantized, &params);
         for (i, (&orig, &deq)) in data.iter().zip(dequantized.iter()).enumerate() {
-            assert!((orig - deq).abs() < 0.1, "Mismatch at {}: {} vs {}", i, orig, deq);
+            assert!(
+                (orig - deq).abs() < 0.1,
+                "Mismatch at {}: {} vs {}",
+                i,
+                orig,
+                deq
+            );
         }
     }
 
@@ -221,7 +225,13 @@ mod tests {
         // Verify dequantization accuracy
         let dequantized = quantized_tensor.dequantize();
         for (i, (&orig, &deq)) in data.iter().zip(dequantized.iter()).enumerate() {
-            assert!((orig - deq).abs() < 0.5, "Mismatch at {}: {} vs {}", i, orig, deq);
+            assert!(
+                (orig - deq).abs() < 0.5,
+                "Mismatch at {}: {} vs {}",
+                i,
+                orig,
+                deq
+            );
         }
     }
 
@@ -231,12 +241,8 @@ mod tests {
         let mut data: Vec<f32> = (1..=100).map(|x| x as f32).collect();
         data.push(1000.0); // Outlier
 
-        let quantized_tensor = quantize_tensor_percentile(
-            &data,
-            vec![data.len()],
-            QuantType::INT8,
-            0.99,
-        ).unwrap();
+        let quantized_tensor =
+            quantize_tensor_percentile(&data, vec![data.len()], QuantType::INT8, 0.99).unwrap();
 
         assert_eq!(quantized_tensor.numel(), data.len());
     }
@@ -244,17 +250,15 @@ mod tests {
     #[test]
     fn test_post_training_quantization() {
         let weights = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let calibration_data = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![4.0, 5.0, 6.0],
-        ];
+        let calibration_data = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
 
         let quantized = post_training_quantization(
             &weights,
             &calibration_data,
             QuantType::INT8,
             CalibrationMethod::MinMax,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(quantized.numel(), weights.len());
         assert_eq!(quantized.params.quant_type, QuantType::INT8);
@@ -285,7 +289,13 @@ mod tests {
         // Verify accuracy (INT4 has less precision)
         let dequantized = quantized_tensor.dequantize();
         for (i, (&orig, &deq)) in data.iter().zip(dequantized.iter()).enumerate() {
-            assert!((orig - deq).abs() < 1.0, "Mismatch at {}: {} vs {}", i, orig, deq);
+            assert!(
+                (orig - deq).abs() < 1.0,
+                "Mismatch at {}: {} vs {}",
+                i,
+                orig,
+                deq
+            );
         }
     }
 
@@ -302,8 +312,10 @@ mod tests {
 
         // Check accuracy
         let metrics = QuantizationMetrics::compute(&data, &quantized_tensor);
-        println!("Large tensor metrics: MSE={}, MAE={}, SQNR={} dB",
-                 metrics.mse, metrics.mae, metrics.sqnr_db);
+        println!(
+            "Large tensor metrics: MSE={}, MAE={}, SQNR={} dB",
+            metrics.mse, metrics.mae, metrics.sqnr_db
+        );
 
         assert!(metrics.sqnr_db > 30.0); // Good quality
     }

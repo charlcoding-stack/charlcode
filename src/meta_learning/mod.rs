@@ -47,24 +47,16 @@
 // }
 // ```
 
+pub mod curriculum;
 pub mod maml;
 pub mod prototypical;
-pub mod curriculum;
 
 // Re-export main types
-pub use maml::{
-    MAML, Reptile, MetaSGD,
-    MetaTask, ModelParams,
-};
+pub use maml::{MetaSGD, MetaTask, ModelParams, Reptile, MAML};
 
-pub use prototypical::{
-    PrototypicalNetwork, MatchingNetwork,
-    Episode, DistanceMetric,
-};
+pub use prototypical::{DistanceMetric, Episode, MatchingNetwork, PrototypicalNetwork};
 
 pub use curriculum::{
-    CurriculumScheduler, CurriculumStrategy,
-    DifficultyScorer, DifficultyMetric,
-    SelfPacedLearner, TeacherStudentCurriculum,
-    TrainingExample,
+    CurriculumScheduler, CurriculumStrategy, DifficultyMetric, DifficultyScorer, SelfPacedLearner,
+    TeacherStudentCurriculum, TrainingExample,
 };

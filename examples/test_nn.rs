@@ -3,9 +3,7 @@
 
 fn main() {
     use charl::autograd::{ComputationGraph, Tensor};
-    use charl::nn::{
-        Activation, Dense, Dropout, Initializer, Layer, Loss, Sequential,
-    };
+    use charl::nn::{Activation, Dense, Dropout, Initializer, Layer, Loss, Sequential};
 
     println!("🧠 Charl Neural Networks Demonstration\n");
     println!("{}", "=".repeat(70));
@@ -18,7 +16,8 @@ fn main() {
     let mut layer = Dense::new(3, 2, Activation::ReLU, Initializer::Xavier);
 
     println!("Layer: Dense(3 -> 2) with ReLU activation");
-    println!("Parameters: {} weights + {} biases = {} total",
+    println!(
+        "Parameters: {} weights + {} biases = {} total",
         layer.weights.data.len(),
         layer.bias.data.len(),
         layer.weights.data.len() + layer.bias.data.len()
@@ -196,7 +195,10 @@ fn main() {
     let predicted_class = if prediction.data[0] > 0.5 { 1 } else { 0 };
 
     println!("\nFeatures: {:?}", features.data);
-    println!("Prediction: {:.4} -> Class {}", prediction.data[0], predicted_class);
+    println!(
+        "Prediction: {:.4} -> Class {}",
+        prediction.data[0], predicted_class
+    );
     println!("✅ Binary classifier works!");
 
     println!("\n{}", "=".repeat(70));

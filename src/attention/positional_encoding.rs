@@ -4,6 +4,12 @@
 
 pub struct PositionalEncoding;
 
+impl Default for PositionalEncoding {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PositionalEncoding {
     pub fn new() -> Self {
         PositionalEncoding

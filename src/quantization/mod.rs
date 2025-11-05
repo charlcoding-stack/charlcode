@@ -9,19 +9,16 @@
 // Quantization formula: q = round(x / scale) + zero_point
 // Dequantization formula: x = (q - zero_point) * scale
 
-pub mod types;
 pub mod calibration;
 pub mod ops;
+pub mod types;
 
-pub use types::{QuantType, QuantParams, QuantizedTensor};
 pub use calibration::{CalibrationMethod, Calibrator};
 pub use ops::{
-    quantize, dequantize,
-    quantize_tensor, dequantize_tensor,
-    quantize_tensor_auto, quantize_tensor_percentile,
-    post_training_quantization,
-    QuantizationMetrics,
+    dequantize, dequantize_tensor, post_training_quantization, quantize, quantize_tensor,
+    quantize_tensor_auto, quantize_tensor_percentile, QuantizationMetrics,
 };
+pub use types::{QuantParams, QuantType, QuantizedTensor};
 
 /// Quantization scheme
 #[derive(Debug, Clone, Copy, PartialEq)]

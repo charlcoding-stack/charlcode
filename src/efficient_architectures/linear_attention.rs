@@ -8,6 +8,9 @@
 //   Use kernel trick: φ(Q)(φ(K)^T V)
 //   Compute φ(K)^T V first (d×d matrix) → O(nd²)
 //
+
+// Allow mathematical notation (Q, K, V, etc.) to match academic literature
+#![allow(non_snake_case)]
 // This file implements:
 // 1. Linformer: Low-rank approximation of attention
 // 2. Performer: FAVOR+ (Fast Attention Via Orthogonal Random features)
@@ -44,7 +47,10 @@ pub struct Linformer {
 impl Linformer {
     /// Create new Linformer layer
     pub fn new(d_model: usize, num_heads: usize, seq_len: usize, k: usize) -> Self {
-        assert!(k <= seq_len, "Projection dimension k must be <= sequence length");
+        assert!(
+            k <= seq_len,
+            "Projection dimension k must be <= sequence length"
+        );
 
         // Initialize projection matrices
         let E_key = Self::init_projection(seq_len, k);
@@ -401,16 +407,28 @@ impl RWKV {
         let x_v = self.time_mix(x_current, x_prev, &self.mu_v);
 
         // Receptance, Key, Value
-        let r = Self::matmul(&self.W_r, &x_r).iter().map(|&x| sigmoid(x)).collect::<Vec<_>>();
-        let k = Self::matmul(&self.W_k, &x_k).iter().map(|&x| x.exp()).collect::<Vec<_>>();
+        let r = Self::matmul(&self.W_r, &x_r)
+            .iter()
+            .map(|&x| sigmoid(x))
+            .collect::<Vec<_>>();
+        let k = Self::matmul(&self.W_k, &x_k)
+            .iter()
+            .map(|&x| x.exp())
+            .collect::<Vec<_>>();
         let v = Self::matmul(&self.W_v, &x_v);
 
         // WKV (Weighted Key-Value)
         let mut wkv = vec![0.0; self.d_model];
-        for i in 0..self.d_model.min(r.len()).min(k.len()).min(v.len()).min(state.len()) {
+        for i in 0..self
+            .d_model
+            .min(r.len())
+            .min(k.len())
+            .min(v.len())
+            .min(state.len())
+        {
             wkv[i] = (r[i] * state[i]) / (k[i] + 1e-8);
             // Update state for next step
-            state[i] = state[i] + k[i] * v[i];
+            state[i] += k[i] * v[i];
         }
 
         // Output
@@ -559,11 +577,7 @@ mod tests {
     #[test]
     fn test_rwkv_sequence() {
         let rwkv = RWKV::new(8);
-        let inputs = vec![
-            vec![1.0; 8],
-            vec![0.5; 8],
-            vec![0.25; 8],
-        ];
+        let inputs = vec![vec![1.0; 8], vec![0.5; 8], vec![0.25; 8]];
 
         let outputs = rwkv.forward_sequence(&inputs);
         assert_eq!(outputs.len(), 3);

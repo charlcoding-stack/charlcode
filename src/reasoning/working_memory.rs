@@ -335,7 +335,11 @@ mod tests {
     #[test]
     fn test_short_term_memory_get() {
         let mut stm = ShortTermMemory::new(3);
-        stm.add(MemoryItem::new("test", "Test content", MemoryType::Semantic));
+        stm.add(MemoryItem::new(
+            "test",
+            "Test content",
+            MemoryType::Semantic,
+        ));
 
         let item = stm.get("test");
         assert!(item.is_some());
@@ -380,8 +384,16 @@ mod tests {
     fn test_long_term_memory_episodic() {
         let mut ltm = LongTermMemory::new();
 
-        ltm.store(MemoryItem::new("event1", "Had pizza for lunch", MemoryType::Episodic));
-        ltm.store(MemoryItem::new("event2", "Went to the park", MemoryType::Episodic));
+        ltm.store(MemoryItem::new(
+            "event1",
+            "Had pizza for lunch",
+            MemoryType::Episodic,
+        ));
+        ltm.store(MemoryItem::new(
+            "event2",
+            "Went to the park",
+            MemoryType::Episodic,
+        ));
 
         assert_eq!(ltm.episodic.len(), 2);
 

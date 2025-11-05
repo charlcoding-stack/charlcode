@@ -13,7 +13,10 @@ pub enum Value {
     Boolean(bool),
     String(String),
     Array(Vec<Value>),
-    Tensor { data: Vec<Value>, shape: Vec<usize> },
+    Tensor {
+        data: Vec<Value>,
+        shape: Vec<usize>,
+    },
     AutogradTensor(AutogradTensor), // Tensor with gradient tracking
     Function {
         parameters: Vec<Parameter>,
@@ -32,9 +35,16 @@ impl PartialEq for Value {
             (Value::Boolean(a), Value::Boolean(b)) => a == b,
             (Value::String(a), Value::String(b)) => a == b,
             (Value::Array(a), Value::Array(b)) => a == b,
-            (Value::Tensor { data: d1, shape: s1 }, Value::Tensor { data: d2, shape: s2 }) => {
-                d1 == d2 && s1 == s2
-            }
+            (
+                Value::Tensor {
+                    data: d1,
+                    shape: s1,
+                },
+                Value::Tensor {
+                    data: d2,
+                    shape: s2,
+                },
+            ) => d1 == d2 && s1 == s2,
             (Value::AutogradTensor(a), Value::AutogradTensor(b)) => {
                 a.data == b.data && a.shape == b.shape
             }
@@ -95,6 +105,12 @@ pub struct Environment {
     scopes: Vec<HashMap<String, Value>>,
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     pub fn new() -> Self {
         Environment {
@@ -133,6 +149,12 @@ pub struct Interpreter {
     env: Environment,
     return_value: Option<Value>,
     graph: ComputationGraph,
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Interpreter {
@@ -197,49 +219,44 @@ impl Interpreter {
             Expression::BooleanLiteral(b) => Ok(Value::Boolean(*b)),
             Expression::StringLiteral(s) => Ok(Value::String(s.clone())),
 
-            Expression::Identifier(name) => {
-                self.env.get(name)
-                    .cloned()
-                    .ok_or_else(|| format!("Undefined variable: {}", name))
-            }
+            Expression::Identifier(name) => self
+                .env
+                .get(name)
+                .cloned()
+                .ok_or_else(|| format!("Undefined variable: {}", name)),
 
             Expression::ArrayLiteral(elements) => {
-                let values: Result<Vec<Value>, String> = elements
-                    .iter()
-                    .map(|e| self.eval_expression(e))
-                    .collect();
+                let values: Result<Vec<Value>, String> =
+                    elements.iter().map(|e| self.eval_expression(e)).collect();
                 Ok(Value::Array(values?))
             }
 
             Expression::TensorLiteral(elements) => {
-                let values: Result<Vec<Value>, String> = elements
-                    .iter()
-                    .map(|e| self.eval_expression(e))
-                    .collect();
+                let values: Result<Vec<Value>, String> =
+                    elements.iter().map(|e| self.eval_expression(e)).collect();
                 let data = values?;
                 let shape = vec![data.len()];
                 Ok(Value::Tensor { data, shape })
             }
 
-            Expression::Binary { left, operator, right } => {
-                self.eval_binary_expression(left, operator, right)
-            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => self.eval_binary_expression(left, operator, right),
 
             Expression::Unary { operator, operand } => {
                 self.eval_unary_expression(operator, operand)
             }
 
-            Expression::Call { function, arguments } => {
-                self.eval_call_expression(function, arguments)
-            }
+            Expression::Call {
+                function,
+                arguments,
+            } => self.eval_call_expression(function, arguments),
 
-            Expression::Index { object, index } => {
-                self.eval_index_expression(object, index)
-            }
+            Expression::Index { object, index } => self.eval_index_expression(object, index),
 
-            Expression::Autograd { expression } => {
-                self.eval_autograd_expression(expression)
-            }
+            Expression::Autograd { expression } => self.eval_autograd_expression(expression),
         }
     }
 
@@ -265,8 +282,12 @@ impl Interpreter {
             BinaryOperator::LessEqual => self.eval_less_equal(&left_val, &right_val),
             BinaryOperator::GreaterThan => self.eval_greater_than(&left_val, &right_val),
             BinaryOperator::GreaterEqual => self.eval_greater_equal(&left_val, &right_val),
-            BinaryOperator::And => Ok(Value::Boolean(left_val.is_truthy() && right_val.is_truthy())),
-            BinaryOperator::Or => Ok(Value::Boolean(left_val.is_truthy() || right_val.is_truthy())),
+            BinaryOperator::And => Ok(Value::Boolean(
+                left_val.is_truthy() && right_val.is_truthy(),
+            )),
+            BinaryOperator::Or => Ok(Value::Boolean(
+                left_val.is_truthy() || right_val.is_truthy(),
+            )),
         }
     }
 
@@ -277,7 +298,11 @@ impl Interpreter {
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Float(*l as f64 + r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Float(l + *r as f64)),
             (Value::String(l), Value::String(r)) => Ok(Value::String(format!("{}{}", l, r))),
-            _ => Err(format!("Cannot add {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot add {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -287,7 +312,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Float(l - r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Float(*l as f64 - r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Float(l - *r as f64)),
-            _ => Err(format!("Cannot subtract {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot subtract {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -297,7 +326,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Float(l * r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Float(*l as f64 * r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Float(l * *r as f64)),
-            _ => Err(format!("Cannot multiply {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot multiply {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -327,7 +360,11 @@ impl Interpreter {
                 }
                 Ok(Value::Float(l / *r as f64))
             }
-            _ => Err(format!("Cannot divide {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot divide {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -339,7 +376,11 @@ impl Interpreter {
                 }
                 Ok(Value::Integer(l % r))
             }
-            _ => Err(format!("Cannot modulo {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot modulo {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -354,7 +395,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Boolean(l < r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Boolean((*l as f64) < *r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Boolean(*l < (*r as f64))),
-            _ => Err(format!("Cannot compare {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot compare {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -364,7 +409,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Boolean(l <= r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Boolean((*l as f64) <= *r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Boolean(*l <= (*r as f64))),
-            _ => Err(format!("Cannot compare {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot compare {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -374,7 +423,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Boolean(l > r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Boolean((*l as f64) > *r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Boolean(*l > (*r as f64))),
-            _ => Err(format!("Cannot compare {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot compare {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -384,7 +437,11 @@ impl Interpreter {
             (Value::Float(l), Value::Float(r)) => Ok(Value::Boolean(l >= r)),
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Boolean((*l as f64) >= *r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Boolean(*l >= (*r as f64))),
-            _ => Err(format!("Cannot compare {} and {}", left.type_name(), right.type_name())),
+            _ => Err(format!(
+                "Cannot compare {} and {}",
+                left.type_name(),
+                right.type_name()
+            )),
         }
     }
 
@@ -413,7 +470,11 @@ impl Interpreter {
         let func_val = self.eval_expression(function)?;
 
         match func_val {
-            Value::Function { parameters, body, closure } => {
+            Value::Function {
+                parameters,
+                body,
+                closure,
+            } => {
                 if parameters.len() != arguments.len() {
                     return Err(format!(
                         "Wrong number of arguments: expected {}, got {}",
@@ -459,7 +520,10 @@ impl Interpreter {
 
                 Ok(return_val)
             }
-            _ => Err(format!("Cannot call non-function value: {}", func_val.type_name())),
+            _ => Err(format!(
+                "Cannot call non-function value: {}",
+                func_val.type_name()
+            )),
         }
     }
 
@@ -473,7 +537,12 @@ impl Interpreter {
 
         let idx = match idx_val {
             Value::Integer(i) => i,
-            _ => return Err(format!("Index must be an integer, got {}", idx_val.type_name())),
+            _ => {
+                return Err(format!(
+                    "Index must be an integer, got {}",
+                    idx_val.type_name()
+                ))
+            }
         };
 
         match obj_val {
@@ -484,7 +553,8 @@ impl Interpreter {
                     idx as usize
                 };
 
-                elements.get(idx)
+                elements
+                    .get(idx)
                     .cloned()
                     .ok_or_else(|| format!("Index out of bounds: {}", idx))
             }
@@ -527,7 +597,10 @@ impl Interpreter {
                     .map(|v| match v {
                         Value::Integer(i) => Ok(*i as f64),
                         Value::Float(f) => Ok(*f),
-                        _ => Err(format!("autograd() only works with numeric arrays, found {}", v.type_name())),
+                        _ => Err(format!(
+                            "autograd() only works with numeric arrays, found {}",
+                            v.type_name()
+                        )),
                     })
                     .collect();
 
@@ -659,7 +732,11 @@ mod tests {
         let result = eval_input("[1, 2, 3]").unwrap();
         assert_eq!(
             result,
-            Value::Array(vec![Value::Integer(1), Value::Integer(2), Value::Integer(3)])
+            Value::Array(vec![
+                Value::Integer(1),
+                Value::Integer(2),
+                Value::Integer(3)
+            ])
         );
     }
 
