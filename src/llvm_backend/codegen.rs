@@ -854,6 +854,176 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
         Some(function)
     }
+
+    // ===== Matrix Operations (Week 2: Critical ML Ops) =====
+
+    /// Generate LLVM IR for matrix multiplication (naive triple loop)
+    ///
+    /// Computes: C[m×n] = A[m×k] @ B[k×n]
+    ///
+    /// Algorithm:
+    /// ```
+    /// for i in 0..m {
+    ///     for j in 0..n {
+    ///         sum = 0.0
+    ///         for k_idx in 0..k {
+    ///             sum += A[i*k + k_idx] * B[k_idx*n + j]
+    ///         }
+    ///         C[i*n + j] = sum
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Parameters
+    /// - `m`: Number of rows in A and C
+    /// - `n`: Number of columns in B and C
+    /// - `k`: Number of columns in A / rows in B
+    ///
+    /// # Returns
+    /// Function signature: `fn matmul(a: *f32, b: *f32, c: *f32, m: i32, n: i32, k: i32)`
+    pub fn gen_matmul(&self, m: u32, n: u32, k: u32) -> FunctionValue<'ctx> {
+        let f32_type = self.f32_type();
+        let f32_ptr_type = f32_type.ptr_type(inkwell::AddressSpace::default());
+        let i32_type = self.context.i32_type();
+        let void_type = self.context.void_type();
+
+        // Function signature: matmul(A, B, C, m, n, k)
+        let fn_type = void_type.fn_type(
+            &[
+                f32_ptr_type.into(), // A
+                f32_ptr_type.into(), // B
+                f32_ptr_type.into(), // C (output)
+                i32_type.into(),     // m
+                i32_type.into(),     // n
+                i32_type.into(),     // k
+            ],
+            false,
+        );
+
+        let function_name = format!("matmul_{}x{}x{}", m, n, k);
+        let function = self.module.add_function(&function_name, fn_type, None);
+
+        // Basic blocks
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        let i_loop_bb = self.context.append_basic_block(function, "i_loop");
+        let i_body_bb = self.context.append_basic_block(function, "i_body");
+        let j_loop_bb = self.context.append_basic_block(function, "j_loop");
+        let j_body_bb = self.context.append_basic_block(function, "j_body");
+        let k_loop_bb = self.context.append_basic_block(function, "k_loop");
+        let k_body_bb = self.context.append_basic_block(function, "k_body");
+        let k_end_bb = self.context.append_basic_block(function, "k_end");
+        let j_end_bb = self.context.append_basic_block(function, "j_end");
+        let i_end_bb = self.context.append_basic_block(function, "i_end");
+        let end_bb = self.context.append_basic_block(function, "end");
+
+        // Get function parameters
+        let a_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let b_ptr = function.get_nth_param(1).unwrap().into_pointer_value();
+        let c_ptr = function.get_nth_param(2).unwrap().into_pointer_value();
+        let m_val = function.get_nth_param(3).unwrap().into_int_value();
+        let n_val = function.get_nth_param(4).unwrap().into_int_value();
+        let k_val = function.get_nth_param(5).unwrap().into_int_value();
+
+        // Entry block: allocate loop counters
+        self.builder.position_at_end(entry_bb);
+        let i_ptr = self.builder.build_alloca(i32_type, "i").unwrap();
+        let j_ptr = self.builder.build_alloca(i32_type, "j").unwrap();
+        let k_ptr = self.builder.build_alloca(i32_type, "k_idx").unwrap();
+        let sum_ptr = self.builder.build_alloca(f32_type, "sum").unwrap();
+
+        self.builder.build_store(i_ptr, i32_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(i_loop_bb).unwrap();
+
+        // i loop: for i in 0..m
+        self.builder.position_at_end(i_loop_bb);
+        let i = self.builder.build_load(i32_type, i_ptr, "i").unwrap().into_int_value();
+        let i_cond = self.builder.build_int_compare(IntPredicate::SLT, i, m_val, "i_cond").unwrap();
+        self.builder.build_conditional_branch(i_cond, i_body_bb, end_bb).unwrap();
+
+        // i body: initialize j loop
+        self.builder.position_at_end(i_body_bb);
+        self.builder.build_store(j_ptr, i32_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(j_loop_bb).unwrap();
+
+        // j loop: for j in 0..n
+        self.builder.position_at_end(j_loop_bb);
+        let j = self.builder.build_load(i32_type, j_ptr, "j").unwrap().into_int_value();
+        let j_cond = self.builder.build_int_compare(IntPredicate::SLT, j, n_val, "j_cond").unwrap();
+        self.builder.build_conditional_branch(j_cond, j_body_bb, i_end_bb).unwrap();
+
+        // j body: initialize sum and k loop
+        self.builder.position_at_end(j_body_bb);
+        self.builder.build_store(sum_ptr, f32_type.const_zero()).unwrap();
+        self.builder.build_store(k_ptr, i32_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(k_loop_bb).unwrap();
+
+        // k loop: for k_idx in 0..k
+        self.builder.position_at_end(k_loop_bb);
+        let k_idx = self.builder.build_load(i32_type, k_ptr, "k_idx").unwrap().into_int_value();
+        let k_cond = self.builder.build_int_compare(IntPredicate::SLT, k_idx, k_val, "k_cond").unwrap();
+        self.builder.build_conditional_branch(k_cond, k_body_bb, k_end_bb).unwrap();
+
+        // k body: sum += A[i*k + k_idx] * B[k_idx*n + j]
+        self.builder.position_at_end(k_body_bb);
+
+        // Calculate A[i*k + k_idx]
+        let i_times_k = self.builder.build_int_mul(i, k_val, "i_times_k").unwrap();
+        let a_idx = self.builder.build_int_add(i_times_k, k_idx, "a_idx").unwrap();
+        let a_ptr_elem = unsafe {
+            self.builder.build_gep(f32_type, a_ptr, &[a_idx], "a_ptr_elem").unwrap()
+        };
+        let a_val = self.builder.build_load(f32_type, a_ptr_elem, "a_val").unwrap().into_float_value();
+
+        // Calculate B[k_idx*n + j]
+        let k_times_n = self.builder.build_int_mul(k_idx, n_val, "k_times_n").unwrap();
+        let b_idx = self.builder.build_int_add(k_times_n, j, "b_idx").unwrap();
+        let b_ptr_elem = unsafe {
+            self.builder.build_gep(f32_type, b_ptr, &[b_idx], "b_ptr_elem").unwrap()
+        };
+        let b_val = self.builder.build_load(f32_type, b_ptr_elem, "b_val").unwrap().into_float_value();
+
+        // sum += a_val * b_val
+        let product = self.builder.build_float_mul(a_val, b_val, "product").unwrap();
+        let current_sum = self.builder.build_load(f32_type, sum_ptr, "current_sum").unwrap().into_float_value();
+        let new_sum = self.builder.build_float_add(current_sum, product, "new_sum").unwrap();
+        self.builder.build_store(sum_ptr, new_sum).unwrap();
+
+        // k_idx++
+        let k_next = self.builder.build_int_add(k_idx, i32_type.const_int(1, false), "k_next").unwrap();
+        self.builder.build_store(k_ptr, k_next).unwrap();
+        self.builder.build_unconditional_branch(k_loop_bb).unwrap();
+
+        // k end: store result C[i*n + j] = sum
+        self.builder.position_at_end(k_end_bb);
+        let i_times_n = self.builder.build_int_mul(i, n_val, "i_times_n").unwrap();
+        let c_idx = self.builder.build_int_add(i_times_n, j, "c_idx").unwrap();
+        let c_ptr_elem = unsafe {
+            self.builder.build_gep(f32_type, c_ptr, &[c_idx], "c_ptr_elem").unwrap()
+        };
+        let final_sum = self.builder.build_load(f32_type, sum_ptr, "final_sum").unwrap();
+        self.builder.build_store(c_ptr_elem, final_sum).unwrap();
+
+        // j++
+        let j_next = self.builder.build_int_add(j, i32_type.const_int(1, false), "j_next").unwrap();
+        self.builder.build_store(j_ptr, j_next).unwrap();
+        self.builder.build_unconditional_branch(j_loop_bb).unwrap();
+
+        // j end: increment i
+        self.builder.position_at_end(j_end_bb);
+        self.builder.build_unconditional_branch(i_end_bb).unwrap();
+
+        // i end: i++
+        self.builder.position_at_end(i_end_bb);
+        let i_next = self.builder.build_int_add(i, i32_type.const_int(1, false), "i_next").unwrap();
+        self.builder.build_store(i_ptr, i_next).unwrap();
+        self.builder.build_unconditional_branch(i_loop_bb).unwrap();
+
+        // End: return
+        self.builder.position_at_end(end_bb);
+        self.builder.build_return(None).unwrap();
+
+        function
+    }
 }
 
 #[cfg(test)]
@@ -912,5 +1082,58 @@ mod tests {
         assert!(ir_string.contains("define void"));
         assert!(ir_string.contains("entry:"));
         assert!(ir_string.contains("loop"));
+    }
+
+    #[test]
+    fn test_gen_matmul_creation() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_matmul");
+
+        // Generate matmul for 4×4 @ 4×4 = 4×4
+        let matmul_fn = codegen.gen_matmul(4, 4, 4);
+
+        assert_eq!(matmul_fn.get_name().to_str().unwrap(), "matmul_4x4x4");
+        assert_eq!(matmul_fn.count_params(), 6);
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_gen_matmul_different_sizes() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_matmul_sizes");
+
+        // Test various matrix sizes
+        let sizes = vec![
+            (2, 2, 2),
+            (4, 4, 4),
+            (8, 8, 8),
+            (10, 5, 8),
+        ];
+
+        for (m, n, k) in sizes {
+            let matmul_fn = codegen.gen_matmul(m, n, k);
+            let expected_name = format!("matmul_{}x{}x{}", m, n, k);
+            assert_eq!(matmul_fn.get_name().to_str().unwrap(), expected_name);
+        }
+
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_matmul_ir_structure() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_matmul_ir");
+
+        codegen.gen_matmul(3, 3, 3);
+
+        let ir = codegen.module.print_to_string().to_string();
+
+        // Verify IR contains expected structures
+        assert!(ir.contains("matmul_3x3x3"));
+        assert!(ir.contains("i_loop"));
+        assert!(ir.contains("j_loop"));
+        assert!(ir.contains("k_loop"));
+        assert!(ir.contains("fmul")); // Floating point multiplication
+        assert!(ir.contains("fadd")); // Floating point addition
     }
 }
