@@ -202,15 +202,15 @@ jobs:
           body: |
             ## Charl Language Release
 
-            Revolutionary AI/ML Programming Language
+            Pre-compiled binaries for the Charl programming language.
 
             ### Downloads
             Choose the appropriate binary for your platform:
 
             - **Linux x86_64**: charl-linux-x86_64.tar.gz
-            - **Linux ARM64**: charl-linux-arm64.tar.gz (Raspberry Pi, ARM servers)
+            - **Linux ARM64**: charl-linux-arm64.tar.gz
             - **macOS x86_64**: charl-macos-x86_64.tar.gz (Intel Mac)
-            - **macOS ARM64**: charl-macos-arm64.tar.gz (M1/M2/M3 Mac)
+            - **macOS ARM64**: charl-macos-arm64.tar.gz (Apple Silicon)
             - **Windows x86_64**: charl-windows-x86_64.zip
 
             ### Installation
@@ -238,25 +238,19 @@ jobs:
             ### Quick Start
             ```bash
             # Run a script
-            charl run hello.charl
+            charl run hello.ch
 
             # Interactive REPL
             charl repl
 
             # Build standalone executable
-            charl build app.charl --release
+            charl build app.ch -o app
             ```
 
-            ### Features
-            - ✅ Full interpreter with 564 passing tests
-            - ✅ Interactive REPL
-            - ✅ Standalone executable generation
-            - ✅ Neural networks & Autograd
-            - ✅ GPU acceleration (WGPU)
-            - ✅ Neuro-symbolic AI
-            - ✅ Reasoning systems
-
-            **Size:** ~800 KB per binary (includes full runtime!)
+            ### Documentation
+            - Website: https://charlbase.org
+            - Getting Started: https://charlbase.org/docs/getting-started.html
+            - Language Reference: https://charlbase.org/docs/language-reference.html
 
       - name: Upload Linux x86_64
         uses: actions/upload-release-asset@v1

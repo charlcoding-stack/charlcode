@@ -15,9 +15,33 @@ Charl is designed for building AI and machine learning systems with a focus on:
 - **Knowledge Graphs** - Built-in support for graph-based reasoning
 - **Type System** - Static typing with inference
 
-## Quick Start
+## Installation
 
-### Installation
+### Option 1: Pre-compiled Binaries (Recommended)
+
+Download the latest release for your platform from the [releases page](https://github.com/charlcoding-stack/charlcode/releases).
+
+**Linux/macOS:**
+```bash
+# Download and extract
+tar -xzf charl-*.tar.gz
+
+# Move to PATH
+sudo mv charl /usr/local/bin/
+
+# Verify installation
+charl --version
+```
+
+**Windows:**
+```powershell
+# Extract the zip file
+# Move charl.exe to a directory in your PATH
+# Verify installation
+charl.exe --version
+```
+
+### Option 2: Build from Source
 
 ```bash
 # Clone repository
@@ -27,12 +51,14 @@ cd charlcode
 # Build
 cargo build --release
 
-# Run tests
-cargo test
+# Install (optional)
+sudo cp target/release/charl /usr/local/bin/
 
-# Run example
-cargo run --release -- examples/hello.ch
+# Verify
+charl --version
 ```
+
+## Quick Start
 
 ### Example
 
