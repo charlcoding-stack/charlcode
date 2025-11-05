@@ -9,8 +9,6 @@ use crate::llvm_backend::codegen::LLVMCodegen;
 use inkwell::context::Context;
 #[cfg(feature = "llvm")]
 use inkwell::values::FunctionValue;
-#[cfg(feature = "llvm")]
-use inkwell::FloatPredicate;
 
 /// LLVM-based fusion code generator
 /// Generates optimized LLVM IR for fused operations
