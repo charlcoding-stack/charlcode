@@ -56,6 +56,197 @@ enum Commands {
     Version,
 }
 
+fn build_executable(file: &PathBuf, output: Option<PathBuf>, release: bool) {
+    println!("🔨 Building Charl executable: {}", file.display());
+
+    // Read source file
+    let source = match fs::read_to_string(file) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("❌ Error reading file: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // Verify it parses correctly
+    let lexer = Lexer::new(&source);
+    let mut parser = CharlParser::new(lexer);
+    if let Err(e) = parser.parse_program() {
+        eprintln!("❌ Parse error in source file:\n{}", e);
+        std::process::exit(1);
+    }
+
+    // Determine output path
+    let output_path = output.unwrap_or_else(|| {
+        let mut path = file.clone();
+        path.set_extension("");
+        path
+    });
+
+    println!("📦 Output: {}", output_path.display());
+
+    // Create temporary build directory
+    let temp_dir = std::env::temp_dir().join(format!("charl_build_{}", std::process::id()));
+    if let Err(e) = fs::create_dir_all(&temp_dir) {
+        eprintln!("❌ Error creating temp directory: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("🔧 Creating standalone executable...");
+
+    // Escape the source code for embedding
+    let escaped_source = source
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t");
+
+    // Generate wrapper Rust code
+    let wrapper_code = format!(r#"// Auto-generated Charl executable
+// Source: {}
+
+use charl::lexer::Lexer;
+use charl::parser::Parser;
+use charl::interpreter::Interpreter;
+
+fn main() {{
+    let source = "{}";
+
+    let lexer = Lexer::new(source);
+    let mut parser = Parser::new(lexer);
+    let program = match parser.parse_program() {{
+        Ok(prog) => prog,
+        Err(e) => {{
+            eprintln!("Parse error: {{}}", e);
+            std::process::exit(1);
+        }}
+    }};
+
+    let mut interpreter = Interpreter::new();
+    match interpreter.eval(program) {{
+        Ok(_result) => {{
+            // Program executed successfully
+        }}
+        Err(e) => {{
+            eprintln!("Runtime error: {{}}", e);
+            std::process::exit(1);
+        }}
+    }}
+}}
+"#, file.display(), escaped_source);
+
+    // Write wrapper code
+    let wrapper_path = temp_dir.join("main.rs");
+    if let Err(e) = fs::write(&wrapper_path, wrapper_code) {
+        eprintln!("❌ Error writing wrapper code: {}", e);
+        std::process::exit(1);
+    }
+
+    // Create Cargo.toml
+    let cargo_toml = format!(r#"
+[package]
+name = "charl_executable"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+charl = {{ path = "{}" }}
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+"#, std::env::current_dir().unwrap().display());
+
+    let cargo_toml_path = temp_dir.join("Cargo.toml");
+    if let Err(e) = fs::write(&cargo_toml_path, cargo_toml) {
+        eprintln!("❌ Error writing Cargo.toml: {}", e);
+        std::process::exit(1);
+    }
+
+    // Create src directory
+    let src_dir = temp_dir.join("src");
+    if let Err(e) = fs::create_dir_all(&src_dir) {
+        eprintln!("❌ Error creating src directory: {}", e);
+        std::process::exit(1);
+    }
+
+    // Move main.rs to src/
+    let src_main = src_dir.join("main.rs");
+    if let Err(e) = fs::rename(&wrapper_path, &src_main) {
+        eprintln!("❌ Error moving main.rs: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("⚙️  Compiling with cargo...");
+
+    // Build with cargo (use full path to ensure it's found)
+    let cargo_path = std::env::var("CARGO").unwrap_or_else(|_| {
+        // Try to find cargo in common locations
+        if let Ok(home) = std::env::var("HOME") {
+            format!("{}/.cargo/bin/cargo", home)
+        } else {
+            "cargo".to_string()
+        }
+    });
+
+    let cargo_cmd = if release { "build --release" } else { "build" };
+    let build_result = std::process::Command::new(&cargo_path)
+        .args(cargo_cmd.split_whitespace())
+        .current_dir(&temp_dir)
+        .output();
+
+    match build_result {
+        Ok(output) if output.status.success() => {
+            // Copy compiled binary to output location
+            let binary_name = if cfg!(windows) { "charl_executable.exe" } else { "charl_executable" };
+            let compiled_path = if release {
+                temp_dir.join("target/release").join(binary_name)
+            } else {
+                temp_dir.join("target/debug").join(binary_name)
+            };
+
+            if let Err(e) = fs::copy(&compiled_path, &output_path) {
+                eprintln!("❌ Error copying executable: {}", e);
+                std::process::exit(1);
+            }
+
+            // Make executable on Unix
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let mut perms = fs::metadata(&output_path).unwrap().permissions();
+                perms.set_mode(0o755);
+                fs::set_permissions(&output_path, perms).unwrap();
+            }
+
+            println!("✅ Build successful!");
+            println!("📦 Executable: {}", output_path.display());
+
+            // Get file size
+            if let Ok(metadata) = fs::metadata(&output_path) {
+                let size_kb = metadata.len() / 1024;
+                println!("📊 Size: {} KB", size_kb);
+            }
+
+            // Clean up temp directory
+            let _ = fs::remove_dir_all(&temp_dir);
+        }
+        Ok(output) => {
+            eprintln!("❌ Build failed:");
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            let _ = fs::remove_dir_all(&temp_dir);
+            std::process::exit(1);
+        }
+        Err(e) => {
+            eprintln!("❌ Error running cargo: {}", e);
+            let _ = fs::remove_dir_all(&temp_dir);
+            std::process::exit(1);
+        }
+    }
+}
+
 fn run_repl() {
     println!("╔═══════════════════════════════════════════════════════════╗");
     println!("║           Charl REPL v0.1.0 - Interactive Mode           ║");
@@ -202,14 +393,7 @@ fn main() {
         }
 
         Some(Commands::Build { file, output, release }) => {
-            println!("🔨 Building Charl script: {}", file.display());
-            if release {
-                println!("⚡ Release mode (optimized)");
-            }
-            if let Some(out) = output {
-                println!("📦 Output: {}", out.display());
-            }
-            println!("⚠️  AOT compilation integration coming soon!");
+            build_executable(&file, output, release);
         }
 
         Some(Commands::Repl) => {

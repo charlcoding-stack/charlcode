@@ -32,3 +32,9 @@ benchmark_run.txt
 # Temporary files
 *.tmp
 *.log
+
+# Generated executables from charl build
+examples/hello
+examples/math
+examples/function
+examples/arrays
