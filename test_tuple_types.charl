@@ -1,0 +1,92 @@
+// Test file for tuple types
+// Session 12: Tuple type implementation
+
+// Test 1: Basic tuple literal
+let test1: (int64, string, bool) = (1, "hello", true);
+print("Test 1 - Tuple literal: " + str(test1));
+
+// Test 2: Empty tuple
+let test2: () = ();
+print("Test 2 - Empty tuple: " + str(test2));
+
+// Test 3: Tuple indexing - first element
+let coord: (int64, int64) = (10, 20);
+let x: int64 = coord.0;
+print("Test 3 - First element: " + str(x));
+
+// Test 4: Tuple indexing - second element
+let y: int64 = coord.1;
+print("Test 4 - Second element: " + str(y));
+
+// Test 5: Nested tuples
+let nested: ((int64, int64), string) = ((1, 2), "coords");
+print("Test 5 - Nested tuple: " + str(nested));
+
+// Test 6: Tuple with mixed types
+let mixed: (int64, float64, string, bool) = (42, 3.14, "pi", false);
+print("Test 6 - Mixed types: " + str(mixed));
+
+// Test 7: Tuple indexing on nested tuple
+let inner_tuple: (int64, int64) = nested.0;
+print("Test 7 - Nested indexing: " + str(inner_tuple));
+
+// Test 8: Double indexing (using intermediate variable)
+let coords: (int64, int64) = nested.0;
+let first_coord: int64 = coords.0;
+print("Test 8 - Double index: " + str(first_coord));
+
+// Test 9: Tuple in function return
+fn create_point(x: int64, y: int64) -> (int64, int64) {
+    return (x, y);
+}
+
+let point: (int64, int64) = create_point(5, 15);
+print("Test 9 - Function returning tuple: " + str(point));
+
+// Test 10: Tuple as function parameter
+fn distance_manhattan(p: (int64, int64)) -> int64 {
+    return p.0 + p.1;
+}
+
+let dist: int64 = distance_manhattan(point);
+print("Test 10 - Tuple as parameter: " + str(dist));
+
+// Test 11: Single element tuple (with trailing comma)
+let single: (int64,) = (99,);
+print("Test 11 - Single element tuple: " + str(single));
+
+// Test 12: Tuple with expressions
+let sum_tuple: (int64, int64, int64) = (1 + 2, 3 * 4, 10 - 5);
+print("Test 12 - Tuple with expressions: " + str(sum_tuple));
+
+// Test 13: Tuple comparison
+let a: (int64, string) = (1, "test");
+let b: (int64, string) = (1, "test");
+print("Test 13 - Tuple equality: " + str(a == b));
+
+// Test 14: Different tuples
+let c: (int64, string) = (2, "test");
+print("Test 14 - Tuple inequality: " + str(a != c));
+
+// Test 15: Complex tuple types
+let complex: (bool, (int64, float64), string) = (true, (100, 2.71), "euler");
+print("Test 15 - Complex tuple: " + str(complex));
+
+// Test 16: Accessing nested tuple elements (using intermediate variable)
+let inner: (int64, float64) = complex.1;
+let euler_const: float64 = inner.1;
+print("Test 16 - Nested access: " + str(euler_const));
+
+// Test 17: Tuple in array
+let tuple_array: [(int64, string)] = [(1, "one"), (2, "two"), (3, "three")];
+print("Test 17 - Array of tuples: " + str(tuple_array));
+
+// Test 18: Indexing tuple from array
+let second_tuple: (int64, string) = tuple_array[1];
+print("Test 18 - Tuple from array: " + str(second_tuple));
+
+// Test 19: Chained operations
+let value: string = tuple_array[2].1;
+print("Test 19 - Chained indexing: " + value);
+
+print("\nAll tuple type tests completed!");

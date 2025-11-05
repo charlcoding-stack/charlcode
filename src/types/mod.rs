@@ -12,6 +12,7 @@ pub enum Type {
     Float64,
     Bool,
     String,
+    Array(Box<Type>), // [int32], [float32], etc.
     Tensor {
         dtype: Box<Type>,
         shape: Shape,
@@ -20,6 +21,7 @@ pub enum Type {
         params: Vec<Type>,
         return_type: Box<Type>,
     },
+    Tuple(Vec<Type>), // (int32, string, bool)
     Void,    // For functions that don't return a value
     Unknown, // For type inference
 }
@@ -120,6 +122,7 @@ impl Type {
             Type::Float64 => "float64".to_string(),
             Type::Bool => "bool".to_string(),
             Type::String => "string".to_string(),
+            Type::Array(element_type) => format!("[{}]", element_type.to_string()),
             Type::Tensor { dtype, shape } => {
                 let shape_str = match shape {
                     Shape::Static(dims) => format!(
@@ -143,6 +146,14 @@ impl Type {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("fn({}) -> {}", params_str, return_type.to_string())
+            }
+            Type::Tuple(element_types) => {
+                let types_str = element_types
+                    .iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("({})", types_str)
             }
             Type::Void => "void".to_string(),
             Type::Unknown => "unknown".to_string(),
@@ -233,9 +244,57 @@ impl TypeChecker {
     fn check_statement(&mut self, stmt: &Statement) -> Result<Type, String> {
         match stmt {
             Statement::Let(let_stmt) => self.check_let_statement(let_stmt),
+            Statement::Assign(assign_stmt) => {
+                // Check that variable exists and type matches
+                let value_type = self.infer_expression(&assign_stmt.value)?;
+                // For now, just accept any type
+                // TODO: Check against declared type of variable
+                Ok(value_type)
+            }
             Statement::Return(ret_stmt) => self.check_return_statement(ret_stmt),
             Statement::Function(func_stmt) => self.check_function_statement(func_stmt),
             Statement::Expression(expr_stmt) => self.infer_expression(&expr_stmt.expression),
+            Statement::If(if_stmt) => {
+                // Check condition is boolean
+                let cond_type = self.infer_expression(&if_stmt.condition)?;
+                // For now, accept any type (will be checked at runtime)
+
+                // Check consequence block
+                for stmt in &if_stmt.consequence {
+                    self.check_statement(stmt)?;
+                }
+
+                // Check alternative block if exists
+                if let Some(alt) = &if_stmt.alternative {
+                    for stmt in alt {
+                        self.check_statement(stmt)?;
+                    }
+                }
+
+                Ok(Type::Void)
+            }
+            Statement::While(while_stmt) => {
+                // Check condition
+                self.infer_expression(&while_stmt.condition)?;
+
+                // Check body
+                for stmt in &while_stmt.body {
+                    self.check_statement(stmt)?;
+                }
+
+                Ok(Type::Void)
+            }
+            Statement::For(for_stmt) => {
+                // Check iterable
+                self.infer_expression(&for_stmt.iterable)?;
+
+                // Check body
+                for stmt in &for_stmt.body {
+                    self.check_statement(stmt)?;
+                }
+
+                Ok(Type::Void)
+            }
         }
     }
 
@@ -343,6 +402,126 @@ impl TypeChecker {
             Expression::Autograd { expression } => {
                 // Autograd returns the same type as its input (gradient)
                 self.infer_expression(expression)
+            }
+
+            Expression::Range { start, end } => {
+                // Range produces an array of integers
+                let start_type = self.infer_expression(start)?;
+                let end_type = self.infer_expression(end)?;
+
+                // Both start and end should be integers
+                if !start_type.is_integer() {
+                    return Err(format!("Range start must be integer, got {}", start_type.to_string()));
+                }
+                if !end_type.is_integer() {
+                    return Err(format!("Range end must be integer, got {}", end_type.to_string()));
+                }
+
+                Ok(Type::Array(Box::new(Type::Int32)))
+            }
+
+            Expression::InclusiveRange { start, end } => {
+                // Inclusive range produces an array of integers (includes end value)
+                let start_type = self.infer_expression(start)?;
+                let end_type = self.infer_expression(end)?;
+
+                // Both start and end should be integers
+                if !start_type.is_integer() {
+                    return Err(format!("Inclusive range start must be integer, got {}", start_type.to_string()));
+                }
+                if !end_type.is_integer() {
+                    return Err(format!("Inclusive range end must be integer, got {}", end_type.to_string()));
+                }
+
+                Ok(Type::Array(Box::new(Type::Int32)))
+            }
+
+            Expression::If {
+                condition,
+                consequence,
+                alternative,
+            } => {
+                // Check condition is boolean-like
+                let _cond_type = self.infer_expression(condition)?;
+
+                // Infer type of consequence block
+                let mut consequence_type = Type::Void;
+                for stmt in consequence {
+                    consequence_type = self.check_statement(stmt)?;
+                }
+
+                // Infer type of alternative block
+                let mut alternative_type = Type::Void;
+                for stmt in alternative {
+                    alternative_type = self.check_statement(stmt)?;
+                }
+
+                // Both branches must return the same type
+                if consequence_type != alternative_type {
+                    return Err(format!(
+                        "If expression branches must return same type: got {} and {}",
+                        consequence_type.to_string(),
+                        alternative_type.to_string()
+                    ));
+                }
+
+                Ok(consequence_type)
+            }
+
+            Expression::Match { value, arms } => {
+                // Check the value to match against
+                let _value_type = self.infer_expression(value)?;
+
+                // All arms must return the same type
+                if arms.is_empty() {
+                    return Err("Match expression must have at least one arm".to_string());
+                }
+
+                // Infer type of first arm
+                let first_type = self.infer_expression(&arms[0].expression)?;
+
+                // Check all other arms return the same type
+                for arm in &arms[1..] {
+                    let arm_type = self.infer_expression(&arm.expression)?;
+                    if arm_type != first_type {
+                        return Err(format!(
+                            "Match arms must all return same type: got {} and {}",
+                            first_type.to_string(),
+                            arm_type.to_string()
+                        ));
+                    }
+                }
+
+                Ok(first_type)
+            }
+
+            Expression::TupleLiteral(elements) => {
+                // Infer types of all tuple elements
+                let element_types: Result<Vec<Type>, String> =
+                    elements.iter().map(|e| self.infer_expression(e)).collect();
+                Ok(Type::Tuple(element_types?))
+            }
+
+            Expression::TupleIndex { tuple, index } => {
+                let tuple_type = self.infer_expression(tuple)?;
+
+                match tuple_type {
+                    Type::Tuple(element_types) => {
+                        if *index < element_types.len() {
+                            Ok(element_types[*index].clone())
+                        } else {
+                            Err(format!(
+                                "Tuple index out of bounds: index {} on tuple with {} elements",
+                                index,
+                                element_types.len()
+                            ))
+                        }
+                    }
+                    _ => Err(format!(
+                        "Cannot use tuple indexing on type {}",
+                        tuple_type.to_string()
+                    )),
+                }
             }
         }
     }
@@ -567,10 +746,20 @@ impl TypeChecker {
             TypeAnnotation::Float32 => Type::Float32,
             TypeAnnotation::Float64 => Type::Float64,
             TypeAnnotation::Bool => Type::Bool,
+            TypeAnnotation::String => Type::String,
+            TypeAnnotation::Array(element_type) => Type::Array(Box::new(
+                self.type_annotation_to_type(element_type),
+            )),
             TypeAnnotation::Tensor { dtype, shape } => Type::Tensor {
                 dtype: Box::new(self.type_annotation_to_type(dtype)),
                 shape: Shape::Static(shape.clone()),
             },
+            TypeAnnotation::Tuple(element_types) => Type::Tuple(
+                element_types
+                    .iter()
+                    .map(|t| self.type_annotation_to_type(t))
+                    .collect(),
+            ),
         }
     }
 }

@@ -1,0 +1,123 @@
+// Test file for match expressions
+// Session 11: Pattern matching implementation
+
+// Test 1: Basic integer literal matching
+let test1: string = match 1 {
+    1 => "one",
+    2 => "two",
+    3 => "three",
+    _ => "other"
+};
+print("Test 1 - Integer literal match: " + test1);
+
+// Test 2: Match with variable binding
+let test2: string = match 42 {
+    1 => "one",
+    2 => "two",
+    x => "got " + str(x)
+};
+print("Test 2 - Variable binding: " + test2);
+
+// Test 3: Wildcard pattern
+let test3: string = match 999 {
+    1 => "one",
+    2 => "two",
+    _ => "unknown"
+};
+print("Test 3 - Wildcard pattern: " + test3);
+
+// Test 4: Boolean literal matching
+let test4: string = match true {
+    true => "yes",
+    false => "no"
+};
+print("Test 4 - Boolean match: " + test4);
+
+// Test 5: String literal matching
+let test5: string = match "hello" {
+    "world" => "found world",
+    "hello" => "found hello",
+    _ => "other string"
+};
+print("Test 5 - String match: " + test5);
+
+// Test 6: Float literal matching
+let test6: string = match 3.14 {
+    2.71 => "euler",
+    3.14 => "pi",
+    _ => "other"
+};
+print("Test 6 - Float match: " + test6);
+
+// Test 7: Match in function
+fn classify_number(n: int64) -> string {
+    return match n {
+        0 => "zero",
+        1 => "one",
+        2 => "two",
+        x => "number: " + str(x)
+    };
+}
+
+let test7: string = classify_number(5);
+print("Test 7 - Match in function: " + test7);
+
+// Test 8: Multiple matches with same variable pattern
+let test8a: string = match 10 {
+    x => "value is " + str(x)
+};
+print("Test 8a - Variable only: " + test8a);
+
+// Test 9: Match with integer expressions as return values
+fn double_or_triple(n: int64) -> int64 {
+    return match n {
+        1 => n * 2,
+        2 => n * 3,
+        x => x * 4
+    };
+}
+
+let test9: int64 = double_or_triple(2);
+print("Test 9 - Match returning integers: " + str(test9));
+
+// Test 10: Nested match expressions
+let outer_val: int64 = 1;
+let test10: string = match outer_val {
+    1 => match 2 {
+        1 => "inner one",
+        2 => "inner two",
+        _ => "inner other"
+    },
+    2 => "outer two",
+    _ => "outer other"
+};
+print("Test 10 - Nested match: " + test10);
+
+// Test 11: First match wins (order matters)
+let test11: string = match 1 {
+    1 => "first",
+    x => "variable",
+    _ => "wildcard"
+};
+print("Test 11 - First match wins: " + test11);
+
+// Test 12: Variable binding different values
+fn test_binding(val: int64) -> string {
+    return match val {
+        0 => "zero",
+        n => "non-zero: " + str(n)
+    };
+}
+
+print("Test 12a - Binding zero: " + test_binding(0));
+print("Test 12b - Binding ten: " + test_binding(10));
+
+// Test 13: Match with all patterns
+let test13: string = match 7 {
+    1 => "literal one",
+    2 => "literal two",
+    x => "variable caught: " + str(x)
+};
+print("Test 13 - Complete pattern coverage: " + test13);
+
+print("\nAll match expression tests completed!");

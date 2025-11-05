@@ -204,6 +204,10 @@ impl Lexer {
                     self.read_char();
                     self.read_char();
                     Token::new(TokenType::Equal, "==".to_string(), line, column)
+                } else if self.peek_char() == '>' {
+                    self.read_char();
+                    self.read_char();
+                    Token::new(TokenType::FatArrow, "=>".to_string(), line, column)
                 } else {
                     self.read_char();
                     Token::new(TokenType::Assign, "=".to_string(), line, column)
@@ -274,6 +278,23 @@ impl Lexer {
             ':' => {
                 self.read_char();
                 Token::new(TokenType::Colon, ":".to_string(), line, column)
+            }
+            '.' => {
+                if self.peek_char() == '.' {
+                    self.read_char(); // consume first '.'
+                    self.read_char(); // consume second '.'
+
+                    // Check if followed by '=' for inclusive range
+                    if self.ch == '=' {
+                        self.read_char(); // consume '='
+                        Token::new(TokenType::DotDotEqual, "..=".to_string(), line, column)
+                    } else {
+                        Token::new(TokenType::DotDot, "..".to_string(), line, column)
+                    }
+                } else {
+                    self.read_char();
+                    Token::new(TokenType::Dot, ".".to_string(), line, column)
+                }
             }
 
             // Brackets

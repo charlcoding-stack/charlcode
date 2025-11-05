@@ -8,14 +8,15 @@ use crate::lexer::{Lexer, Token, TokenType};
 enum Precedence {
     Lowest = 0,
     Logical = 1,     // and, or
-    Equals = 2,      // ==, !=
-    LessGreater = 3, // <, >, <=, >=
-    Sum = 4,         // +, -
-    Product = 5,     // *, /, %
-    MatMul = 6,      // @
-    Prefix = 7,      // -x, !x
-    Call = 8,        // fn(x)
-    Index = 9,       // arr[i]
+    Range = 2,       // ..
+    Equals = 3,      // ==, !=
+    LessGreater = 4, // <, >, <=, >=
+    Sum = 5,         // +, -
+    Product = 6,     // *, /, %
+    MatMul = 7,      // @
+    Prefix = 8,      // -x, !x
+    Call = 9,        // fn(x)
+    Index = 10,      // arr[i]
 }
 
 pub struct Parser {
@@ -84,6 +85,7 @@ impl Parser {
     fn token_precedence(token_type: &TokenType) -> Precedence {
         match token_type {
             TokenType::And | TokenType::Or => Precedence::Logical,
+            TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
             TokenType::Equal | TokenType::NotEqual => Precedence::Equals,
             TokenType::LessThan
             | TokenType::LessEqual
@@ -93,7 +95,7 @@ impl Parser {
             TokenType::Multiply | TokenType::Divide | TokenType::Modulo => Precedence::Product,
             TokenType::MatMul => Precedence::MatMul,
             TokenType::LParen => Precedence::Call,
-            TokenType::LBracket => Precedence::Index,
+            TokenType::LBracket | TokenType::Dot => Precedence::Index,
             _ => Precedence::Lowest,
         }
     }
@@ -121,6 +123,17 @@ impl Parser {
             TokenType::Let => self.parse_let_statement(),
             TokenType::Return => self.parse_return_statement(),
             TokenType::Fn => self.parse_function_statement(),
+            TokenType::If => self.parse_if_statement(),
+            TokenType::While => self.parse_while_statement(),
+            TokenType::For => self.parse_for_statement(),
+            TokenType::Ident => {
+                // Check if this is an assignment (identifier = expression)
+                if self.peek_token_is(TokenType::Assign) {
+                    self.parse_assignment_statement()
+                } else {
+                    self.parse_expression_statement()
+                }
+            }
             _ => self.parse_expression_statement(),
         }
     }
@@ -165,6 +178,27 @@ impl Parser {
             type_annotation,
             value,
         }))
+    }
+
+    fn parse_assignment_statement(&mut self) -> Result<Statement, String> {
+        // Current token is the identifier
+        let name = self.current_token.literal.clone();
+
+        // Expect '='
+        if !self.expect_peek(TokenType::Assign) {
+            return Err("Expected '=' in assignment".to_string());
+        }
+
+        self.advance(); // move to value expression
+
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        // Optional semicolon
+        if self.peek_token_is(TokenType::Semicolon) {
+            self.advance();
+        }
+
+        Ok(Statement::Assign(AssignStatement { name, value }))
     }
 
     fn parse_return_statement(&mut self) -> Result<Statement, String> {
@@ -284,6 +318,100 @@ impl Parser {
         Ok(statements)
     }
 
+    fn parse_if_statement(&mut self) -> Result<Statement, String> {
+        self.advance(); // consume 'if'
+
+        // Parse condition
+        let condition = self.parse_expression(Precedence::Lowest)?;
+
+        // Expect '{'
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after if condition".to_string());
+        }
+
+        // Parse consequence block
+        let consequence = self.parse_block_statement()?;
+
+        // Check for 'else' clause
+        let alternative = if self.peek_token_is(TokenType::Else) {
+            self.advance(); // consume '}', now current is 'else'
+
+            if !self.expect_peek(TokenType::LBrace) {
+                return Err("Expected '{' after else".to_string());
+            }
+
+            Some(self.parse_block_statement()?)
+        } else {
+            None
+        };
+
+        Ok(Statement::If(IfStatement {
+            condition,
+            consequence,
+            alternative,
+        }))
+    }
+
+    fn parse_while_statement(&mut self) -> Result<Statement, String> {
+        self.advance(); // consume 'while'
+
+        // Parse condition
+        let condition = self.parse_expression(Precedence::Lowest)?;
+
+        // Expect '{'
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after while condition".to_string());
+        }
+
+        // Parse body
+        let body = self.parse_block_statement()?;
+
+        Ok(Statement::While(WhileStatement { condition, body }))
+    }
+
+    fn parse_for_statement(&mut self) -> Result<Statement, String> {
+        self.advance(); // consume 'for'
+
+        // Parse variable name
+        let variable = if self.current_token_is(TokenType::Ident) {
+            self.current_token.literal.clone()
+        } else {
+            return Err("Expected variable name after 'for'".to_string());
+        };
+
+        // Expect 'in'
+        // Note: We need to check if 'in' is an identifier token
+        if !self.expect_peek(TokenType::Ident) {
+            return Err("Expected 'in' after for variable".to_string());
+        }
+
+        if self.current_token.literal != "in" {
+            return Err(format!(
+                "Expected 'in' after for variable, got '{}'",
+                self.current_token.literal
+            ));
+        }
+
+        self.advance(); // move past 'in'
+
+        // Parse iterable expression
+        let iterable = self.parse_expression(Precedence::Lowest)?;
+
+        // Expect '{'
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after for iterable".to_string());
+        }
+
+        // Parse body
+        let body = self.parse_block_statement()?;
+
+        Ok(Statement::For(ForStatement {
+            variable,
+            iterable,
+            body,
+        }))
+    }
+
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         let expression = self.parse_expression(Precedence::Lowest)?;
 
@@ -332,6 +460,8 @@ impl Parser {
             TokenType::Minus | TokenType::Not => self.parse_unary_expression(),
             TokenType::LParen => self.parse_grouped_expression(),
             TokenType::Autograd => self.parse_autograd_expression(),
+            TokenType::If => self.parse_if_expression(),
+            TokenType::Match => self.parse_match_expression(),
             _ => Err(format!(
                 "No prefix parse function for {:?} at line {}",
                 self.current_token.token_type, self.current_token.line
@@ -355,8 +485,11 @@ impl Parser {
             | TokenType::GreaterEqual
             | TokenType::And
             | TokenType::Or => self.parse_binary_expression(left),
+            TokenType::DotDot => self.parse_range_expression(left),
+            TokenType::DotDotEqual => self.parse_inclusive_range_expression(left),
             TokenType::LParen => self.parse_call_expression(left),
             TokenType::LBracket => self.parse_index_expression(left),
+            TokenType::Dot => self.parse_tuple_index_expression(left),
             _ => Err(format!(
                 "No infix parse function for {:?}",
                 self.current_token.token_type
@@ -375,6 +508,32 @@ impl Parser {
             left: Box::new(left),
             operator,
             right: Box::new(right),
+        })
+    }
+
+    fn parse_range_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        // Current token is '..'
+        let precedence = self.current_precedence();
+
+        self.advance();
+        let right = self.parse_expression(precedence)?;
+
+        Ok(Expression::Range {
+            start: Box::new(left),
+            end: Box::new(right),
+        })
+    }
+
+    fn parse_inclusive_range_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        // Current token is '..='
+        let precedence = self.current_precedence();
+
+        self.advance();
+        let right = self.parse_expression(precedence)?;
+
+        Ok(Expression::InclusiveRange {
+            start: Box::new(left),
+            end: Box::new(right),
         })
     }
 
@@ -397,13 +556,43 @@ impl Parser {
     fn parse_grouped_expression(&mut self) -> Result<Expression, String> {
         self.advance(); // consume '('
 
-        let expr = self.parse_expression(Precedence::Lowest)?;
-
-        if !self.expect_peek(TokenType::RParen) {
-            return Err("Expected ')' after grouped expression".to_string());
+        // Check for empty tuple: ()
+        if self.current_token_is(TokenType::RParen) {
+            return Ok(Expression::TupleLiteral(vec![]));
         }
 
-        Ok(expr)
+        let first_expr = self.parse_expression(Precedence::Lowest)?;
+
+        // Check if it's a tuple (has comma) or grouped expression
+        if self.peek_token_is(TokenType::Comma) {
+            // It's a tuple literal
+            let mut elements = vec![first_expr];
+
+            while self.peek_token_is(TokenType::Comma) {
+                self.advance(); // consume ','
+
+                // Allow trailing comma
+                if self.peek_token_is(TokenType::RParen) {
+                    break;
+                }
+
+                self.advance(); // move to next expression
+                elements.push(self.parse_expression(Precedence::Lowest)?);
+            }
+
+            if !self.expect_peek(TokenType::RParen) {
+                return Err("Expected ')' after tuple elements".to_string());
+            }
+
+            Ok(Expression::TupleLiteral(elements))
+        } else {
+            // It's a grouped expression
+            if !self.expect_peek(TokenType::RParen) {
+                return Err("Expected ')' after grouped expression".to_string());
+            }
+
+            Ok(first_expr)
+        }
     }
 
     fn parse_array_literal(&mut self) -> Result<Expression, String> {
@@ -459,6 +648,29 @@ impl Parser {
         })
     }
 
+    fn parse_tuple_index_expression(&mut self, tuple: Expression) -> Result<Expression, String> {
+        self.advance(); // consume '.'
+
+        // Expect an integer literal for tuple index
+        if !self.current_token_is(TokenType::Int) {
+            return Err(format!(
+                "Expected integer for tuple index, got {:?}",
+                self.current_token.token_type
+            ));
+        }
+
+        let index = self
+            .current_token
+            .literal
+            .parse::<usize>()
+            .map_err(|_| format!("Invalid tuple index: {}", self.current_token.literal))?;
+
+        Ok(Expression::TupleIndex {
+            tuple: Box::new(tuple),
+            index,
+        })
+    }
+
     fn parse_autograd_expression(&mut self) -> Result<Expression, String> {
         if !self.expect_peek(TokenType::LParen) {
             return Err("Expected '(' after 'autograd'".to_string());
@@ -476,6 +688,132 @@ impl Parser {
         })
     }
 
+    fn parse_if_expression(&mut self) -> Result<Expression, String> {
+        self.advance(); // consume 'if'
+
+        // Parse condition
+        let condition = self.parse_expression(Precedence::Lowest)?;
+
+        // Expect '{'
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after if condition".to_string());
+        }
+
+        // Parse consequence block
+        let consequence = self.parse_block_statement()?;
+
+        // For if expression, else is REQUIRED (must return a value in both branches)
+        if !self.peek_token_is(TokenType::Else) {
+            return Err("If expression requires 'else' clause".to_string());
+        }
+
+        self.advance(); // consume '}'
+        // Now current is 'else', peek is '{'
+
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after else".to_string());
+        }
+
+        // Parse alternative block
+        let alternative = self.parse_block_statement()?;
+
+        Ok(Expression::If {
+            condition: Box::new(condition),
+            consequence,
+            alternative,
+        })
+    }
+
+    fn parse_match_expression(&mut self) -> Result<Expression, String> {
+        self.advance(); // consume 'match'
+
+        // Parse the value to match against
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        // Expect '{'
+        if !self.expect_peek(TokenType::LBrace) {
+            return Err("Expected '{' after match value".to_string());
+        }
+
+        // Parse match arms
+        let mut arms = Vec::new();
+        self.advance(); // consume '{'
+
+        while !self.current_token_is(TokenType::RBrace) && !self.current_token_is(TokenType::Eof) {
+            let arm = self.parse_match_arm()?;
+            arms.push(arm);
+
+            // Expect comma after each arm (except potentially the last one)
+            if self.peek_token_is(TokenType::Comma) {
+                self.advance(); // consume ','
+            }
+
+            self.advance(); // move to next token
+        }
+
+        if arms.is_empty() {
+            return Err("Match expression must have at least one arm".to_string());
+        }
+
+        Ok(Expression::Match {
+            value: Box::new(value),
+            arms,
+        })
+    }
+
+    fn parse_match_arm(&mut self) -> Result<MatchArm, String> {
+        // Parse pattern
+        let pattern = self.parse_pattern()?;
+
+        // Expect '=>'
+        if !self.expect_peek(TokenType::FatArrow) {
+            return Err("Expected '=>' after match pattern".to_string());
+        }
+
+        self.advance(); // consume '=>'
+
+        // Parse expression
+        let expression = self.parse_expression(Precedence::Lowest)?;
+
+        Ok(MatchArm {
+            pattern,
+            expression,
+        })
+    }
+
+    fn parse_pattern(&mut self) -> Result<Pattern, String> {
+        match &self.current_token.token_type {
+            TokenType::Int => {
+                let value = self.current_token.literal.parse::<i64>()
+                    .map_err(|_| format!("Invalid integer literal: {}", self.current_token.literal))?;
+                Ok(Pattern::IntegerLiteral(value))
+            }
+            TokenType::Float => {
+                let value = self.current_token.literal.parse::<f64>()
+                    .map_err(|_| format!("Invalid float literal: {}", self.current_token.literal))?;
+                Ok(Pattern::FloatLiteral(value))
+            }
+            TokenType::True => Ok(Pattern::BooleanLiteral(true)),
+            TokenType::False => Ok(Pattern::BooleanLiteral(false)),
+            TokenType::String => {
+                Ok(Pattern::StringLiteral(self.current_token.literal.clone()))
+            }
+            TokenType::Ident => {
+                let name = self.current_token.literal.clone();
+                // Check if this is a wildcard
+                if name == "_" {
+                    Ok(Pattern::Wildcard)
+                } else {
+                    Ok(Pattern::Variable(name))
+                }
+            }
+            _ => Err(format!(
+                "Invalid pattern: {:?} at line {}",
+                self.current_token.token_type, self.current_token.line
+            )),
+        }
+    }
+
     fn parse_type_annotation(&mut self) -> Result<TypeAnnotation, String> {
         match &self.current_token.token_type {
             TokenType::Int32 => Ok(TypeAnnotation::Int32),
@@ -483,6 +821,18 @@ impl Parser {
             TokenType::Float32 => Ok(TypeAnnotation::Float32),
             TokenType::Float64 => Ok(TypeAnnotation::Float64),
             TokenType::Bool => Ok(TypeAnnotation::Bool),
+            TokenType::StringType => Ok(TypeAnnotation::String),
+            TokenType::LBracket => {
+                // Array type: [element_type]
+                self.advance(); // move to element type
+                let element_type = Box::new(self.parse_type_annotation()?);
+
+                if !self.expect_peek(TokenType::RBracket) {
+                    return Err("Expected ']' after array element type".to_string());
+                }
+
+                Ok(TypeAnnotation::Array(element_type))
+            }
             TokenType::Tensor => {
                 // tensor<dtype, [shape]>
                 if !self.expect_peek(TokenType::LessThan) {
@@ -531,6 +881,37 @@ impl Parser {
                 }
 
                 Ok(TypeAnnotation::Tensor { dtype, shape })
+            }
+            TokenType::LParen => {
+                // Tuple type: (type1, type2, ...)
+                self.advance(); // consume '('
+
+                // Check for empty tuple: ()
+                if self.current_token_is(TokenType::RParen) {
+                    return Ok(TypeAnnotation::Tuple(vec![]));
+                }
+
+                // Parse first type
+                let mut element_types = vec![self.parse_type_annotation()?];
+
+                // Parse remaining types
+                while self.peek_token_is(TokenType::Comma) {
+                    self.advance(); // consume ','
+
+                    // Allow trailing comma
+                    if self.peek_token_is(TokenType::RParen) {
+                        break;
+                    }
+
+                    self.advance(); // move to next type
+                    element_types.push(self.parse_type_annotation()?);
+                }
+
+                if !self.expect_peek(TokenType::RParen) {
+                    return Err("Expected ')' after tuple types".to_string());
+                }
+
+                Ok(TypeAnnotation::Tuple(element_types))
             }
             _ => Err(format!(
                 "Invalid type annotation: {:?}",
