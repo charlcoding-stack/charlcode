@@ -1,0 +1,28 @@
+MNIST Benchmark Comparison: Charl vs PyTorch
+Date: Wed Nov  5 02:11:28 PM UTC 2025
+=================================================
+
+Configuration:
+  Model: MNIST Classifier (784→128→64→10)
+  Parameters: 109,386
+  Dataset: 1,000 synthetic samples
+  Batch size: 32
+  Epochs: 5
+  Learning rate: 0.001
+
+Results:
+  Charl:
+    Total time: 414.43ms
+    Throughput: 12064.66 samples/sec
+
+  PyTorch:
+    Total time: 9.255s
+    Throughput: 540.24 samples/sec
+
+  SPEEDUP: 22.33x faster!
+
+Environment:
+  Platform: Linux 6.14.0-35-generic
+  Python: Python 3.12.3
+  PyTorch: 2.9.0+cpu
+  Rust: 
