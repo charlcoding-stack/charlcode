@@ -38,3 +38,19 @@ examples/hello
 examples/math
 examples/function
 examples/arrays
+
+# Internal development documentation
+# Keep only: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CONTRIBUTORS.md, CLA.md
+FASE_*.md
+PHASE*.md
+SESSION_*.md
+ROADMAP*.md
+*_REPORT.md
+*_STATUS.md
+*_COMPLETE.md
+*_GUIDE.md
+context.md
+meta.md
+teoria.md
+docs/SPECIFICATION.md
+examples/README.md
