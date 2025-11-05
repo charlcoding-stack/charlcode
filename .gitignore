@@ -48,11 +48,11 @@ examples/function
 examples/arrays
 
 # Internal development documentation
-# Keep only: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CONTRIBUTORS.md, CLA.md
+# Keep only: README.md, CONTRIBUTING.md, CODE_OF_CONDUCT.md, CONTRIBUTORS.md, CLA.md, ROADMAP.md, INSTALL_WINDOWS.md, VSCODE_INTEGRATION.md
 FASE_*.md
 PHASE*.md
 SESSION_*.md
-ROADMAP*.md
+ROADMAP_*.md
 *_REPORT.md
 *_STATUS.md
 *_COMPLETE.md
@@ -60,5 +60,17 @@ ROADMAP*.md
 context.md
 meta.md
 teoria.md
-docs/SPECIFICATION.md
-examples/README.md
+
+# Allow these essential docs
+!ROADMAP.md
+!INSTALL_WINDOWS.md
+!VSCODE_INTEGRATION.md
+!docs/SPECIFICATION.md
+!examples/README.md
+!vscode-charl/README.md
+
+# Session and progress files (keep locally but not in repo)
+LLVM_BACKEND_PLAN.md
+PROGRESS_SESSION_*.md
+benchmarks/BENCHMARK_RESULTS.md
+benchmarks/PROGRESS_SESSION_*.md
