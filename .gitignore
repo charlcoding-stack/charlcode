@@ -1,6 +1,9 @@
 # Rust
 /target/
 **/*.rs.bk
+*.pdb
+
+# Cargo
 Cargo.lock
 
 # IDE
@@ -13,34 +16,19 @@ Cargo.lock
 # OS
 .DS_Store
 Thumbs.db
-*.tmp
 
 # Build artifacts
-*.exe
-*.dll
+*.o
+*.a
 *.so
 *.dylib
-*.a
-*.lib
 
-# Test artifacts
-/tmp/
-/test_output/
+# Generated files
+*.json
+!package.json
+benchmark_output.txt
+benchmark_run.txt
 
-# Benchmarks
-/benches/target/
-
-# Documentation builds
-/target/doc/
-
-# Backup files
-*.bak
-*.backup
-
-# Environment
-.env
-.env.local
-
-# Debug
-*.pdb
-*.dSYM/
+# Temporary files
+*.tmp
+*.log

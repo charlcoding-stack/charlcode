@@ -6,28 +6,49 @@ authors = ["Charl Team"]
 description = "A revolutionary programming language for AI and Deep Learning"
 license = "MIT"
 
+# Main Charl executable
 [[bin]]
 name = "charl"
 path = "src/main.rs"
 
-[[bin]]
-name = "codegen_vs_interpreter"
-path = "benches/codegen_vs_interpreter.rs"
-
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 
-# GPU Support (Phase 8)
-wgpu = { version = "0.19", default-features = false, features = ["wgsl", "dx12"] }  # WebGPU for cross-platform GPU compute
+# GPU Support (Phase 8) - DESBLOQUEADO EN LINUX ✅
+wgpu = { version = "0.19", features = ["wgsl"] }  # WebGPU for cross-platform GPU compute
 bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy casting for GPU buffers
 pollster = "0.3"           # Async executor for wgpu setup
+futures-intrusive = "0.5"  # Async primitives for wgpu
 
-# LLVM Support (Phase 7 - requires llvm-config, Linux recommended)
-# inkwell = { version = "0.5", features = ["llvm16-0"] }  # Requires llvm-config (not included in Windows LLVM)
-# TODO: Install LLVM from source or use Linux for full LLVM support
+# LLVM Support (Phase 7) - REACTIVADO
+# Nota: Si hay problemas de compilación con Polly, usar llvm-sys directamente
+# o implementar un backend más simple sin JIT
+inkwell = { version = "0.4", features = ["llvm15-0"], optional = true }
+
+[features]
+default = []
+llvm = ["inkwell"]  # Enable LLVM backend (optional)
 
 [dev-dependencies]
-# criterion = "0.5"  # Temporarily disabled due to dlltool issues
+criterion = "0.5"  # DESBLOQUEADO EN LINUX ✅
+
+[[bench]]
+name = "codegen_vs_interpreter"
+path = "benches/codegen_vs_interpreter.rs"
+harness = false
+
+[[bench]]
+name = "gpu_vs_cpu_benchmark"
+path = "benches/gpu_vs_cpu_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "llvm_vs_interpreter"
+path = "benches/llvm_vs_interpreter.rs"
+harness = false
+required-features = ["llvm"]
 
 [profile.release]
 opt-level = 3

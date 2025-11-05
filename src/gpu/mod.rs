@@ -12,6 +12,9 @@ pub enum BackendError {
     DeviceNotAvailable(String),
     InvalidDimensions(String),
     OutOfMemory(String),
+    InvalidBuffer,
+    MemoryError(String),
+    NotImplemented(String),
 }
 
 impl fmt::Display for BackendError {
@@ -23,6 +26,9 @@ impl fmt::Display for BackendError {
             BackendError::DeviceNotAvailable(msg) => write!(f, "Device not available: {}", msg),
             BackendError::InvalidDimensions(msg) => write!(f, "Invalid dimensions: {}", msg),
             BackendError::OutOfMemory(msg) => write!(f, "Out of memory: {}", msg),
+            BackendError::InvalidBuffer => write!(f, "Invalid buffer"),
+            BackendError::MemoryError(msg) => write!(f, "Memory error: {}", msg),
+            BackendError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
         }
     }
 }
@@ -163,6 +169,9 @@ pub trait ComputeBackend: Send + Sync {
 
 // Submodules
 pub mod cpu;
+
+// GPU backend using wgpu (WebGPU)
+pub mod wgpu_backend;
 
 #[cfg(test)]
 mod tests {
