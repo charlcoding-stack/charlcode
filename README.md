@@ -17,14 +17,31 @@ Charl is designed for building AI and machine learning systems with a focus on:
 
 ## Installation
 
-### Option 1: Pre-compiled Binaries (Recommended)
+### Quick Install (Recommended)
 
-Download the latest release for your platform from the [releases page](https://github.com/charlcoding-stack/charlcode/releases).
+**Linux/macOS:**
+```bash
+curl -sSf https://charlbase.org/install.sh | sh
+```
+
+**Windows (PowerShell as Administrator):**
+```powershell
+irm https://charlbase.org/install.ps1 | iex
+```
+
+The installer automatically:
+- Detects your system and architecture
+- Installs Rust if needed (Linux/macOS only)
+- Compiles and installs Charl
+- Adds Charl to your PATH
+- Installs VS Code extension (if VS Code is detected)
+
+### Option 2: Manual Installation
 
 **Linux/macOS:**
 ```bash
 # Download and extract
-tar -xzf charl-*.tar.gz
+curl -L https://github.com/charlcoding-stack/charlcode/releases/latest/download/charl-linux-x86_64.tar.gz | tar xz
 
 # Move to PATH
 sudo mv charl /usr/local/bin/
@@ -35,27 +52,57 @@ charl --version
 
 **Windows:**
 ```powershell
-# Extract the zip file
-# Move charl.exe to a directory in your PATH
-# Verify installation
-charl.exe --version
+# Download from GitHub Releases
+Invoke-WebRequest -Uri "https://github.com/charlcoding-stack/charlcode/releases/latest/download/charl-windows-x86_64.zip" -OutFile charl.zip
+
+# Extract
+Expand-Archive charl.zip -DestinationPath "$env:USERPROFILE\.charl\bin"
+
+# Add to PATH (run as Administrator)
+$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+[Environment]::SetEnvironmentVariable("Path", "$userPath;$env:USERPROFILE\.charl\bin", "User")
+
+# Verify (restart terminal first)
+charl --version
 ```
 
-### Option 2: Build from Source
+### Option 3: Build from Source
 
+**Requirements:**
+- Rust 1.70+ ([rustup.rs](https://rustup.rs/))
+- Git
+
+**Linux/macOS:**
 ```bash
 # Clone repository
 git clone https://github.com/charlcoding-stack/charlcode.git
 cd charlcode
 
-# Build
+# Build release
 cargo build --release
 
-# Install (optional)
+# Install system-wide
 sudo cp target/release/charl /usr/local/bin/
 
 # Verify
 charl --version
+```
+
+**Windows:**
+```powershell
+# Clone repository
+git clone https://github.com/charlcoding-stack/charlcode.git
+cd charlcode
+
+# Build release
+cargo build --release
+
+# Binary location
+.\target\release\charl.exe --version
+
+# Install to user directory
+Copy-Item target\release\charl.exe "$env:USERPROFILE\.charl\bin\"
+# Add to PATH as shown in Option 2
 ```
 
 ## Quick Start
