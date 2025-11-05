@@ -1024,6 +1024,554 @@ impl<'ctx> LLVMCodegen<'ctx> {
 
         function
     }
+
+    // ===== Activation Functions (Week 2: Critical ML Ops) =====
+
+    /// Generate LLVM IR for ReLU activation function
+    ///
+    /// Computes: output[i] = max(0, input[i])
+    ///
+    /// ReLU (Rectified Linear Unit) is the most common activation function in deep learning.
+    /// It's simple, efficient, and helps with the vanishing gradient problem.
+    ///
+    /// # Returns
+    /// Function signature: `fn relu(input: *f32, output: *f32, size: i64)`
+    pub fn gen_relu(&self) -> FunctionValue<'ctx> {
+        let f32_type = self.f32_type();
+        let f32_ptr_type = f32_type.ptr_type(inkwell::AddressSpace::default());
+        let i64_type = self.context.i64_type();
+        let void_type = self.context.void_type();
+
+        let fn_type = void_type.fn_type(
+            &[
+                f32_ptr_type.into(), // input
+                f32_ptr_type.into(), // output
+                i64_type.into(),     // size
+            ],
+            false,
+        );
+
+        let function = self.module.add_function("relu", fn_type, None);
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        let loop_bb = self.context.append_basic_block(function, "loop");
+        let loop_body_bb = self.context.append_basic_block(function, "loop_body");
+        let end_bb = self.context.append_basic_block(function, "end");
+
+        let input_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let output_ptr = function.get_nth_param(1).unwrap().into_pointer_value();
+        let size = function.get_nth_param(2).unwrap().into_int_value();
+
+        // Entry: setup counter
+        self.builder.position_at_end(entry_bb);
+        let counter_ptr = self.builder.build_alloca(i64_type, "counter").unwrap();
+        self.builder.build_store(counter_ptr, i64_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // Loop condition
+        self.builder.position_at_end(loop_bb);
+        let counter = self.builder.build_load(i64_type, counter_ptr, "i").unwrap().into_int_value();
+        let cond = self.builder.build_int_compare(IntPredicate::ULT, counter, size, "cond").unwrap();
+        self.builder.build_conditional_branch(cond, loop_body_bb, end_bb).unwrap();
+
+        // Loop body: output[i] = max(0, input[i])
+        self.builder.position_at_end(loop_body_bb);
+
+        let input_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, input_ptr, &[counter], "input_ptr").unwrap()
+        };
+        let input_val = self.builder.build_load(f32_type, input_elem_ptr, "input_val").unwrap().into_float_value();
+
+        // Compare with 0.0
+        let zero = f32_type.const_zero();
+        let is_positive = self.builder.build_float_compare(
+            inkwell::FloatPredicate::OGT,
+            input_val,
+            zero,
+            "is_positive"
+        ).unwrap();
+
+        // Select: max(0, x) = x if x > 0 else 0
+        let result = self.builder.build_select(is_positive, input_val, zero, "relu_result").unwrap();
+
+        let output_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, output_ptr, &[counter], "output_ptr").unwrap()
+        };
+        self.builder.build_store(output_elem_ptr, result).unwrap();
+
+        // Increment counter
+        let next_counter = self.builder.build_int_add(counter, i64_type.const_int(1, false), "next").unwrap();
+        self.builder.build_store(counter_ptr, next_counter).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // End
+        self.builder.position_at_end(end_bb);
+        self.builder.build_return(None).unwrap();
+
+        function
+    }
+
+    /// Generate LLVM IR for Sigmoid activation function
+    ///
+    /// Computes: output[i] = 1 / (1 + exp(-input[i]))
+    ///
+    /// Sigmoid squashes values to range (0, 1), useful for binary classification
+    /// and as a gate in LSTM networks.
+    ///
+    /// # Returns
+    /// Function signature: `fn sigmoid(input: *f32, output: *f32, size: i64)`
+    pub fn gen_sigmoid(&self) -> FunctionValue<'ctx> {
+        let f32_type = self.f32_type();
+        let f32_ptr_type = f32_type.ptr_type(inkwell::AddressSpace::default());
+        let i64_type = self.context.i64_type();
+        let void_type = self.context.void_type();
+
+        let fn_type = void_type.fn_type(
+            &[
+                f32_ptr_type.into(), // input
+                f32_ptr_type.into(), // output
+                i64_type.into(),     // size
+            ],
+            false,
+        );
+
+        let function = self.module.add_function("sigmoid", fn_type, None);
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        let loop_bb = self.context.append_basic_block(function, "loop");
+        let loop_body_bb = self.context.append_basic_block(function, "loop_body");
+        let end_bb = self.context.append_basic_block(function, "end");
+
+        let input_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let output_ptr = function.get_nth_param(1).unwrap().into_pointer_value();
+        let size = function.get_nth_param(2).unwrap().into_int_value();
+
+        // Get LLVM intrinsic for exp
+        let exp_intrinsic = self.module.get_function("llvm.exp.f32").unwrap_or_else(|| {
+            let exp_fn_type = f32_type.fn_type(&[f32_type.into()], false);
+            self.module.add_function("llvm.exp.f32", exp_fn_type, None)
+        });
+
+        // Entry: setup counter
+        self.builder.position_at_end(entry_bb);
+        let counter_ptr = self.builder.build_alloca(i64_type, "counter").unwrap();
+        self.builder.build_store(counter_ptr, i64_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // Loop condition
+        self.builder.position_at_end(loop_bb);
+        let counter = self.builder.build_load(i64_type, counter_ptr, "i").unwrap().into_int_value();
+        let cond = self.builder.build_int_compare(IntPredicate::ULT, counter, size, "cond").unwrap();
+        self.builder.build_conditional_branch(cond, loop_body_bb, end_bb).unwrap();
+
+        // Loop body: output[i] = 1 / (1 + exp(-input[i]))
+        self.builder.position_at_end(loop_body_bb);
+
+        let input_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, input_ptr, &[counter], "input_ptr").unwrap()
+        };
+        let input_val = self.builder.build_load(f32_type, input_elem_ptr, "input_val").unwrap().into_float_value();
+
+        // Calculate -input[i]
+        let neg_input = self.builder.build_float_neg(input_val, "neg_input").unwrap();
+
+        // Calculate exp(-input[i])
+        let exp_val = self.builder.build_call(exp_intrinsic, &[neg_input.into()], "exp_val")
+            .unwrap()
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+            .into_float_value();
+
+        // Calculate 1 + exp(-input[i])
+        let one = f32_type.const_float(1.0);
+        let denominator = self.builder.build_float_add(one, exp_val, "denominator").unwrap();
+
+        // Calculate 1 / (1 + exp(-input[i]))
+        let result = self.builder.build_float_div(one, denominator, "sigmoid_result").unwrap();
+
+        let output_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, output_ptr, &[counter], "output_ptr").unwrap()
+        };
+        self.builder.build_store(output_elem_ptr, result).unwrap();
+
+        // Increment counter
+        let next_counter = self.builder.build_int_add(counter, i64_type.const_int(1, false), "next").unwrap();
+        self.builder.build_store(counter_ptr, next_counter).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // End
+        self.builder.position_at_end(end_bb);
+        self.builder.build_return(None).unwrap();
+
+        function
+    }
+
+    /// Generate LLVM IR for Tanh activation function
+    ///
+    /// Computes: output[i] = (exp(input[i]) - exp(-input[i])) / (exp(input[i]) + exp(-input[i]))
+    ///
+    /// Tanh squashes values to range (-1, 1), useful as an activation function
+    /// and in LSTM/GRU cells. Centered around zero unlike sigmoid.
+    ///
+    /// # Returns
+    /// Function signature: `fn tanh(input: *f32, output: *f32, size: i64)`
+    pub fn gen_tanh(&self) -> FunctionValue<'ctx> {
+        let f32_type = self.f32_type();
+        let f32_ptr_type = f32_type.ptr_type(inkwell::AddressSpace::default());
+        let i64_type = self.context.i64_type();
+        let void_type = self.context.void_type();
+
+        let fn_type = void_type.fn_type(
+            &[
+                f32_ptr_type.into(), // input
+                f32_ptr_type.into(), // output
+                i64_type.into(),     // size
+            ],
+            false,
+        );
+
+        let function = self.module.add_function("tanh", fn_type, None);
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        let loop_bb = self.context.append_basic_block(function, "loop");
+        let loop_body_bb = self.context.append_basic_block(function, "loop_body");
+        let end_bb = self.context.append_basic_block(function, "end");
+
+        let input_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let output_ptr = function.get_nth_param(1).unwrap().into_pointer_value();
+        let size = function.get_nth_param(2).unwrap().into_int_value();
+
+        // Get LLVM intrinsic for exp
+        let exp_intrinsic = self.module.get_function("llvm.exp.f32").unwrap_or_else(|| {
+            let exp_fn_type = f32_type.fn_type(&[f32_type.into()], false);
+            self.module.add_function("llvm.exp.f32", exp_fn_type, None)
+        });
+
+        // Entry: setup counter
+        self.builder.position_at_end(entry_bb);
+        let counter_ptr = self.builder.build_alloca(i64_type, "counter").unwrap();
+        self.builder.build_store(counter_ptr, i64_type.const_zero()).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // Loop condition
+        self.builder.position_at_end(loop_bb);
+        let counter = self.builder.build_load(i64_type, counter_ptr, "i").unwrap().into_int_value();
+        let cond = self.builder.build_int_compare(IntPredicate::ULT, counter, size, "cond").unwrap();
+        self.builder.build_conditional_branch(cond, loop_body_bb, end_bb).unwrap();
+
+        // Loop body: tanh(x) = (e^x - e^-x) / (e^x + e^-x)
+        self.builder.position_at_end(loop_body_bb);
+
+        let input_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, input_ptr, &[counter], "input_ptr").unwrap()
+        };
+        let input_val = self.builder.build_load(f32_type, input_elem_ptr, "input_val").unwrap().into_float_value();
+
+        // Calculate exp(x)
+        let exp_pos = self.builder.build_call(exp_intrinsic, &[input_val.into()], "exp_pos")
+            .unwrap()
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+            .into_float_value();
+
+        // Calculate -x
+        let neg_input = self.builder.build_float_neg(input_val, "neg_input").unwrap();
+
+        // Calculate exp(-x)
+        let exp_neg = self.builder.build_call(exp_intrinsic, &[neg_input.into()], "exp_neg")
+            .unwrap()
+            .try_as_basic_value()
+            .left()
+            .unwrap()
+            .into_float_value();
+
+        // Calculate exp(x) - exp(-x)
+        let numerator = self.builder.build_float_sub(exp_pos, exp_neg, "numerator").unwrap();
+
+        // Calculate exp(x) + exp(-x)
+        let denominator = self.builder.build_float_add(exp_pos, exp_neg, "denominator").unwrap();
+
+        // Calculate (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+        let result = self.builder.build_float_div(numerator, denominator, "tanh_result").unwrap();
+
+        let output_elem_ptr = unsafe {
+            self.builder.build_gep(f32_type, output_ptr, &[counter], "output_ptr").unwrap()
+        };
+        self.builder.build_store(output_elem_ptr, result).unwrap();
+
+        // Increment counter
+        let next_counter = self.builder.build_int_add(counter, i64_type.const_int(1, false), "next").unwrap();
+        self.builder.build_store(counter_ptr, next_counter).unwrap();
+        self.builder.build_unconditional_branch(loop_bb).unwrap();
+
+        // End
+        self.builder.position_at_end(end_bb);
+        self.builder.build_return(None).unwrap();
+
+        function
+    }
+
+    // ===== Convolutional Operations (Week 2: Critical ML Ops) =====
+
+    /// Generate Conv2D operation
+    ///
+    /// Simplified 2D convolution for single-channel input
+    /// Input: (h_in, w_in) image
+    /// Kernel: (k_h, k_w) filter
+    /// Output: (h_out, w_out) result
+    ///
+    /// For now: stride=1, padding=0 (valid convolution)
+    /// h_out = h_in - k_h + 1
+    /// w_out = w_in - k_w + 1
+    ///
+    /// Function signature:
+    ///   fn conv2d(input: *f32, kernel: *f32, output: *f32,
+    ///            h_in: i32, w_in: i32, k_h: i32, k_w: i32)
+    ///
+    /// Algorithm:
+    ///   for oh in 0..h_out:
+    ///     for ow in 0..w_out:
+    ///       sum = 0.0
+    ///       for kh in 0..k_h:
+    ///         for kw in 0..k_w:
+    ///           ih = oh + kh
+    ///           iw = ow + kw
+    ///           sum += input[ih * w_in + iw] * kernel[kh * k_w + kw]
+    ///       output[oh * w_out + ow] = sum
+    pub fn gen_conv2d(&self, h_in: u32, w_in: u32, k_h: u32, k_w: u32) -> FunctionValue<'ctx> {
+        let i32_type = self.context.i32_type();
+        let f32_type = self.context.f32_type();
+        let f32_ptr_type = f32_type.ptr_type(inkwell::AddressSpace::default());
+
+        // Calculate output dimensions
+        let h_out = h_in - k_h + 1;
+        let w_out = w_in - k_w + 1;
+
+        // Function signature
+        let fn_type = self.context.void_type().fn_type(
+            &[
+                f32_ptr_type.into(), // input
+                f32_ptr_type.into(), // kernel
+                f32_ptr_type.into(), // output
+                i32_type.into(),     // h_in
+                i32_type.into(),     // w_in
+                i32_type.into(),     // k_h
+                i32_type.into(),     // k_w
+            ],
+            false,
+        );
+
+        let function = self.module.add_function(
+            &format!("conv2d_{}x{}_k{}x{}", h_in, w_in, k_h, k_w),
+            fn_type,
+            None,
+        );
+
+        let entry_bb = self.context.append_basic_block(function, "entry");
+        self.builder.position_at_end(entry_bb);
+
+        // Get parameters
+        let input_ptr = function.get_nth_param(0).unwrap().into_pointer_value();
+        let kernel_ptr = function.get_nth_param(1).unwrap().into_pointer_value();
+        let output_ptr = function.get_nth_param(2).unwrap().into_pointer_value();
+        let w_in_val = function.get_nth_param(4).unwrap().into_int_value();
+        let k_w_val = function.get_nth_param(6).unwrap().into_int_value();
+
+        // Constants
+        let w_out_const = i32_type.const_int(w_out as u64, false);
+
+        // Allocate loop counters
+        let oh_ptr = self.builder.build_alloca(i32_type, "oh_ptr").unwrap();
+        let ow_ptr = self.builder.build_alloca(i32_type, "ow_ptr").unwrap();
+        let kh_ptr = self.builder.build_alloca(i32_type, "kh_ptr").unwrap();
+        let kw_ptr = self.builder.build_alloca(i32_type, "kw_ptr").unwrap();
+        let sum_ptr = self.builder.build_alloca(f32_type, "sum_ptr").unwrap();
+
+        // Initialize oh = 0
+        self.builder.build_store(oh_ptr, i32_type.const_zero()).unwrap();
+
+        // oh_loop: for oh in 0..h_out
+        let oh_loop_bb = self.context.append_basic_block(function, "oh_loop");
+        let oh_body_bb = self.context.append_basic_block(function, "oh_body");
+        let oh_end_bb = self.context.append_basic_block(function, "oh_end");
+
+        self.builder.build_unconditional_branch(oh_loop_bb).unwrap();
+        self.builder.position_at_end(oh_loop_bb);
+
+        let oh = self.builder.build_load(i32_type, oh_ptr, "oh").unwrap().into_int_value();
+        let oh_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::ULT,
+            oh,
+            i32_type.const_int(h_out as u64, false),
+            "oh_cond",
+        ).unwrap();
+        self.builder.build_conditional_branch(oh_cond, oh_body_bb, oh_end_bb).unwrap();
+
+        // oh_body: initialize ow = 0
+        self.builder.position_at_end(oh_body_bb);
+        self.builder.build_store(ow_ptr, i32_type.const_zero()).unwrap();
+
+        // ow_loop: for ow in 0..w_out
+        let ow_loop_bb = self.context.append_basic_block(function, "ow_loop");
+        let ow_body_bb = self.context.append_basic_block(function, "ow_body");
+        let ow_end_bb = self.context.append_basic_block(function, "ow_end");
+
+        self.builder.build_unconditional_branch(ow_loop_bb).unwrap();
+        self.builder.position_at_end(ow_loop_bb);
+
+        let ow = self.builder.build_load(i32_type, ow_ptr, "ow").unwrap().into_int_value();
+        let ow_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::ULT,
+            ow,
+            w_out_const,
+            "ow_cond",
+        ).unwrap();
+        self.builder.build_conditional_branch(ow_cond, ow_body_bb, ow_end_bb).unwrap();
+
+        // ow_body: initialize sum = 0.0, kh = 0
+        self.builder.position_at_end(ow_body_bb);
+        self.builder.build_store(sum_ptr, f32_type.const_float(0.0)).unwrap();
+        self.builder.build_store(kh_ptr, i32_type.const_zero()).unwrap();
+
+        // kh_loop: for kh in 0..k_h
+        let kh_loop_bb = self.context.append_basic_block(function, "kh_loop");
+        let kh_body_bb = self.context.append_basic_block(function, "kh_body");
+        let kh_end_bb = self.context.append_basic_block(function, "kh_end");
+
+        self.builder.build_unconditional_branch(kh_loop_bb).unwrap();
+        self.builder.position_at_end(kh_loop_bb);
+
+        let kh = self.builder.build_load(i32_type, kh_ptr, "kh").unwrap().into_int_value();
+        let kh_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::ULT,
+            kh,
+            i32_type.const_int(k_h as u64, false),
+            "kh_cond",
+        ).unwrap();
+        self.builder.build_conditional_branch(kh_cond, kh_body_bb, kh_end_bb).unwrap();
+
+        // kh_body: initialize kw = 0
+        self.builder.position_at_end(kh_body_bb);
+        self.builder.build_store(kw_ptr, i32_type.const_zero()).unwrap();
+
+        // kw_loop: for kw in 0..k_w
+        let kw_loop_bb = self.context.append_basic_block(function, "kw_loop");
+        let kw_body_bb = self.context.append_basic_block(function, "kw_body");
+        let kw_end_bb = self.context.append_basic_block(function, "kw_end");
+
+        self.builder.build_unconditional_branch(kw_loop_bb).unwrap();
+        self.builder.position_at_end(kw_loop_bb);
+
+        let kw = self.builder.build_load(i32_type, kw_ptr, "kw").unwrap().into_int_value();
+        let kw_cond = self.builder.build_int_compare(
+            inkwell::IntPredicate::ULT,
+            kw,
+            k_w_val,
+            "kw_cond",
+        ).unwrap();
+        self.builder.build_conditional_branch(kw_cond, kw_body_bb, kw_end_bb).unwrap();
+
+        // kw_body: compute sum += input[ih * w_in + iw] * kernel[kh * k_w + kw]
+        self.builder.position_at_end(kw_body_bb);
+
+        // Reload counters
+        let oh_val = self.builder.build_load(i32_type, oh_ptr, "oh_val").unwrap().into_int_value();
+        let ow_val = self.builder.build_load(i32_type, ow_ptr, "ow_val").unwrap().into_int_value();
+        let kh_val = self.builder.build_load(i32_type, kh_ptr, "kh_val").unwrap().into_int_value();
+        let kw_val = self.builder.build_load(i32_type, kw_ptr, "kw_val").unwrap().into_int_value();
+
+        // ih = oh + kh, iw = ow + kw
+        let ih = self.builder.build_int_add(oh_val, kh_val, "ih").unwrap();
+        let iw = self.builder.build_int_add(ow_val, kw_val, "iw").unwrap();
+
+        // input_idx = ih * w_in + iw
+        let ih_w = self.builder.build_int_mul(ih, w_in_val, "ih_w").unwrap();
+        let input_idx = self.builder.build_int_add(ih_w, iw, "input_idx").unwrap();
+
+        // kernel_idx = kh * k_w + kw
+        let kh_kw = self.builder.build_int_mul(kh_val, k_w_val, "kh_kw").unwrap();
+        let kernel_idx = self.builder.build_int_add(kh_kw, kw_val, "kernel_idx").unwrap();
+
+        // Load input[input_idx]
+        let input_elem_ptr = unsafe {
+            self.builder.build_gep(
+                f32_type,
+                input_ptr,
+                &[input_idx],
+                "input_elem_ptr",
+            ).unwrap()
+        };
+        let input_val = self.builder.build_load(f32_type, input_elem_ptr, "input_val").unwrap().into_float_value();
+
+        // Load kernel[kernel_idx]
+        let kernel_elem_ptr = unsafe {
+            self.builder.build_gep(
+                f32_type,
+                kernel_ptr,
+                &[kernel_idx],
+                "kernel_elem_ptr",
+            ).unwrap()
+        };
+        let kernel_val = self.builder.build_load(f32_type, kernel_elem_ptr, "kernel_val").unwrap().into_float_value();
+
+        // Multiply
+        let prod = self.builder.build_float_mul(input_val, kernel_val, "prod").unwrap();
+
+        // Load sum and add
+        let sum = self.builder.build_load(f32_type, sum_ptr, "sum").unwrap().into_float_value();
+        let new_sum = self.builder.build_float_add(sum, prod, "new_sum").unwrap();
+        self.builder.build_store(sum_ptr, new_sum).unwrap();
+
+        // Increment kw and loop back
+        let next_kw = self.builder.build_int_add(kw_val, i32_type.const_int(1, false), "next_kw").unwrap();
+        self.builder.build_store(kw_ptr, next_kw).unwrap();
+        self.builder.build_unconditional_branch(kw_loop_bb).unwrap();
+
+        // kw_end: increment kh
+        self.builder.position_at_end(kw_end_bb);
+        let kh_val = self.builder.build_load(i32_type, kh_ptr, "kh_val").unwrap().into_int_value();
+        let next_kh = self.builder.build_int_add(kh_val, i32_type.const_int(1, false), "next_kh").unwrap();
+        self.builder.build_store(kh_ptr, next_kh).unwrap();
+        self.builder.build_unconditional_branch(kh_loop_bb).unwrap();
+
+        // kh_end: store sum to output[oh * w_out + ow], increment ow
+        self.builder.position_at_end(kh_end_bb);
+        let oh_val = self.builder.build_load(i32_type, oh_ptr, "oh_val").unwrap().into_int_value();
+        let ow_val = self.builder.build_load(i32_type, ow_ptr, "ow_val").unwrap().into_int_value();
+
+        // output_idx = oh * w_out + ow
+        let oh_w = self.builder.build_int_mul(oh_val, w_out_const, "oh_w").unwrap();
+        let output_idx = self.builder.build_int_add(oh_w, ow_val, "output_idx").unwrap();
+
+        // Store sum
+        let final_sum = self.builder.build_load(f32_type, sum_ptr, "final_sum").unwrap().into_float_value();
+        let output_elem_ptr = unsafe {
+            self.builder.build_gep(
+                f32_type,
+                output_ptr,
+                &[output_idx],
+                "output_elem_ptr",
+            ).unwrap()
+        };
+        self.builder.build_store(output_elem_ptr, final_sum).unwrap();
+
+        // Increment ow
+        let next_ow = self.builder.build_int_add(ow_val, i32_type.const_int(1, false), "next_ow").unwrap();
+        self.builder.build_store(ow_ptr, next_ow).unwrap();
+        self.builder.build_unconditional_branch(ow_loop_bb).unwrap();
+
+        // ow_end: increment oh
+        self.builder.position_at_end(ow_end_bb);
+        let oh_val = self.builder.build_load(i32_type, oh_ptr, "oh_val").unwrap().into_int_value();
+        let next_oh = self.builder.build_int_add(oh_val, i32_type.const_int(1, false), "next_oh").unwrap();
+        self.builder.build_store(oh_ptr, next_oh).unwrap();
+        self.builder.build_unconditional_branch(oh_loop_bb).unwrap();
+
+        // oh_end: return
+        self.builder.position_at_end(oh_end_bb);
+        self.builder.build_return(None).unwrap();
+
+        function
+    }
 }
 
 #[cfg(test)]
@@ -1135,5 +1683,121 @@ mod tests {
         assert!(ir.contains("k_loop"));
         assert!(ir.contains("fmul")); // Floating point multiplication
         assert!(ir.contains("fadd")); // Floating point addition
+    }
+
+    #[test]
+    fn test_gen_relu() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_relu");
+
+        let relu_fn = codegen.gen_relu();
+
+        assert_eq!(relu_fn.get_name().to_str().unwrap(), "relu");
+        assert_eq!(relu_fn.count_params(), 3); // input, output, size
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_gen_sigmoid() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_sigmoid");
+
+        let sigmoid_fn = codegen.gen_sigmoid();
+
+        assert_eq!(sigmoid_fn.get_name().to_str().unwrap(), "sigmoid");
+        assert_eq!(sigmoid_fn.count_params(), 3); // input, output, size
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_gen_tanh() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_tanh");
+
+        let tanh_fn = codegen.gen_tanh();
+
+        assert_eq!(tanh_fn.get_name().to_str().unwrap(), "tanh");
+        assert_eq!(tanh_fn.count_params(), 3); // input, output, size
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_activation_ir_structure() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_activations_ir");
+
+        // Test ReLU IR
+        codegen.gen_relu();
+        let ir = codegen.module.print_to_string().to_string();
+        assert!(ir.contains("relu"));
+        assert!(ir.contains("fcmp")); // ReLU uses comparison
+
+        // Test Sigmoid IR
+        let codegen2 = LLVMCodegen::new(&context, "test_sigmoid_ir");
+        codegen2.gen_sigmoid();
+        let ir2 = codegen2.module.print_to_string().to_string();
+        assert!(ir2.contains("sigmoid"));
+        assert!(ir2.contains("llvm.exp.f32")); // Sigmoid uses exp intrinsic
+
+        // Test Tanh IR
+        let codegen3 = LLVMCodegen::new(&context, "test_tanh_ir");
+        codegen3.gen_tanh();
+        let ir3 = codegen3.module.print_to_string().to_string();
+        assert!(ir3.contains("tanh"));
+        assert!(ir3.contains("llvm.exp.f32")); // Tanh uses exp intrinsic
+    }
+
+    #[test]
+    fn test_gen_conv2d_creation() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_conv2d");
+
+        // Generate Conv2D: 8x8 input, 3x3 kernel -> 6x6 output
+        let conv_fn = codegen.gen_conv2d(8, 8, 3, 3);
+
+        assert_eq!(conv_fn.get_name().to_str().unwrap(), "conv2d_8x8_k3x3");
+        assert_eq!(conv_fn.count_params(), 7); // input, kernel, output, h_in, w_in, k_h, k_w
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_gen_conv2d_different_sizes() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_conv2d_sizes");
+
+        // Test various convolution sizes
+        let sizes = vec![
+            (8, 8, 3, 3),   // 8x8 image, 3x3 kernel -> 6x6
+            (10, 10, 5, 5), // 10x10 image, 5x5 kernel -> 6x6
+            (16, 16, 3, 3), // 16x16 image, 3x3 kernel -> 14x14
+            (28, 28, 5, 5), // 28x28 image, 5x5 kernel -> 24x24
+        ];
+
+        for (h_in, w_in, k_h, k_w) in sizes {
+            let conv_fn = codegen.gen_conv2d(h_in, w_in, k_h, k_w);
+            let expected_name = format!("conv2d_{}x{}_k{}x{}", h_in, w_in, k_h, k_w);
+            assert_eq!(conv_fn.get_name().to_str().unwrap(), expected_name);
+        }
+
+        assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_conv2d_ir_structure() {
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_conv2d_ir");
+
+        codegen.gen_conv2d(10, 10, 3, 3);
+
+        let ir = codegen.module.print_to_string().to_string();
+
+        // Verify IR contains expected structures
+        assert!(ir.contains("conv2d_10x10_k3x3"));
+        assert!(ir.contains("oh_loop")); // Output height loop
+        assert!(ir.contains("ow_loop")); // Output width loop
+        assert!(ir.contains("kh_loop")); // Kernel height loop
+        assert!(ir.contains("kw_loop")); // Kernel width loop
+        assert!(ir.contains("fmul")); // Floating point multiplication
+        assert!(ir.contains("fadd")); // Floating point addition (for accumulation)
     }
 }
