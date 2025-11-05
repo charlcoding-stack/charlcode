@@ -37,7 +37,11 @@ pub struct SceneObject {
 }
 
 impl SceneObject {
-    pub fn new(id: impl Into<String>, class: impl Into<String>, bbox: (f32, f32, f32, f32)) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        class: impl Into<String>,
+        bbox: (f32, f32, f32, f32),
+    ) -> Self {
         Self {
             id: id.into(),
             class: class.into(),
@@ -133,7 +137,11 @@ pub struct ObjectRelation {
 }
 
 impl ObjectRelation {
-    pub fn new(subject: impl Into<String>, relation: SpatialRelation, object: impl Into<String>) -> Self {
+    pub fn new(
+        subject: impl Into<String>,
+        relation: SpatialRelation,
+        object: impl Into<String>,
+    ) -> Self {
         Self {
             subject: subject.into(),
             relation,
@@ -149,7 +157,12 @@ impl ObjectRelation {
 
     /// Convert to string representation
     pub fn to_string(&self) -> String {
-        format!("{}({}, {})", self.relation.as_str(), self.subject, self.object)
+        format!(
+            "{}({}, {})",
+            self.relation.as_str(),
+            self.subject,
+            self.object
+        )
     }
 }
 
@@ -191,14 +204,20 @@ impl SceneGraph {
 
     /// Get all relations for an object (as subject)
     pub fn get_relations_for(&self, object_id: &str) -> Vec<&ObjectRelation> {
-        self.relations.iter()
+        self.relations
+            .iter()
             .filter(|r| r.subject == object_id)
             .collect()
     }
 
     /// Get all objects with a specific relation to an object
-    pub fn get_objects_with_relation(&self, object_id: &str, relation: SpatialRelation) -> Vec<&SceneObject> {
-        self.relations.iter()
+    pub fn get_objects_with_relation(
+        &self,
+        object_id: &str,
+        relation: SpatialRelation,
+    ) -> Vec<&SceneObject> {
+        self.relations
+            .iter()
             .filter(|r| r.object == object_id && r.relation == relation)
             .filter_map(|r| self.objects.get(&r.subject))
             .collect()
@@ -220,7 +239,10 @@ impl SceneGraph {
 
         // List relations
         for rel in &self.relations {
-            if let (Some(subj), Some(obj)) = (self.objects.get(&rel.subject), self.objects.get(&rel.object)) {
+            if let (Some(subj), Some(obj)) = (
+                self.objects.get(&rel.subject),
+                self.objects.get(&rel.object),
+            ) {
                 parts.push(format!(
                     "The {} is {} the {}",
                     subj.class,
@@ -283,7 +305,7 @@ impl SceneGraphGenerator {
 
                 if let Some(relation) = self.infer_relation(
                     graph.objects.get(id_a).unwrap(),
-                    graph.objects.get(id_b).unwrap()
+                    graph.objects.get(id_b).unwrap(),
                 ) {
                     if relation.confidence >= self.min_relation_confidence {
                         let _ = graph.add_relation(relation);
@@ -305,29 +327,26 @@ impl SceneGraphGenerator {
 
         // Near: objects are close
         if dx < self.near_threshold && dy < self.near_threshold {
-            return Some(ObjectRelation::new(
-                obj_a.id.clone(),
-                SpatialRelation::Near,
-                obj_b.id.clone()
-            ).with_confidence(0.9));
+            return Some(
+                ObjectRelation::new(obj_a.id.clone(), SpatialRelation::Near, obj_b.id.clone())
+                    .with_confidence(0.9),
+            );
         }
 
         // Vertical relations
         if dy > dx {
             if ay < by {
                 // A is above B
-                return Some(ObjectRelation::new(
-                    obj_a.id.clone(),
-                    SpatialRelation::Above,
-                    obj_b.id.clone()
-                ).with_confidence(0.8));
+                return Some(
+                    ObjectRelation::new(obj_a.id.clone(), SpatialRelation::Above, obj_b.id.clone())
+                        .with_confidence(0.8),
+                );
             } else {
                 // A is below B
-                return Some(ObjectRelation::new(
-                    obj_a.id.clone(),
-                    SpatialRelation::Below,
-                    obj_b.id.clone()
-                ).with_confidence(0.8));
+                return Some(
+                    ObjectRelation::new(obj_a.id.clone(), SpatialRelation::Below, obj_b.id.clone())
+                        .with_confidence(0.8),
+                );
             }
         }
 
@@ -335,18 +354,24 @@ impl SceneGraphGenerator {
         if dx > dy {
             if ax < bx {
                 // A is left of B
-                return Some(ObjectRelation::new(
-                    obj_a.id.clone(),
-                    SpatialRelation::LeftOf,
-                    obj_b.id.clone()
-                ).with_confidence(0.8));
+                return Some(
+                    ObjectRelation::new(
+                        obj_a.id.clone(),
+                        SpatialRelation::LeftOf,
+                        obj_b.id.clone(),
+                    )
+                    .with_confidence(0.8),
+                );
             } else {
                 // A is right of B
-                return Some(ObjectRelation::new(
-                    obj_a.id.clone(),
-                    SpatialRelation::RightOf,
-                    obj_b.id.clone()
-                ).with_confidence(0.8));
+                return Some(
+                    ObjectRelation::new(
+                        obj_a.id.clone(),
+                        SpatialRelation::RightOf,
+                        obj_b.id.clone(),
+                    )
+                    .with_confidence(0.8),
+                );
             }
         }
 
@@ -385,7 +410,12 @@ pub struct TemporalEvent {
 }
 
 impl TemporalEvent {
-    pub fn new(id: impl Into<String>, description: impl Into<String>, start: f32, end: f32) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        description: impl Into<String>,
+        start: f32,
+        end: f32,
+    ) -> Self {
         Self {
             id: id.into(),
             description: description.into(),
@@ -596,8 +626,7 @@ mod tests {
 
     #[test]
     fn test_temporal_event_with_object() {
-        let event = TemporalEvent::new("event1", "Cat jumps", 0.0, 1.0)
-            .with_object("cat");
+        let event = TemporalEvent::new("event1", "Cat jumps", 0.0, 1.0).with_object("cat");
         assert_eq!(event.objects.len(), 1);
         assert_eq!(event.objects[0], "cat");
     }

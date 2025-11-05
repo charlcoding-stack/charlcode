@@ -18,8 +18,8 @@
 // - Gal & Ghahramani (2016): "Dropout as a Bayesian Approximation"
 // - Guo et al. (2017): "On Calibration of Modern Neural Networks"
 
-use std::collections::HashMap;
 use crate::reasoning::chain_of_thought::{ChainOfThought, ReasoningStep};
+use std::collections::HashMap;
 
 /// Verification result for a reasoning step or chain
 #[derive(Debug, Clone, PartialEq)]
@@ -196,10 +196,16 @@ impl ReasoningVerifier {
             for (key, known_value) in &self.knowledge_base {
                 if evidence.to_lowercase().contains(&key.to_lowercase()) {
                     // Found a fact to check
-                    if !evidence.to_lowercase().contains(&known_value.to_lowercase()) {
+                    if !evidence
+                        .to_lowercase()
+                        .contains(&known_value.to_lowercase())
+                    {
                         return VerificationResult::failed(
                             VerificationType::FactChecking,
-                            format!("Fact mismatch: expected '{}' to contain '{}'", evidence, known_value),
+                            format!(
+                                "Fact mismatch: expected '{}' to contain '{}'",
+                                evidence, known_value
+                            ),
                         );
                     }
                 }
@@ -280,7 +286,11 @@ impl ReasoningVerifier {
                         if words_j.contains(word_i) && word_i.len() > 3 {
                             return VerificationResult::failed(
                                 VerificationType::ContradictionDetection,
-                                format!("Potential contradiction between steps {} and {}", i + 1, j + 1),
+                                format!(
+                                    "Potential contradiction between steps {} and {}",
+                                    i + 1,
+                                    j + 1
+                                ),
                             );
                         }
                     }
@@ -299,8 +309,8 @@ impl ReasoningVerifier {
         // Look for pattern: number + number
         let parts: Vec<&str> = text.split('+').collect();
         if parts.len() == 2 {
-            let a = parts[0].trim().split_whitespace().last()?.parse::<f32>().ok()?;
-            let b = parts[1].trim().split_whitespace().next()?.parse::<f32>().ok()?;
+            let a = parts[0].split_whitespace().last()?.parse::<f32>().ok()?;
+            let b = parts[1].split_whitespace().next()?.parse::<f32>().ok()?;
             return Some(a + b);
         }
         None
@@ -313,8 +323,8 @@ impl ReasoningVerifier {
             let parts: Vec<&str> = text.split(separator).collect();
             if parts.len() == 2 {
                 if let (Ok(a), Ok(b)) = (
-                    parts[0].trim().split_whitespace().last()?.parse::<f32>(),
-                    parts[1].trim().split_whitespace().next()?.parse::<f32>(),
+                    parts[0].split_whitespace().last()?.parse::<f32>(),
+                    parts[1].split_whitespace().next()?.parse::<f32>(),
                 ) {
                     return Some(a * b);
                 }
@@ -352,15 +362,25 @@ impl SelfCritique {
     }
 
     /// Generate critique of a reasoning chain
-    pub fn critique(&self, chain: &ChainOfThought, verification_results: &[VerificationResult]) -> Critique {
+    pub fn critique(
+        &self,
+        chain: &ChainOfThought,
+        verification_results: &[VerificationResult],
+    ) -> Critique {
         let mut issues = Vec::new();
         let mut suggestions = Vec::new();
 
         // Check verification results
         for result in verification_results {
             if result.status.is_failed() {
-                issues.push(format!("{:?}: {}", result.verification_type, result.details));
-                suggestions.push(format!("Fix {} issue", format!("{:?}", result.verification_type)));
+                issues.push(format!(
+                    "{:?}: {}",
+                    result.verification_type, result.details
+                ));
+                suggestions.push(format!(
+                    "Fix {} issue",
+                    format!("{:?}", result.verification_type)
+                ));
             }
         }
 
@@ -377,7 +397,11 @@ impl SelfCritique {
                 suggestions.push(format!("Verify step {}", i + 1));
             }
             if step.confidence < self.low_confidence_threshold {
-                issues.push(format!("Step {} has low confidence: {:.2}", i + 1, step.confidence));
+                issues.push(format!(
+                    "Step {} has low confidence: {:.2}",
+                    i + 1,
+                    step.confidence
+                ));
             }
         }
 
@@ -439,9 +463,9 @@ pub enum UncertaintyType {
 /// Uncertainty estimate
 #[derive(Debug, Clone)]
 pub struct UncertaintyEstimate {
-    pub epistemic: f32, // [0, 1]
-    pub aleatoric: f32, // [0, 1]
-    pub total: f32,     // [0, 1]
+    pub epistemic: f32,             // [0, 1]
+    pub aleatoric: f32,             // [0, 1]
+    pub total: f32,                 // [0, 1]
     pub calibrated_confidence: f32, // [0, 1] - calibrated based on uncertainty
 }
 
@@ -488,7 +512,8 @@ impl UncertaintyQuantifier {
     /// Add calibration point
     pub fn add_calibration(&mut self, raw_confidence: f32, calibrated_confidence: f32) {
         let key = (raw_confidence * 100.0) as u8;
-        self.calibration_map.insert(key, calibrated_confidence.clamp(0.0, 1.0));
+        self.calibration_map
+            .insert(key, calibrated_confidence.clamp(0.0, 1.0));
     }
 
     /// Quantify uncertainty for a reasoning chain
@@ -502,9 +527,11 @@ impl UncertaintyQuantifier {
         };
 
         let variance = if confidences.len() > 1 {
-            confidences.iter()
+            confidences
+                .iter()
                 .map(|c| (c - mean_confidence).powi(2))
-                .sum::<f32>() / confidences.len() as f32
+                .sum::<f32>()
+                / confidences.len() as f32
         } else {
             0.0
         };
@@ -512,15 +539,17 @@ impl UncertaintyQuantifier {
         let epistemic = variance.sqrt().min(1.0);
 
         // Aleatoric: Based on verification failures (inherent difficulty)
-        let verification_rate = chain.steps.iter()
-            .filter(|s| s.verified)
-            .count() as f32 / chain.steps.len().max(1) as f32;
+        let verification_rate = chain.steps.iter().filter(|s| s.verified).count() as f32
+            / chain.steps.len().max(1) as f32;
         let aleatoric = (1.0 - verification_rate).min(1.0);
 
         let mut estimate = UncertaintyEstimate::new(epistemic, aleatoric);
 
         // Apply calibration if available
-        if let Some(&calibrated) = self.calibration_map.get(&((chain.confidence * 100.0) as u8)) {
+        if let Some(&calibrated) = self
+            .calibration_map
+            .get(&((chain.confidence * 100.0) as u8))
+        {
             estimate.calibrated_confidence = calibrated;
         }
 
@@ -530,7 +559,10 @@ impl UncertaintyQuantifier {
     /// Calibrate confidence based on historical accuracy
     pub fn calibrate_confidence(&self, raw_confidence: f32) -> f32 {
         let key = (raw_confidence * 100.0) as u8;
-        self.calibration_map.get(&key).copied().unwrap_or(raw_confidence)
+        self.calibration_map
+            .get(&key)
+            .copied()
+            .unwrap_or(raw_confidence)
     }
 }
 
@@ -557,10 +589,8 @@ mod tests {
 
     #[test]
     fn test_verification_result_creation() {
-        let result = VerificationResult::passed(
-            VerificationType::LogicalConsistency,
-            "Test passed",
-        );
+        let result =
+            VerificationResult::passed(VerificationType::LogicalConsistency, "Test passed");
         assert!(result.status.is_passed());
         assert_eq!(result.confidence, 1.0);
     }
@@ -578,7 +608,10 @@ mod tests {
     fn test_add_fact() {
         let mut verifier = ReasoningVerifier::new();
         verifier.add_fact("water", "H2O");
-        assert_eq!(verifier.knowledge_base.get("water"), Some(&"H2O".to_string()));
+        assert_eq!(
+            verifier.knowledge_base.get("water"),
+            Some(&"H2O".to_string())
+        );
     }
 
     #[test]
@@ -587,7 +620,8 @@ mod tests {
         let step = ReasoningStep::new(1, "");
 
         let results = verifier.verify_step(&step);
-        let logical_check = results.iter()
+        let logical_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::LogicalConsistency);
 
         assert!(logical_check.is_some());
@@ -600,7 +634,8 @@ mod tests {
         let step = ReasoningStep::new(1, "The sky is blue");
 
         let results = verifier.verify_step(&step);
-        let logical_check = results.iter()
+        let logical_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::LogicalConsistency);
 
         assert!(logical_check.is_some());
@@ -616,7 +651,8 @@ mod tests {
         step = step.with_evidence("Water is H2O");
 
         let results = verifier.verify_step(&step);
-        let fact_check = results.iter()
+        let fact_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::FactChecking);
 
         assert!(fact_check.is_some());
@@ -626,11 +662,11 @@ mod tests {
     #[test]
     fn test_calculation_verification_addition() {
         let verifier = ReasoningVerifier::new();
-        let step = ReasoningStep::new(1, "Calculate 2 + 3")
-            .with_computation(5.0);
+        let step = ReasoningStep::new(1, "Calculate 2 + 3").with_computation(5.0);
 
         let results = verifier.verify_step(&step);
-        let calc_check = results.iter()
+        let calc_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::CalculationVerification);
 
         assert!(calc_check.is_some());
@@ -640,11 +676,11 @@ mod tests {
     #[test]
     fn test_calculation_verification_wrong() {
         let verifier = ReasoningVerifier::new();
-        let step = ReasoningStep::new(1, "Calculate 2 + 3")
-            .with_computation(6.0); // Wrong!
+        let step = ReasoningStep::new(1, "Calculate 2 + 3").with_computation(6.0); // Wrong!
 
         let results = verifier.verify_step(&step);
-        let calc_check = results.iter()
+        let calc_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::CalculationVerification);
 
         assert!(calc_check.is_some());
@@ -654,11 +690,11 @@ mod tests {
     #[test]
     fn test_calculation_verification_multiplication() {
         let verifier = ReasoningVerifier::new();
-        let step = ReasoningStep::new(1, "Calculate 4 × 5")
-            .with_computation(20.0);
+        let step = ReasoningStep::new(1, "Calculate 4 × 5").with_computation(20.0);
 
         let results = verifier.verify_step(&step);
-        let calc_check = results.iter()
+        let calc_check = results
+            .iter()
             .find(|r| r.verification_type == VerificationType::CalculationVerification);
 
         assert!(calc_check.is_some());
@@ -701,7 +737,11 @@ mod tests {
     fn test_critique_good_chain() {
         let critique_engine = SelfCritique::new();
         let chain = ChainOfThought::new("Problem")
-            .add_step(ReasoningStep::new(1, "Step 1").with_confidence(0.9).verify())
+            .add_step(
+                ReasoningStep::new(1, "Step 1")
+                    .with_confidence(0.9)
+                    .verify(),
+            )
             .with_confidence(0.9);
 
         let critique = critique_engine.critique(&chain, &[]);

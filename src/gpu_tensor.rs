@@ -2,7 +2,7 @@
 // Extends autograd Tensor with GPU compute capabilities
 
 use crate::autograd::Tensor;
-use crate::gpu::{ComputeBackend, TensorBuffer, wgpu_backend::WgpuBackend, cpu::CPUBackend};
+use crate::gpu::{cpu::CPUBackend, wgpu_backend::WgpuBackend, ComputeBackend, TensorBuffer};
 
 /// Device where tensor data resides
 #[derive(Debug, Clone, PartialEq)]
@@ -63,11 +63,13 @@ impl GPUTensor {
         let data_f32: Vec<f32> = self.tensor.data.iter().map(|&x| x as f32).collect();
 
         // Allocate GPU buffer
-        let buffer = backend.allocate(data_f32.len())
+        let buffer = backend
+            .allocate(data_f32.len())
             .map_err(|e| format!("Failed to allocate GPU buffer: {:?}", e))?;
 
         // Copy data to GPU
-        backend.copy_to_device(&data_f32, &buffer)
+        backend
+            .copy_to_device(&data_f32, &buffer)
             .map_err(|e| format!("Failed to copy to GPU: {:?}", e))?;
 
         self.gpu_buffer = Some(buffer);
@@ -82,21 +84,25 @@ impl GPUTensor {
             return Ok(()); // Already on CPU
         }
 
-        let buffer = self.gpu_buffer.as_ref()
+        let buffer = self
+            .gpu_buffer
+            .as_ref()
             .ok_or_else(|| "No GPU buffer available".to_string())?;
 
         // Allocate temp f32 buffer
         let mut data_f32 = vec![0.0f32; self.tensor.data.len()];
 
         // Copy from GPU to CPU
-        backend.copy_from_device(buffer, &mut data_f32)
+        backend
+            .copy_from_device(buffer, &mut data_f32)
             .map_err(|e| format!("Failed to copy from GPU: {:?}", e))?;
 
         // Convert f32 back to f64
         self.tensor.data = data_f32.iter().map(|&x| x as f64).collect();
 
         // Deallocate GPU buffer
-        backend.deallocate(buffer.clone())
+        backend
+            .deallocate(buffer.clone())
             .map_err(|e| format!("Failed to deallocate GPU buffer: {:?}", e))?;
 
         self.gpu_buffer = None;
@@ -159,21 +165,22 @@ impl GPUOps {
         let b_buf = b.gpu_buffer.as_ref().unwrap();
 
         // Allocate result buffer
-        let result_buf = self.backend.allocate(a.tensor.data.len())
+        let result_buf = self
+            .backend
+            .allocate(a.tensor.data.len())
             .map_err(|e| format!("Failed to allocate result buffer: {:?}", e))?;
 
         // Perform GPU addition
-        self.backend.add(a_buf, b_buf, &result_buf, a.tensor.data.len())
+        self.backend
+            .add(a_buf, b_buf, &result_buf, a.tensor.data.len())
             .map_err(|e| format!("GPU add failed: {:?}", e))?;
 
-        self.backend.synchronize()
+        self.backend
+            .synchronize()
             .map_err(|e| format!("GPU sync failed: {:?}", e))?;
 
         // Create result tensor
-        let mut result = GPUTensor::new(
-            vec![0.0; a.tensor.data.len()],
-            a.tensor.shape.clone(),
-        );
+        let mut result = GPUTensor::new(vec![0.0; a.tensor.data.len()], a.tensor.shape.clone());
         result.gpu_buffer = Some(result_buf);
         result.device = Device::GPU;
 
@@ -193,19 +200,20 @@ impl GPUOps {
         let a_buf = a.gpu_buffer.as_ref().unwrap();
         let b_buf = b.gpu_buffer.as_ref().unwrap();
 
-        let result_buf = self.backend.allocate(a.tensor.data.len())
+        let result_buf = self
+            .backend
+            .allocate(a.tensor.data.len())
             .map_err(|e| format!("Failed to allocate result buffer: {:?}", e))?;
 
-        self.backend.mul(a_buf, b_buf, &result_buf, a.tensor.data.len())
+        self.backend
+            .mul(a_buf, b_buf, &result_buf, a.tensor.data.len())
             .map_err(|e| format!("GPU mul failed: {:?}", e))?;
 
-        self.backend.synchronize()
+        self.backend
+            .synchronize()
             .map_err(|e| format!("GPU sync failed: {:?}", e))?;
 
-        let mut result = GPUTensor::new(
-            vec![0.0; a.tensor.data.len()],
-            a.tensor.shape.clone(),
-        );
+        let mut result = GPUTensor::new(vec![0.0; a.tensor.data.len()], a.tensor.shape.clone());
         result.gpu_buffer = Some(result_buf);
         result.device = Device::GPU;
 
@@ -229,25 +237,29 @@ impl GPUOps {
         let p = b.tensor.shape[1];
 
         if n != n2 {
-            return Err(format!("Matrix dimensions incompatible: {}x{} * {}x{}", m, n, n2, p));
+            return Err(format!(
+                "Matrix dimensions incompatible: {}x{} * {}x{}",
+                m, n, n2, p
+            ));
         }
 
         let a_buf = a.gpu_buffer.as_ref().unwrap();
         let b_buf = b.gpu_buffer.as_ref().unwrap();
 
-        let result_buf = self.backend.allocate(m * p)
+        let result_buf = self
+            .backend
+            .allocate(m * p)
             .map_err(|e| format!("Failed to allocate result buffer: {:?}", e))?;
 
-        self.backend.matmul(a_buf, b_buf, &result_buf, m, n, p)
+        self.backend
+            .matmul(a_buf, b_buf, &result_buf, m, n, p)
             .map_err(|e| format!("GPU matmul failed: {:?}", e))?;
 
-        self.backend.synchronize()
+        self.backend
+            .synchronize()
             .map_err(|e| format!("GPU sync failed: {:?}", e))?;
 
-        let mut result = GPUTensor::new(
-            vec![0.0; m * p],
-            vec![m, p],
-        );
+        let mut result = GPUTensor::new(vec![0.0; m * p], vec![m, p]);
         result.gpu_buffer = Some(result_buf);
         result.device = Device::GPU;
 
@@ -262,13 +274,17 @@ impl GPUOps {
 
         let input_buf = input.gpu_buffer.as_ref().unwrap();
 
-        let output_buf = self.backend.allocate(input.tensor.data.len())
+        let output_buf = self
+            .backend
+            .allocate(input.tensor.data.len())
             .map_err(|e| format!("Failed to allocate result buffer: {:?}", e))?;
 
-        self.backend.relu(input_buf, &output_buf, input.tensor.data.len())
+        self.backend
+            .relu(input_buf, &output_buf, input.tensor.data.len())
             .map_err(|e| format!("GPU relu failed: {:?}", e))?;
 
-        self.backend.synchronize()
+        self.backend
+            .synchronize()
             .map_err(|e| format!("GPU sync failed: {:?}", e))?;
 
         let mut result = GPUTensor::new(
@@ -306,16 +322,26 @@ mod tests {
         let mut tensor = GPUTensor::new(data.clone(), vec![4]);
 
         // Move to GPU
-        tensor.to_gpu(gpu_ops.backend()).expect("Failed to move to GPU");
+        tensor
+            .to_gpu(gpu_ops.backend())
+            .expect("Failed to move to GPU");
         assert!(tensor.is_gpu());
 
         // Move back to CPU
-        tensor.to_cpu(gpu_ops.backend()).expect("Failed to move to CPU");
+        tensor
+            .to_cpu(gpu_ops.backend())
+            .expect("Failed to move to CPU");
         assert!(!tensor.is_gpu());
 
         // Data should be preserved (with small floating point error)
         for (i, &val) in tensor.tensor.data.iter().enumerate() {
-            assert!((val - data[i]).abs() < 1e-6, "Data mismatch at index {}: {} vs {}", i, val, data[i]);
+            assert!(
+                (val - data[i]).abs() < 1e-6,
+                "Data mismatch at index {}: {} vs {}",
+                i,
+                val,
+                data[i]
+            );
         }
     }
 
@@ -341,8 +367,13 @@ mod tests {
         result.to_cpu(gpu_ops.backend()).unwrap();
 
         for (i, &val) in result.tensor.data.iter().enumerate() {
-            assert!((val - expected[i]).abs() < 1e-5,
-                    "Result mismatch at index {}: {} vs {}", i, val, expected[i]);
+            assert!(
+                (val - expected[i]).abs() < 1e-5,
+                "Result mismatch at index {}: {} vs {}",
+                i,
+                val,
+                expected[i]
+            );
         }
     }
 
@@ -351,13 +382,10 @@ mod tests {
         let mut gpu_ops = GPUOps::new_gpu().expect("Failed to create GPU ops");
 
         // 2x3 matrix
-        let data_a = vec![1.0, 2.0, 3.0,
-                          4.0, 5.0, 6.0];
+        let data_a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
         // 3x2 matrix
-        let data_b = vec![7.0, 8.0,
-                          9.0, 10.0,
-                          11.0, 12.0];
+        let data_b = vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0];
 
         // Expected 2x2 result
         // Row 0: 1*7+2*9+3*11 = 58,  1*8+2*10+3*12 = 64
@@ -380,8 +408,13 @@ mod tests {
         assert_eq!(result.tensor.shape, vec![2, 2]);
 
         for (i, &val) in result.tensor.data.iter().enumerate() {
-            assert!((val - expected[i]).abs() < 1e-4,
-                    "Result mismatch at index {}: {} vs {}", i, val, expected[i]);
+            assert!(
+                (val - expected[i]).abs() < 1e-4,
+                "Result mismatch at index {}: {} vs {}",
+                i,
+                val,
+                expected[i]
+            );
         }
     }
 
@@ -404,8 +437,13 @@ mod tests {
         result.to_cpu(gpu_ops.backend()).unwrap();
 
         for (i, &val) in result.tensor.data.iter().enumerate() {
-            assert!((val - expected[i]).abs() < 1e-6,
-                    "Result mismatch at index {}: {} vs {}", i, val, expected[i]);
+            assert!(
+                (val - expected[i]).abs() < 1e-6,
+                "Result mismatch at index {}: {} vs {}",
+                i,
+                val,
+                expected[i]
+            );
         }
     }
 }

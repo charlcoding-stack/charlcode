@@ -82,10 +82,7 @@ fn main() {
             let hidden = layer1.forward(&x);
 
             // Apply ReLU activation manually
-            let hidden_data: Vec<f32> = hidden.data()
-                .iter()
-                .map(|&v| v.max(0.0))
-                .collect();
+            let hidden_data: Vec<f32> = hidden.data().iter().map(|&v| v.max(0.0)).collect();
             let hidden_activated = Tensor::new(hidden_data, hidden.shape().clone());
 
             let output = layer2.forward(&hidden_activated);
@@ -106,7 +103,8 @@ fn main() {
             if let Some(weights2) = layer2.weights_mut() {
                 let weights2_data = weights2.data_mut();
                 for i in 0..weights2_data.len() {
-                    let gradient = error * hidden_activated.data()[i % hidden_activated.data().len()];
+                    let gradient =
+                        error * hidden_activated.data()[i % hidden_activated.data().len()];
                     weights2_data[i] -= learning_rate * gradient;
                 }
             }

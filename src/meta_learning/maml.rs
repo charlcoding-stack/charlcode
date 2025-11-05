@@ -165,7 +165,11 @@ impl MAML {
     /// Inner loop: Adapt parameters to a specific task using support set
     ///
     /// Returns adapted parameters after K gradient steps
-    pub fn inner_loop(&self, task: &MetaTask, loss_fn: &dyn Fn(&[f32], &[f32], &[f32]) -> f32) -> Vec<f32> {
+    pub fn inner_loop(
+        &self,
+        task: &MetaTask,
+        loss_fn: &dyn Fn(&[f32], &[f32], &[f32]) -> f32,
+    ) -> Vec<f32> {
         let mut adapted_params = self.meta_params.clone_params();
 
         for _step in 0..self.inner_steps {
@@ -261,13 +265,18 @@ impl MAML {
         }
 
         // Update meta-parameters
-        self.meta_params.apply_gradient(&meta_gradient, self.outer_lr);
+        self.meta_params
+            .apply_gradient(&meta_gradient, self.outer_lr);
 
         total_meta_loss / tasks.len() as f32
     }
 
     /// Adapt to a new task (at test time)
-    pub fn adapt(&self, task: &MetaTask, loss_fn: &dyn Fn(&[f32], &[f32], &[f32]) -> f32) -> Vec<f32> {
+    pub fn adapt(
+        &self,
+        task: &MetaTask,
+        loss_fn: &dyn Fn(&[f32], &[f32], &[f32]) -> f32,
+    ) -> Vec<f32> {
         self.inner_loop(task, loss_fn)
     }
 
@@ -333,7 +342,9 @@ impl Reptile {
 
         for _step in 0..self.inner_steps {
             // Compute gradient on all task examples (support + query)
-            let all_examples: Vec<_> = task.support_examples.iter()
+            let all_examples: Vec<_> = task
+                .support_examples
+                .iter()
                 .chain(task.query_examples.iter())
                 .cloned()
                 .collect();
@@ -390,12 +401,19 @@ impl Reptile {
         let adapted_params = self.adapt_to_task(task, loss_fn);
 
         // Reptile update: θ ← θ + ε(θ_adapted - θ)
-        for (meta_param, adapted_param) in self.meta_params.params.iter_mut().zip(adapted_params.iter()) {
+        for (meta_param, adapted_param) in self
+            .meta_params
+            .params
+            .iter_mut()
+            .zip(adapted_params.iter())
+        {
             *meta_param += self.outer_step_size * (adapted_param - *meta_param);
         }
 
         // Return loss on adapted parameters (for monitoring)
-        let all_examples: Vec<_> = task.support_examples.iter()
+        let all_examples: Vec<_> = task
+            .support_examples
+            .iter()
             .chain(task.query_examples.iter())
             .cloned()
             .collect();
@@ -505,14 +523,15 @@ impl MetaSGD {
         loss_fn: &dyn Fn(&[f32], &[f32], &[f32]) -> f32,
     ) -> f32 {
         let mut param_gradient = vec![0.0; self.meta_params.num_params()];
-        let mut lr_gradient = vec![0.0; self.meta_params.num_params()];
+        let lr_gradient = vec![0.0; self.meta_params.num_params()];
         let mut total_meta_loss = 0.0;
 
         for task in tasks {
             let adapted_params = self.inner_loop(task, loss_fn);
 
             // Compute gradients for parameters
-            let task_param_gradient = self.compute_gradient(&adapted_params, &task.query_examples, loss_fn);
+            let task_param_gradient =
+                self.compute_gradient(&adapted_params, &task.query_examples, loss_fn);
 
             // Accumulate
             for (pg, tpg) in param_gradient.iter_mut().zip(task_param_gradient.iter()) {
@@ -538,7 +557,8 @@ impl MetaSGD {
         }
 
         // Update meta-parameters
-        self.meta_params.apply_gradient(&param_gradient, self.outer_lr);
+        self.meta_params
+            .apply_gradient(&param_gradient, self.outer_lr);
 
         // Update learning rates (simplified: gradient descent on learning rates)
         // In practice, you'd compute ∂L/∂α properly
@@ -595,7 +615,7 @@ mod tests {
         let shapes = vec![(2, 3), (3, 1)];
         let params = ModelParams::zeros(shapes.clone());
 
-        assert_eq!(params.num_params(), 2*3 + 3*1);
+        assert_eq!(params.num_params(), 2 * 3 + 3 * 1);
         assert_eq!(params.shapes, shapes);
     }
 
@@ -623,8 +643,7 @@ mod tests {
 
     #[test]
     fn test_maml_first_order() {
-        let maml = MAML::new(vec![(2, 1)], 0.01, 0.001, 5)
-            .with_first_order(true);
+        let maml = MAML::new(vec![(2, 1)], 0.01, 0.001, 5).with_first_order(true);
 
         assert!(maml.first_order);
     }
@@ -637,7 +656,7 @@ mod tests {
         let task = MetaTask::new("linear")
             .add_support(vec![1.0], vec![3.0]) // 2*1 + 1 = 3
             .add_support(vec![2.0], vec![5.0]) // 2*2 + 1 = 5
-            .add_query(vec![3.0], vec![7.0]);  // 2*3 + 1 = 7
+            .add_query(vec![3.0], vec![7.0]); // 2*3 + 1 = 7
 
         let adapted = maml.inner_loop(&task, &mse_loss);
 

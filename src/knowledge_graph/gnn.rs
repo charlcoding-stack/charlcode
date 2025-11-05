@@ -13,8 +13,8 @@
 // let updated_embeddings = gnn.forward(&graph, &node_embeddings)?;
 // ```
 
-use crate::knowledge_graph::{KnowledgeGraph, EntityId, EntityType, RelationType};
 use crate::attention::MultiHeadAttention;
+use crate::knowledge_graph::{EntityId, EntityType, KnowledgeGraph, RelationType};
 use std::collections::HashMap;
 
 /// Node embedding - vector representation of an entity
@@ -40,7 +40,7 @@ impl GraphNeuralNetwork {
     /// * `num_heads` - Number of attention heads
     pub fn new(embedding_dim: usize, num_heads: usize) -> Result<Self, String> {
         // Validate that embedding_dim is divisible by num_heads
-        if embedding_dim % num_heads != 0 {
+        if !embedding_dim.is_multiple_of(num_heads) {
             return Err(format!(
                 "embedding_dim ({}) must be divisible by num_heads ({})",
                 embedding_dim, num_heads
@@ -106,7 +106,10 @@ impl GraphNeuralNetwork {
     }
 
     /// Initialize embeddings for all nodes in the graph
-    pub fn initialize_node_embeddings(&self, graph: &KnowledgeGraph) -> HashMap<EntityId, NodeEmbedding> {
+    pub fn initialize_node_embeddings(
+        &self,
+        graph: &KnowledgeGraph,
+    ) -> HashMap<EntityId, NodeEmbedding> {
         let mut embeddings = HashMap::new();
 
         for id in 0..graph.num_entities() {

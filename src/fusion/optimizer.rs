@@ -72,10 +72,8 @@ impl FusionOptimizer {
         // Update stats
         self.stats.opportunities_found = opportunities.len();
         if !opportunities.is_empty() {
-            self.stats.total_memory_saved = opportunities
-                .iter()
-                .map(|opp| opp.memory_savings)
-                .sum();
+            self.stats.total_memory_saved =
+                opportunities.iter().map(|opp| opp.memory_savings).sum();
 
             self.stats.average_speedup = opportunities
                 .iter()

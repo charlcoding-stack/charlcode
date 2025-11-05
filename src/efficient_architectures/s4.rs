@@ -3,6 +3,9 @@
 // S4 replaces attention with state space models, achieving O(n) complexity
 // instead of O(n²) for transformers on sequence length n.
 //
+// Allow State Space Model notation (A, B, C, D matrices) to match control theory literature
+#![allow(non_snake_case)]
+//
 // Continuous-time state space model:
 //   dx/dt = Ax + Bu
 //   y = Cx + Du
@@ -25,8 +28,6 @@
 // References:
 // - Gu et al. (2021): "Efficiently Modeling Long Sequences with Structured State Spaces"
 // - Gu et al. (2022): "How to Train Your HiPPO"
-
-use std::f32::consts::PI;
 
 /// State space model configuration
 #[derive(Debug, Clone)]
@@ -239,8 +240,16 @@ impl S4Layer {
     /// x_{k+1} = Ā x_k + B̄ u_k
     /// y_k = C x_k + D u_k
     pub fn forward_recurrent(&self, input: &[f32], state: &mut Vec<f32>) -> Vec<f32> {
-        assert_eq!(input.len(), self.config.hidden_size, "Input dimension mismatch");
-        assert_eq!(state.len(), self.config.state_size, "State dimension mismatch");
+        assert_eq!(
+            input.len(),
+            self.config.hidden_size,
+            "Input dimension mismatch"
+        );
+        assert_eq!(
+            state.len(),
+            self.config.state_size,
+            "State dimension mismatch"
+        );
 
         let A_bar = self.A_discrete.as_ref().expect("Must discretize first");
         let B_bar = self.B_discrete.as_ref().expect("Must discretize first");
@@ -472,10 +481,7 @@ mod tests {
 
         let B_bar = vec![vec![0.1; h]; n];
 
-        let inputs = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-        ];
+        let inputs = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
 
         let initial_state = vec![0.0; n];
 

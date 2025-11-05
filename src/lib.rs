@@ -1,18 +1,18 @@
 // Charl Language Library
 // This exposes the compiler components as a library
 
-pub mod lexer;
-pub mod parser;
 pub mod ast;
-pub mod types;
-pub mod interpreter;
 pub mod autograd;
-pub mod nn;
-pub mod optim;
 pub mod codegen;
 pub mod gpu;
 pub mod gpu_tensor;
+pub mod interpreter;
+pub mod lexer;
+pub mod nn;
+pub mod optim;
+pub mod parser;
 pub mod quantization;
+pub mod types;
 
 // Phase 7: LLVM Backend (optional feature)
 #[cfg(feature = "llvm")]

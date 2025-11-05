@@ -2,7 +2,7 @@
 // Run with: cargo run --example test_autograd
 
 fn main() {
-    use charl::autograd::{ComputationGraph, Tensor, add, mul, pow, sum};
+    use charl::autograd::{add, mul, pow, sum, ComputationGraph, Tensor};
 
     println!("🧮 Charl Automatic Differentiation Demonstration\n");
     println!("{}", "=".repeat(70));

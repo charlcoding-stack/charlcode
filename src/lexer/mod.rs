@@ -10,9 +10,9 @@ pub struct Lexer {
     input: Vec<char>,
     position: usize,      // current position in input
     read_position: usize, // current reading position (after current char)
-    ch: char,            // current char under examination
-    line: usize,         // current line number (for error reporting)
-    column: usize,       // current column number (for error reporting)
+    ch: char,             // current char under examination
+    line: usize,          // current line number (for error reporting)
+    column: usize,        // current column number (for error reporting)
 }
 
 impl Lexer {
@@ -165,7 +165,7 @@ impl Lexer {
         let line = self.line;
         let column = self.column;
 
-        let token = match self.ch {
+        match self.ch {
             // Operators
             '+' => {
                 self.read_char();
@@ -326,9 +326,7 @@ impl Lexer {
                     Token::new(TokenType::Illegal, ch.to_string(), line, column)
                 }
             }
-        };
-
-        token
+        }
     }
 }
 
@@ -602,13 +600,13 @@ mod tests {
 
         let tests = vec![
             TokenType::Fn,
-            TokenType::Ident,   // add
+            TokenType::Ident, // add
             TokenType::LParen,
-            TokenType::Ident,   // x
+            TokenType::Ident, // x
             TokenType::Colon,
             TokenType::Int32,
             TokenType::Comma,
-            TokenType::Ident,   // y
+            TokenType::Ident, // y
             TokenType::Colon,
             TokenType::Int32,
             TokenType::RParen,
@@ -616,9 +614,9 @@ mod tests {
             TokenType::Int32,
             TokenType::LBrace,
             TokenType::Return,
-            TokenType::Ident,   // x
+            TokenType::Ident, // x
             TokenType::Plus,
-            TokenType::Ident,   // y
+            TokenType::Ident, // y
             TokenType::RBrace,
         ];
 
@@ -635,16 +633,16 @@ mod tests {
 
         let tests = vec![
             TokenType::Let,
-            TokenType::Ident,       // matrix
+            TokenType::Ident, // matrix
             TokenType::Colon,
             TokenType::Tensor,
             TokenType::LessThan,
             TokenType::Float32,
             TokenType::Comma,
             TokenType::LBracket,
-            TokenType::Int,         // 2
+            TokenType::Int, // 2
             TokenType::Comma,
-            TokenType::Int,         // 3
+            TokenType::Int, // 3
             TokenType::RBracket,
             TokenType::GreaterThan,
             TokenType::Assign,
@@ -670,15 +668,15 @@ model NeuralNet {
 
         let tests = vec![
             TokenType::Model,
-            TokenType::Ident,       // NeuralNet
+            TokenType::Ident, // NeuralNet
             TokenType::LBrace,
             TokenType::Layers,
             TokenType::LBrace,
             TokenType::Dense,
             TokenType::LParen,
-            TokenType::Int,         // 784
+            TokenType::Int, // 784
             TokenType::Comma,
-            TokenType::Int,         // 128
+            TokenType::Int, // 128
             TokenType::Comma,
             TokenType::Activation,
             TokenType::Colon,

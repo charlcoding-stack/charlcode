@@ -93,7 +93,7 @@ pub enum BinaryOperator {
     Multiply,
     Divide,
     Modulo,
-    MatMul,        // @ for matrix multiplication
+    MatMul, // @ for matrix multiplication
     Equal,
     NotEqual,
     LessThan,

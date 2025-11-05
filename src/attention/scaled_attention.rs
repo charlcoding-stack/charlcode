@@ -87,14 +87,17 @@ impl ScaledDotProductAttention {
 
         // Step 3: Apply mask (if provided)
         let masked_scores = if let Some(mask_data) = mask {
-            self.apply_mask(&scaled_scores, mask_data, (batch_size, seq_len_q, seq_len_k))?
+            self.apply_mask(
+                &scaled_scores,
+                mask_data,
+                (batch_size, seq_len_q, seq_len_k),
+            )?
         } else {
             scaled_scores
         };
 
         // Step 4: Apply softmax
-        let attention_weights =
-            self.softmax(&masked_scores, (batch_size, seq_len_q, seq_len_k))?;
+        let attention_weights = self.softmax(&masked_scores, (batch_size, seq_len_q, seq_len_k))?;
 
         // Step 5: Apply dropout (in training mode)
         // For now, we skip dropout in this MVP
@@ -218,11 +221,7 @@ impl ScaledDotProductAttention {
     }
 
     /// Apply softmax along the last dimension
-    fn softmax(
-        &self,
-        scores: &[f64],
-        shape: (usize, usize, usize),
-    ) -> Result<Vec<f64>, String> {
+    fn softmax(&self, scores: &[f64], shape: (usize, usize, usize)) -> Result<Vec<f64>, String> {
         let (batch, seq_len_q, seq_len_k) = shape;
 
         if scores.len() != batch * seq_len_q * seq_len_k {
@@ -282,9 +281,7 @@ mod tests {
         // B: 1x2x2
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = attention
-            .matmul(&a, &b, (1, 2, 2), (1, 2, 2))
-            .unwrap();
+        let result = attention.matmul(&a, &b, (1, 2, 2), (1, 2, 2)).unwrap();
 
         // Expected: [[1*5 + 2*7, 1*6 + 2*8], [3*5 + 4*7, 3*6 + 4*8]]
         //         = [[19, 22], [43, 50]]

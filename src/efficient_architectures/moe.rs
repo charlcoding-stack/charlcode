@@ -3,6 +3,9 @@
 // Key insight: Instead of using full network for every input,
 // route each input to a subset of "expert" networks.
 //
+// Allow weight matrix notation (W1, W2, W_router) for clarity
+#![allow(non_snake_case)]
+//
 // Benefits:
 // - 10x model capacity with 2x compute cost
 // - Sparse activation (only top-K experts per token)
@@ -44,7 +47,12 @@ impl Expert {
         let W1 = Self::init_matrix(d_ff, d_model);
         let W2 = Self::init_matrix(d_model, d_ff);
 
-        Self { d_model, d_ff, W1, W2 }
+        Self {
+            d_model,
+            d_ff,
+            W1,
+            W2,
+        }
     }
 
     fn init_matrix(rows: usize, cols: usize) -> Vec<Vec<f32>> {
@@ -329,11 +337,7 @@ impl MoELayer {
     }
 
     /// Compute total loss (includes load balancing)
-    pub fn compute_loss_with_balancing(
-        &self,
-        inputs: &[Vec<f32>],
-        base_loss: f32,
-    ) -> f32 {
+    pub fn compute_loss_with_balancing(&self, inputs: &[Vec<f32>], base_loss: f32) -> f32 {
         match self.load_balancing {
             LoadBalancingLoss::Auxiliary => {
                 // Collect all routes
@@ -469,11 +473,7 @@ mod tests {
     #[test]
     fn test_moe_forward_batch() {
         let moe = MoELayer::new(16, 64, 4, 2);
-        let inputs = vec![
-            vec![0.5; 16],
-            vec![0.3; 16],
-            vec![0.7; 16],
-        ];
+        let inputs = vec![vec![0.5; 16], vec![0.3; 16], vec![0.7; 16]];
 
         let outputs = moe.forward_batch(&inputs);
 
@@ -498,8 +498,8 @@ mod tests {
 
     #[test]
     fn test_moe_with_load_balancing() {
-        let moe = MoELayer::new(16, 64, 4, 1)
-            .with_load_balancing(LoadBalancingLoss::Auxiliary, 0.01);
+        let moe =
+            MoELayer::new(16, 64, 4, 1).with_load_balancing(LoadBalancingLoss::Auxiliary, 0.01);
 
         assert_eq!(moe.load_balancing, LoadBalancingLoss::Auxiliary);
         assert_eq!(moe.load_balancing_weight, 0.01);
@@ -507,8 +507,8 @@ mod tests {
 
     #[test]
     fn test_moe_loss_with_balancing() {
-        let moe = MoELayer::new(16, 64, 4, 1)
-            .with_load_balancing(LoadBalancingLoss::Auxiliary, 0.01);
+        let moe =
+            MoELayer::new(16, 64, 4, 1).with_load_balancing(LoadBalancingLoss::Auxiliary, 0.01);
 
         let inputs = vec![vec![0.5; 16]; 8];
         let base_loss = 1.0;

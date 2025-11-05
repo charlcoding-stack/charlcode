@@ -6,6 +6,9 @@
 // Key innovation: Instead of fixed A, B, C, D parameters,
 // they are computed dynamically based on the input.
 //
+// Allow SSM notation (A, B, C matrices) to match academic literature
+#![allow(non_snake_case)]
+//
 // Architecture:
 //   input x → Linear projection →
 //   ├─ Selective SSM path (selective parameters)
@@ -22,8 +25,6 @@
 //
 // References:
 // - Gu & Dao (2023): "Mamba: Linear-Time Sequence Modeling with Selective State Spaces"
-
-use super::s4::{SSMConfig, InitStrategy, DiscretizationMethod};
 
 /// Mamba layer configuration
 #[derive(Debug, Clone)]
@@ -199,10 +200,7 @@ impl MambaBlock {
     /// Discretize with selective parameters
     ///
     /// Ā = exp(Δ·A), B̄ = (Ā - I)·A⁻¹·B ≈ Δ·B
-    fn selective_discretize(
-        &self,
-        delta: f32,
-    ) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
+    fn selective_discretize(&self, delta: f32) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
         let n = self.config.d_state;
 
         // Simplified: Ā ≈ I + Δ·A
@@ -401,11 +399,7 @@ mod tests {
         let config = MambaConfig::new(16);
         let block = MambaBlock::new(config);
 
-        let inputs = vec![
-            vec![1.0; 16],
-            vec![0.5; 16],
-            vec![0.25; 16],
-        ];
+        let inputs = vec![vec![1.0; 16], vec![0.5; 16], vec![0.25; 16]];
 
         let outputs = block.forward_sequence(&inputs);
 

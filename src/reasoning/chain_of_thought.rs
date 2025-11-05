@@ -127,7 +127,8 @@ impl ChainOfThought {
             return;
         }
 
-        self.confidence = self.steps
+        self.confidence = self
+            .steps
             .iter()
             .map(|s| s.confidence)
             .fold(f32::INFINITY, f32::min);
@@ -240,10 +241,7 @@ impl SelfConsistency {
             }
             AggregationStrategy::MaxConfidence => {
                 // Confidence = max confidence among chains
-                chains
-                    .iter()
-                    .map(|c| c.confidence)
-                    .fold(0.0, f32::max)
+                chains.iter().map(|c| c.confidence).fold(0.0, f32::max)
             }
             AggregationStrategy::WeightedVote => {
                 // Confidence = weighted sum / total weight
@@ -292,7 +290,7 @@ impl LeastToMost {
         } else if problem.contains("×") || problem.contains("*") {
             // Multiplication first
             subproblems.push(format!("Compute multiplication in: {}", problem));
-            subproblems.push(format!("Complete the calculation"));
+            subproblems.push("Complete the calculation".to_string());
         } else {
             // Cannot decompose further
             subproblems.push(problem.to_string());

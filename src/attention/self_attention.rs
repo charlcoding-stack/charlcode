@@ -248,8 +248,9 @@ mod tests {
 
         let input = vec![0.1; batch_size * seq_len * d_model];
 
-        let (output, attention_weights) =
-            self_attn.forward(&input, (batch_size, seq_len, d_model), None).unwrap();
+        let (output, attention_weights) = self_attn
+            .forward(&input, (batch_size, seq_len, d_model), None)
+            .unwrap();
 
         // Output shape should be (2, 3, 64)
         assert_eq!(output.len(), batch_size * seq_len * d_model);

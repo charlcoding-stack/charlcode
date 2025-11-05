@@ -63,7 +63,9 @@ impl MultimodalEmbedding {
             return 0.0;
         }
 
-        let dot: f32 = self.vector.iter()
+        let dot: f32 = self
+            .vector
+            .iter()
             .zip(other.vector.iter())
             .map(|(a, b)| a * b)
             .sum();
@@ -84,7 +86,8 @@ impl MultimodalEmbedding {
             return f32::INFINITY;
         }
 
-        self.vector.iter()
+        self.vector
+            .iter()
             .zip(other.vector.iter())
             .map(|(a, b)| (a - b).powi(2))
             .sum::<f32>()
@@ -161,7 +164,7 @@ impl CLIPEncoder {
         // Simplified: average pooling over patches + random projection
         // In practice: CNN/ViT → linear projection
         let patch_size = 16;
-        let num_patches = (image.dimensions.0 / patch_size) * (image.dimensions.1 / patch_size);
+        let _num_patches = (image.dimensions.0 / patch_size) * (image.dimensions.1 / patch_size);
 
         let mut embedding_vec = vec![0.0; self.embedding_dim];
 
@@ -178,7 +181,7 @@ impl CLIPEncoder {
         let mut emb = MultimodalEmbedding::new(embedding_vec, Modality::Vision);
         emb.normalize();
         emb.with_metadata("source", "image")
-           .with_metadata("id", image.id.clone())
+            .with_metadata("id", image.id.clone())
     }
 
     /// Encode text to embedding (simplified - no actual transformer)
@@ -201,11 +204,15 @@ impl CLIPEncoder {
         let mut emb = MultimodalEmbedding::new(embedding_vec, Modality::Language);
         emb.normalize();
         emb.with_metadata("source", "text")
-           .with_metadata("content", text.to_string())
+            .with_metadata("content", text.to_string())
     }
 
     /// Compute contrastive loss between image and text embeddings
-    pub fn contrastive_loss(&self, image_emb: &MultimodalEmbedding, text_emb: &MultimodalEmbedding) -> f32 {
+    pub fn contrastive_loss(
+        &self,
+        image_emb: &MultimodalEmbedding,
+        text_emb: &MultimodalEmbedding,
+    ) -> f32 {
         let similarity = image_emb.cosine_similarity(text_emb);
         let logits = similarity / self.temperature;
 
@@ -237,11 +244,16 @@ impl VQASystem {
     }
 
     /// Add question-answer pair for an image
-    pub fn add_qa(&mut self, image_id: impl Into<String>, question: impl Into<String>, answer: impl Into<String>) {
+    pub fn add_qa(
+        &mut self,
+        image_id: impl Into<String>,
+        question: impl Into<String>,
+        answer: impl Into<String>,
+    ) {
         let image_id = image_id.into();
         self.qa_database
             .entry(image_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((question.into(), answer.into()));
     }
 
@@ -326,10 +338,7 @@ pub struct CrossModalRetrieval {
 
 impl CrossModalRetrieval {
     pub fn new(encoder: CLIPEncoder) -> Self {
-        Self {
-            encoder,
-            top_k: 5,
-        }
+        Self { encoder, top_k: 5 }
     }
 
     pub fn with_top_k(mut self, top_k: usize) -> Self {
@@ -341,7 +350,8 @@ impl CrossModalRetrieval {
     pub fn text_to_image<'a>(&self, query: &str, images: &'a [Image]) -> Vec<(&'a Image, f32)> {
         let query_emb = self.encoder.encode_text(query);
 
-        let mut scores: Vec<(&'a Image, f32)> = images.iter()
+        let mut scores: Vec<(&'a Image, f32)> = images
+            .iter()
             .map(|img| {
                 let img_emb = self.encoder.encode_image(img);
                 let sim = query_emb.cosine_similarity(&img_emb);
@@ -358,7 +368,8 @@ impl CrossModalRetrieval {
     pub fn image_to_text<'a>(&self, image: &Image, texts: &'a [String]) -> Vec<(&'a String, f32)> {
         let image_emb = self.encoder.encode_image(image);
 
-        let mut scores: Vec<(&'a String, f32)> = texts.iter()
+        let mut scores: Vec<(&'a String, f32)> = texts
+            .iter()
             .map(|text| {
                 let text_emb = self.encoder.encode_text(text);
                 let sim = image_emb.cosine_similarity(&text_emb);
@@ -432,8 +443,7 @@ mod tests {
     #[test]
     fn test_image_with_caption() {
         let pixels = vec![0.0; 100];
-        let image = Image::new("img1", 10, 10, pixels)
-            .with_caption("A cat");
+        let image = Image::new("img1", 10, 10, pixels).with_caption("A cat");
 
         assert_eq!(image.caption, Some("A cat".to_string()));
     }
@@ -487,8 +497,7 @@ mod tests {
         let vqa = VQASystem::new(encoder);
 
         let pixels = vec![100.0; 256];
-        let image = Image::new("img1", 16, 16, pixels)
-            .with_caption("A cat sitting");
+        let image = Image::new("img1", 16, 16, pixels).with_caption("A cat sitting");
 
         let answer = vqa.answer_question(&image, "What is in the image?");
         assert!(answer.is_some());
@@ -516,8 +525,7 @@ mod tests {
         let vqa = VQASystem::new(encoder);
 
         let pixels = vec![200.0; 256];
-        let image = Image::new("img1", 16, 16, pixels)
-            .with_caption("Test");
+        let image = Image::new("img1", 16, 16, pixels).with_caption("Test");
 
         let answer = vqa.answer_question(&image, "Test?").unwrap();
         assert!(answer.confidence >= 0.0 && answer.confidence <= 1.0);

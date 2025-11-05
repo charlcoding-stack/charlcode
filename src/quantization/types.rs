@@ -186,7 +186,7 @@ impl QuantizedTensor {
     pub fn memory_bytes(&self) -> usize {
         if self.packed && self.params.quant_type == QuantType::INT4 {
             // INT4: 2 values per byte
-            (self.numel() + 1) / 2
+            self.numel().div_ceil(2)
         } else {
             // INT8: 1 byte per value
             self.numel()
@@ -211,7 +211,7 @@ impl QuantizedTensor {
             return Ok(()); // Already packed
         }
 
-        let mut packed_data = Vec::with_capacity((self.data.len() + 1) / 2);
+        let mut packed_data = Vec::with_capacity(self.data.len().div_ceil(2));
 
         for chunk in self.data.chunks(2) {
             let low = chunk[0] & 0x0F; // Keep lower 4 bits
@@ -245,12 +245,12 @@ impl QuantizedTensor {
 
         for &byte in &self.data {
             // Extract lower 4 bits (sign-extend)
-            let low = ((byte << 4) as i8) >> 4;
+            let low = (byte << 4) >> 4;
             unpacked_data.push(low);
 
             // Extract upper 4 bits (sign-extend)
             if unpacked_data.len() < numel {
-                let high = (byte as i8) >> 4;
+                let high = byte >> 4;
                 unpacked_data.push(high);
             }
         }
@@ -372,10 +372,7 @@ mod tests {
         let params = QuantParams::int8_symmetric(4.0);
 
         // Quantize
-        let quantized: Vec<i8> = original
-            .iter()
-            .map(|&v| params.quantize(v) as i8)
-            .collect();
+        let quantized: Vec<i8> = original.iter().map(|&v| params.quantize(v) as i8).collect();
 
         let tensor = QuantizedTensor::new(quantized, vec![4], params);
 
@@ -384,7 +381,13 @@ mod tests {
 
         // Check roundtrip accuracy
         for (i, (&orig, &deq)) in original.iter().zip(dequantized.iter()).enumerate() {
-            assert!((orig - deq).abs() < 0.1, "Mismatch at {}: {} vs {}", i, orig, deq);
+            assert!(
+                (orig - deq).abs() < 0.1,
+                "Mismatch at {}: {} vs {}",
+                i,
+                orig,
+                deq
+            );
         }
     }
 }

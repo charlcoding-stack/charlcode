@@ -24,8 +24,8 @@
 // References:
 // - Yao et al. (2023): "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
 
-use std::collections::{HashMap, VecDeque, BinaryHeap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, VecDeque};
 
 /// A single thought/node in the reasoning tree
 #[derive(Debug, Clone)]
@@ -40,7 +40,12 @@ pub struct ThoughtNode {
 }
 
 impl ThoughtNode {
-    pub fn new(id: usize, parent_id: Option<usize>, thought: impl Into<String>, depth: usize) -> Self {
+    pub fn new(
+        id: usize,
+        parent_id: Option<usize>,
+        thought: impl Into<String>,
+        depth: usize,
+    ) -> Self {
         Self {
             id,
             parent_id,
@@ -143,7 +148,12 @@ impl TreeOfThoughts {
     }
 
     /// Add a thought as child of parent
-    pub fn add_thought(&mut self, parent_id: usize, thought: impl Into<String>, value: f32) -> Option<usize> {
+    pub fn add_thought(
+        &mut self,
+        parent_id: usize,
+        thought: impl Into<String>,
+        value: f32,
+    ) -> Option<usize> {
         if self.nodes.len() >= self.max_nodes {
             return None;
         }
@@ -156,8 +166,8 @@ impl TreeOfThoughts {
         let new_id = self.next_id;
         self.next_id += 1;
 
-        let node = ThoughtNode::new(new_id, Some(parent_id), thought, parent_depth + 1)
-            .with_value(value);
+        let node =
+            ThoughtNode::new(new_id, Some(parent_id), thought, parent_depth + 1).with_value(value);
 
         // Add to parent's children
         if let Some(parent) = self.nodes.get_mut(&parent_id) {
@@ -224,7 +234,12 @@ impl TreeOfThoughts {
                     queue.push_back(child_id);
 
                     // Check if child is solution
-                    if self.nodes.get(&child_id).map(|n| n.is_solution).unwrap_or(false) {
+                    if self
+                        .nodes
+                        .get(&child_id)
+                        .map(|n| n.is_solution)
+                        .unwrap_or(false)
+                    {
                         return Some(child_id);
                     }
                 }
@@ -256,7 +271,12 @@ impl TreeOfThoughts {
                     stack.push(child_id);
 
                     // Check if child is solution
-                    if self.nodes.get(&child_id).map(|n| n.is_solution).unwrap_or(false) {
+                    if self
+                        .nodes
+                        .get(&child_id)
+                        .map(|n| n.is_solution)
+                        .unwrap_or(false)
+                    {
                         return Some(child_id);
                     }
                 }
@@ -295,7 +315,12 @@ impl TreeOfThoughts {
                     });
 
                     // Check if child is solution
-                    if self.nodes.get(&child_id).map(|n| n.is_solution).unwrap_or(false) {
+                    if self
+                        .nodes
+                        .get(&child_id)
+                        .map(|n| n.is_solution)
+                        .unwrap_or(false)
+                    {
                         return Some(child_id);
                     }
                 }
@@ -332,8 +357,7 @@ mod tests {
 
     #[test]
     fn test_thought_node_creation() {
-        let node = ThoughtNode::new(0, None, "Root thought", 0)
-            .with_value(0.8);
+        let node = ThoughtNode::new(0, None, "Root thought", 0).with_value(0.8);
 
         assert_eq!(node.id, 0);
         assert_eq!(node.parent_id, None);
@@ -369,8 +393,7 @@ mod tests {
 
     #[test]
     fn test_max_depth() {
-        let mut tree = TreeOfThoughts::new("Root", SearchStrategy::BreadthFirst)
-            .with_max_depth(2);
+        let mut tree = TreeOfThoughts::new("Root", SearchStrategy::BreadthFirst).with_max_depth(2);
 
         let child1 = tree.add_thought(0, "Depth 1", 0.5);
         assert!(child1.is_some());
@@ -385,8 +408,7 @@ mod tests {
 
     #[test]
     fn test_max_nodes() {
-        let mut tree = TreeOfThoughts::new("Root", SearchStrategy::BreadthFirst)
-            .with_max_nodes(3);
+        let mut tree = TreeOfThoughts::new("Root", SearchStrategy::BreadthFirst).with_max_nodes(3);
 
         tree.add_thought(0, "Child 1", 0.5);
         tree.add_thought(0, "Child 2", 0.5);
@@ -432,10 +454,7 @@ mod tests {
         let result = tree.search_bfs(|node| {
             expand_count += 1;
             if node.depth < 2 {
-                vec![
-                    ("Child A".to_string(), 0.5),
-                    ("Child B".to_string(), 0.8),
-                ]
+                vec![("Child A".to_string(), 0.5), ("Child B".to_string(), 0.8)]
             } else {
                 vec![]
             }
@@ -447,8 +466,8 @@ mod tests {
 
     #[test]
     fn test_search_with_solution() {
-        let mut tree = TreeOfThoughts::new("Find 24", SearchStrategy::BreadthFirst)
-            .with_max_depth(3);
+        let mut tree =
+            TreeOfThoughts::new("Find 24", SearchStrategy::BreadthFirst).with_max_depth(3);
 
         let result = tree.search(|node| {
             if node.depth == 0 {

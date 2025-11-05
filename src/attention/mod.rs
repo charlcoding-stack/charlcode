@@ -14,17 +14,17 @@
 // - Layer norm stabilizes training
 // - Positional encoding adds sequence order information
 
+pub mod layer_norm;
+pub mod multi_head;
+pub mod positional_encoding;
 pub mod scaled_attention;
 pub mod self_attention;
-pub mod multi_head;
-pub mod layer_norm;
-pub mod positional_encoding;
 
+pub use layer_norm::LayerNorm;
+pub use multi_head::MultiHeadAttention;
+pub use positional_encoding::PositionalEncoding;
 pub use scaled_attention::ScaledDotProductAttention;
 pub use self_attention::SelfAttention;
-pub use multi_head::MultiHeadAttention;
-pub use layer_norm::LayerNorm;
-pub use positional_encoding::PositionalEncoding;
 
 /// Attention configuration
 #[derive(Debug, Clone)]
@@ -81,7 +81,7 @@ impl AttentionConfig {
 
     /// Validate configuration
     pub fn validate(&self) -> Result<(), String> {
-        if self.d_model % self.num_heads != 0 {
+        if !self.d_model.is_multiple_of(self.num_heads) {
             return Err(format!(
                 "d_model ({}) must be divisible by num_heads ({})",
                 self.d_model, self.num_heads

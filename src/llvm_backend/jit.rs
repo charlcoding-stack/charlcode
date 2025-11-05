@@ -29,7 +29,10 @@ impl<'ctx> JITEngine<'ctx> {
         let execution_engine = match module.create_jit_execution_engine(opt_level) {
             Ok(engine) => {
                 #[cfg(debug_assertions)]
-                eprintln!("LLVM: Using JIT execution engine (opt_level: {:?})", opt_level);
+                eprintln!(
+                    "LLVM: Using JIT execution engine (opt_level: {:?})",
+                    opt_level
+                );
                 engine
             }
             Err(_jit_err) => {
@@ -37,9 +40,9 @@ impl<'ctx> JITEngine<'ctx> {
                 #[cfg(debug_assertions)]
                 eprintln!("LLVM: JIT not available, using interpreter execution engine");
 
-                module
-                    .create_interpreter_execution_engine()
-                    .map_err(|e| format!("Failed to create interpreter execution engine: {:?}", e))?
+                module.create_interpreter_execution_engine().map_err(|e| {
+                    format!("Failed to create interpreter execution engine: {:?}", e)
+                })?
             }
         };
 

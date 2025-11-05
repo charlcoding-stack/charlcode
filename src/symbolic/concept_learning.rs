@@ -27,9 +27,9 @@
 // let new_concept = learner.learn_from_examples(&examples)?;
 // ```
 
+use crate::knowledge_graph::KnowledgeGraph;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use crate::knowledge_graph::{KnowledgeGraph, EntityId};
 
 /// A concept: abstract representation of a category or pattern
 #[derive(Debug, Clone)]
@@ -64,7 +64,8 @@ impl Concept {
 
     /// Add a property with strength
     pub fn with_property(mut self, property: impl Into<String>, strength: f64) -> Self {
-        self.properties.insert(property.into(), strength.clamp(0.0, 1.0));
+        self.properties
+            .insert(property.into(), strength.clamp(0.0, 1.0));
         self
     }
 
@@ -108,7 +109,9 @@ impl Concept {
         }
 
         // Get all properties
-        let all_props: HashSet<_> = self.properties.keys()
+        let all_props: HashSet<_> = self
+            .properties
+            .keys()
             .chain(other.properties.keys())
             .collect();
 
@@ -151,7 +154,9 @@ impl Concept {
         // Intersection of properties (minimum strength)
         for (prop, &strength1) in &self.properties {
             if let Some(&strength2) = other.properties.get(prop) {
-                concept.properties.insert(prop.clone(), strength1.min(strength2));
+                concept
+                    .properties
+                    .insert(prop.clone(), strength1.min(strength2));
             }
         }
 
@@ -264,12 +269,21 @@ impl ConceptGraph {
     }
 
     /// Add a relation
-    pub fn add_relation(&mut self, from: impl Into<String>, relation: ConceptRelation, to: impl Into<String>) {
+    pub fn add_relation(
+        &mut self,
+        from: impl Into<String>,
+        relation: ConceptRelation,
+        to: impl Into<String>,
+    ) {
         self.relations.push((from.into(), relation, to.into()));
     }
 
     /// Add subconcept relation
-    pub fn add_subconcept_relation(&mut self, subconcept: impl Into<String>, superconcept: impl Into<String>) {
+    pub fn add_subconcept_relation(
+        &mut self,
+        subconcept: impl Into<String>,
+        superconcept: impl Into<String>,
+    ) {
         self.add_relation(subconcept, ConceptRelation::IsA, superconcept);
     }
 
@@ -401,7 +415,7 @@ impl ConceptLearner {
     pub fn learn_from_examples(
         &mut self,
         name: impl Into<String>,
-        examples: &[(String, HashMap<String, f64>)]
+        examples: &[(String, HashMap<String, f64>)],
     ) -> Result<Concept, String> {
         if examples.len() < self.min_examples {
             return Err(format!(
@@ -443,10 +457,8 @@ impl ConceptLearner {
         }
 
         // Confidence based on number of examples and property agreement
-        let confidence = (examples.len() as f64 / (self.min_examples as f64 + 10.0))
-            .min(1.0)
-            * 0.8
-            + 0.2;  // Base confidence 0.2
+        let confidence =
+            (examples.len() as f64 / (self.min_examples as f64 + 10.0)).min(1.0) * 0.8 + 0.2; // Base confidence 0.2
         concept = concept.with_confidence(confidence);
 
         self.learned_concepts.push(concept.clone());
@@ -591,8 +603,7 @@ mod tests {
 
     #[test]
     fn test_concept_specialization() {
-        let concept = Concept::new("Controller")
-            .with_property("handles_requests", 0.8);
+        let concept = Concept::new("Controller").with_property("handles_requests", 0.8);
 
         let specialized = concept.specialize("handles_users".to_string(), 0.9);
 
@@ -637,8 +648,7 @@ mod tests {
             .with_property("handles_http", 0.95)
             .with_property("validates_posts", 0.7);
 
-        let c3 = Concept::new("Repository")
-            .with_property("accesses_db", 0.9);
+        let c3 = Concept::new("Repository").with_property("accesses_db", 0.9);
 
         graph.add_concept(c1);
         graph.add_concept(c2);
@@ -677,7 +687,9 @@ mod tests {
         props3.insert("validates_input".to_string(), 0.9);
         examples.push(("CommentController".to_string(), props3));
 
-        let concept = learner.learn_from_examples("Controller", &examples).unwrap();
+        let concept = learner
+            .learn_from_examples("Controller", &examples)
+            .unwrap();
 
         // Should have handles_http (present in all examples)
         assert!(concept.has_property("handles_http"));
@@ -690,14 +702,12 @@ mod tests {
 
     #[test]
     fn test_embedding_similarity() {
-        let c1 = Concept::new("Concept1")
-            .with_embedding(vec![1.0, 0.0, 0.0]);
+        let c1 = Concept::new("Concept1").with_embedding(vec![1.0, 0.0, 0.0]);
 
-        let c2 = Concept::new("Concept2")
-            .with_embedding(vec![0.8, 0.6, 0.0]);
+        let c2 = Concept::new("Concept2").with_embedding(vec![0.8, 0.6, 0.0]);
 
         let similarity = c1.embedding_similarity(&c2).unwrap();
-        assert!(similarity > 0.6);  // Should be similar
+        assert!(similarity > 0.6); // Should be similar
     }
 
     #[test]

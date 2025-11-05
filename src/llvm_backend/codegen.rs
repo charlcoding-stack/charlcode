@@ -839,9 +839,7 @@ impl<'ctx> LLVMCodegen<'ctx> {
             .build_float_mul(div_result, c_val, "mul")
             .ok()?;
 
-        self.builder
-            .build_store(output_elem_ptr, mul_result)
-            .ok()?;
+        self.builder.build_store(output_elem_ptr, mul_result).ok()?;
 
         let next_counter = self
             .builder

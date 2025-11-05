@@ -16,9 +16,9 @@
 // let violations = inference.check_types()?;
 // ```
 
-use crate::ast::{Statement, Expression, TypeAnnotation, Program, BinaryOperator, UnaryOperator};
-use crate::knowledge_graph::{KnowledgeGraph, EntityType, RelationType};
 use super::rule_engine::{Action, Severity};
+use crate::ast::{BinaryOperator, Expression, Program, Statement, TypeAnnotation, UnaryOperator};
+use crate::knowledge_graph::{EntityType, KnowledgeGraph, RelationType};
 use std::collections::HashMap;
 
 /// Type variable for polymorphic types
@@ -62,12 +62,11 @@ impl InferredType {
     pub fn is_concrete(&self) -> bool {
         match self {
             InferredType::Var(_) | InferredType::Unknown => false,
-            InferredType::Function { params, return_type } => {
-                params.iter().all(|p| p.is_concrete()) && return_type.is_concrete()
-            }
-            InferredType::Generic { params, .. } => {
-                params.iter().all(|p| p.is_concrete())
-            }
+            InferredType::Function {
+                params,
+                return_type,
+            } => params.iter().all(|p| p.is_concrete()) && return_type.is_concrete(),
+            InferredType::Generic { params, .. } => params.iter().all(|p| p.is_concrete()),
             InferredType::Tensor(_) => true,
             _ => true,
         }
@@ -94,9 +93,15 @@ impl std::fmt::Display for InferredType {
             InferredType::Void => write!(f, "void"),
             InferredType::Tensor(Some(shape)) => write!(f, "tensor{:?}", shape),
             InferredType::Tensor(None) => write!(f, "tensor"),
-            InferredType::Function { params, return_type } => {
-                write!(f, "({}) -> {}",
-                    params.iter()
+            InferredType::Function {
+                params,
+                return_type,
+            } => {
+                write!(
+                    f,
+                    "({}) -> {}",
+                    params
+                        .iter()
                         .map(|p| p.to_string())
                         .collect::<Vec<_>>()
                         .join(", "),
@@ -105,8 +110,12 @@ impl std::fmt::Display for InferredType {
             }
             InferredType::Var(TypeVar(name)) => write!(f, "'{}", name),
             InferredType::Generic { name, params } => {
-                write!(f, "{}<{}>", name,
-                    params.iter()
+                write!(
+                    f,
+                    "{}<{}>",
+                    name,
+                    params
+                        .iter()
                         .map(|p| p.to_string())
                         .collect::<Vec<_>>()
                         .join(", ")
@@ -125,7 +134,7 @@ type Substitution = HashMap<TypeVar, InferredType>;
 pub struct TypeConstraint {
     pub expected: InferredType,
     pub actual: InferredType,
-    pub location: String,  // For error reporting
+    pub location: String, // For error reporting
 }
 
 /// Type inference error
@@ -228,24 +237,28 @@ impl TypeInference {
                     ty.clone()
                 }
             }
-            InferredType::Function { params, return_type } => {
-                InferredType::Function {
-                    params: params.iter().map(|p| self.apply_subst(p)).collect(),
-                    return_type: Box::new(self.apply_subst(return_type)),
-                }
-            }
-            InferredType::Generic { name, params } => {
-                InferredType::Generic {
-                    name: name.clone(),
-                    params: params.iter().map(|p| self.apply_subst(p)).collect(),
-                }
-            }
+            InferredType::Function {
+                params,
+                return_type,
+            } => InferredType::Function {
+                params: params.iter().map(|p| self.apply_subst(p)).collect(),
+                return_type: Box::new(self.apply_subst(return_type)),
+            },
+            InferredType::Generic { name, params } => InferredType::Generic {
+                name: name.clone(),
+                params: params.iter().map(|p| self.apply_subst(p)).collect(),
+            },
             _ => ty.clone(),
         }
     }
 
     /// Unify two types (Hindley-Milner unification)
-    fn unify(&mut self, t1: &InferredType, t2: &InferredType, location: &str) -> Result<(), TypeError> {
+    fn unify(
+        &mut self,
+        t1: &InferredType,
+        t2: &InferredType,
+        location: &str,
+    ) -> Result<(), TypeError> {
         let t1 = self.apply_subst(t1);
         let t2 = self.apply_subst(t2);
 
@@ -270,8 +283,16 @@ impl TypeInference {
             }
 
             // Function unification
-            (InferredType::Function { params: p1, return_type: r1 },
-             InferredType::Function { params: p2, return_type: r2 }) => {
+            (
+                InferredType::Function {
+                    params: p1,
+                    return_type: r1,
+                },
+                InferredType::Function {
+                    params: p2,
+                    return_type: r2,
+                },
+            ) => {
                 if p1.len() != p2.len() {
                     return Err(TypeError::mismatch(location, t1.clone(), t2.clone()));
                 }
@@ -285,8 +306,16 @@ impl TypeInference {
             }
 
             // Generic unification
-            (InferredType::Generic { name: n1, params: p1 },
-             InferredType::Generic { name: n2, params: p2 }) if n1 == n2 => {
+            (
+                InferredType::Generic {
+                    name: n1,
+                    params: p1,
+                },
+                InferredType::Generic {
+                    name: n2,
+                    params: p2,
+                },
+            ) if n1 == n2 => {
                 if p1.len() != p2.len() {
                     return Err(TypeError::mismatch(location, t1.clone(), t2.clone()));
                 }
@@ -311,12 +340,11 @@ impl TypeInference {
 
         match ty {
             InferredType::Var(v) => v == *var,
-            InferredType::Function { params, return_type } => {
-                params.iter().any(|p| self.occurs_in(var, p)) || self.occurs_in(var, &return_type)
-            }
-            InferredType::Generic { params, .. } => {
-                params.iter().any(|p| self.occurs_in(var, p))
-            }
+            InferredType::Function {
+                params,
+                return_type,
+            } => params.iter().any(|p| self.occurs_in(var, p)) || self.occurs_in(var, &return_type),
+            InferredType::Generic { params, .. } => params.iter().any(|p| self.occurs_in(var, p)),
             _ => false,
         }
     }
@@ -329,13 +357,17 @@ impl TypeInference {
             Expression::BooleanLiteral(_) => Ok(InferredType::Bool),
             Expression::StringLiteral(_) => Ok(InferredType::String),
 
-            Expression::Identifier(name) => {
-                self.env.get(name)
-                    .cloned()
-                    .ok_or_else(|| TypeError::undefined("expression", name))
-            }
+            Expression::Identifier(name) => self
+                .env
+                .get(name)
+                .cloned()
+                .ok_or_else(|| TypeError::undefined("expression", name)),
 
-            Expression::Binary { left, operator, right } => {
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
                 let left_type = self.infer_expression(left)?;
                 let right_type = self.infer_expression(right)?;
 
@@ -377,12 +409,16 @@ impl TypeInference {
                 }
             }
 
-            Expression::Call { function, arguments } => {
+            Expression::Call {
+                function,
+                arguments,
+            } => {
                 // Infer function type
                 let func_type = self.infer_expression(function)?;
 
                 // Infer argument types
-                let arg_types: Result<Vec<_>, _> = arguments.iter()
+                let arg_types: Result<Vec<_>, _> = arguments
+                    .iter()
                     .map(|arg| self.infer_expression(arg))
                     .collect();
                 let arg_types = arg_types?;
@@ -422,7 +458,11 @@ impl TypeInference {
                 // Check against annotation
                 if let Some(ann) = &let_stmt.type_annotation {
                     let expected_type = InferredType::from_ast(ann);
-                    self.unify(&expected_type, &value_type, &format!("variable {}", let_stmt.name))?;
+                    self.unify(
+                        &expected_type,
+                        &value_type,
+                        &format!("variable {}", let_stmt.name),
+                    )?;
                     self.env.insert(let_stmt.name.clone(), expected_type);
                 } else {
                     self.env.insert(let_stmt.name.clone(), value_type);
@@ -433,7 +473,9 @@ impl TypeInference {
 
             Statement::Function(func) => {
                 // Build function type
-                let param_types: Vec<InferredType> = func.parameters.iter()
+                let param_types: Vec<InferredType> = func
+                    .parameters
+                    .iter()
                     .map(|p| InferredType::from_ast(&p.type_annotation))
                     .collect();
 
@@ -494,7 +536,11 @@ impl TypeInference {
 
         // Solve constraints
         for constraint in self.constraints.clone() {
-            if let Err(err) = self.unify(&constraint.expected, &constraint.actual, &constraint.location) {
+            if let Err(err) = self.unify(
+                &constraint.expected,
+                &constraint.actual,
+                &constraint.location,
+            ) {
                 errors.push(err);
             }
         }
@@ -518,27 +564,30 @@ impl TypeInference {
 
     /// Convert type errors to rule violations
     pub fn errors_to_violations(&self) -> Vec<(String, Action)> {
-        self.errors.iter().map(|err| {
-            (
-                err.location.clone(),
-                Action::Violation {
-                    severity: Severity::High,
-                    message: err.message.clone(),
-                }
-            )
-        }).collect()
+        self.errors
+            .iter()
+            .map(|err| {
+                (
+                    err.location.clone(),
+                    Action::Violation {
+                        severity: Severity::High,
+                        message: err.message.clone(),
+                    },
+                )
+            })
+            .collect()
     }
 
     /// Add type information to knowledge graph
     pub fn add_to_knowledge_graph(&self, graph: &mut KnowledgeGraph) {
         for (name, ty) in &self.env {
             // Find entity in graph
-            let entity_id = (0..graph.num_entities())
-                .find(|&id| {
-                    graph.get_entity(id)
-                        .map(|e| e.name == *name)
-                        .unwrap_or(false)
-                });
+            let entity_id = (0..graph.num_entities()).find(|&id| {
+                graph
+                    .get_entity(id)
+                    .map(|e| e.name == *name)
+                    .unwrap_or(false)
+            });
 
             if let Some(entity_id) = entity_id {
                 // Add type information as entity attribute
@@ -546,7 +595,7 @@ impl TypeInference {
 
                 // For now, we can create a "Type" entity and link it
                 let type_entity = graph.add_entity(
-                    EntityType::Variable,  // Or create EntityType::Type
+                    EntityType::Variable, // Or create EntityType::Type
                     format!("{}::type::{}", name, ty),
                 );
 
@@ -576,29 +625,39 @@ mod tests {
         let mut inference = TypeInference::new();
 
         let int_expr = Expression::IntegerLiteral(42);
-        assert_eq!(inference.infer_expression(&int_expr).unwrap(), InferredType::Int);
+        assert_eq!(
+            inference.infer_expression(&int_expr).unwrap(),
+            InferredType::Int
+        );
 
         let float_expr = Expression::FloatLiteral(3.14);
-        assert_eq!(inference.infer_expression(&float_expr).unwrap(), InferredType::Float);
+        assert_eq!(
+            inference.infer_expression(&float_expr).unwrap(),
+            InferredType::Float
+        );
 
         let bool_expr = Expression::BooleanLiteral(true);
-        assert_eq!(inference.infer_expression(&bool_expr).unwrap(), InferredType::Bool);
+        assert_eq!(
+            inference.infer_expression(&bool_expr).unwrap(),
+            InferredType::Bool
+        );
 
         let string_expr = Expression::StringLiteral("hello".to_string());
-        assert_eq!(inference.infer_expression(&string_expr).unwrap(), InferredType::String);
+        assert_eq!(
+            inference.infer_expression(&string_expr).unwrap(),
+            InferredType::String
+        );
     }
 
     #[test]
     fn test_variable_inference() {
         // Manually create AST: let x: int32 = 42;
         let program = Program {
-            statements: vec![
-                Statement::Let(LetStatement {
-                    name: "x".to_string(),
-                    type_annotation: Some(TypeAnnotation::Int32),
-                    value: Expression::IntegerLiteral(42),
-                })
-            ]
+            statements: vec![Statement::Let(LetStatement {
+                name: "x".to_string(),
+                type_annotation: Some(TypeAnnotation::Int32),
+                value: Expression::IntegerLiteral(42),
+            })],
         };
 
         let mut inference = TypeInference::new();
@@ -665,11 +724,7 @@ mod tests {
         let mut inference = TypeInference::new();
 
         // Try to unify incompatible types
-        let result = inference.unify(
-            &InferredType::Int,
-            &InferredType::Bool,
-            "test"
-        );
+        let result = inference.unify(&InferredType::Int, &InferredType::Bool, "test");
 
         assert!(result.is_err());
     }
@@ -678,31 +733,27 @@ mod tests {
     fn test_function_inference() {
         // fn add(a: float32, b: float32) -> float32 { return a + b; }
         let program = Program {
-            statements: vec![
-                Statement::Function(FunctionStatement {
-                    name: "add".to_string(),
-                    parameters: vec![
-                        Parameter {
-                            name: "a".to_string(),
-                            type_annotation: TypeAnnotation::Float32,
-                        },
-                        Parameter {
-                            name: "b".to_string(),
-                            type_annotation: TypeAnnotation::Float32,
-                        },
-                    ],
-                    return_type: Some(TypeAnnotation::Float32),
-                    body: vec![
-                        Statement::Return(ReturnStatement {
-                            value: Expression::Binary {
-                                left: Box::new(Expression::Identifier("a".to_string())),
-                                operator: BinaryOperator::Add,
-                                right: Box::new(Expression::Identifier("b".to_string())),
-                            }
-                        })
-                    ],
-                })
-            ]
+            statements: vec![Statement::Function(FunctionStatement {
+                name: "add".to_string(),
+                parameters: vec![
+                    Parameter {
+                        name: "a".to_string(),
+                        type_annotation: TypeAnnotation::Float32,
+                    },
+                    Parameter {
+                        name: "b".to_string(),
+                        type_annotation: TypeAnnotation::Float32,
+                    },
+                ],
+                return_type: Some(TypeAnnotation::Float32),
+                body: vec![Statement::Return(ReturnStatement {
+                    value: Expression::Binary {
+                        left: Box::new(Expression::Identifier("a".to_string())),
+                        operator: BinaryOperator::Add,
+                        right: Box::new(Expression::Identifier("b".to_string())),
+                    },
+                })],
+            })],
         };
 
         let mut inference = TypeInference::new();
@@ -710,7 +761,10 @@ mod tests {
 
         let func_type = inference.get_type("add").unwrap();
         match func_type {
-            InferredType::Function { params, return_type } => {
+            InferredType::Function {
+                params,
+                return_type,
+            } => {
                 assert_eq!(params.len(), 2);
                 assert_eq!(params[0], InferredType::Float);
                 assert_eq!(params[1], InferredType::Float);
@@ -772,7 +826,7 @@ mod tests {
         let result = inference.unify(
             &InferredType::Var(var.clone()),
             &infinite_type,
-            "occurs check test"
+            "occurs check test",
         );
 
         assert!(result.is_err());
@@ -797,7 +851,9 @@ mod tests {
         let mut inference = TypeInference::new();
 
         let var = TypeVar("t0".to_string());
-        inference.substitution.insert(var.clone(), InferredType::Int);
+        inference
+            .substitution
+            .insert(var.clone(), InferredType::Int);
 
         let result = inference.apply_subst(&InferredType::Var(var));
         assert_eq!(result, InferredType::Int);

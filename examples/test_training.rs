@@ -5,8 +5,8 @@ fn main() {
     use charl::autograd::{ComputationGraph, Tensor};
     use charl::nn::{Activation, Dense, Initializer, Loss, Sequential};
     use charl::optim::{
-        Adam, AdaGrad, ExponentialLR, History, LRScheduler, Metrics, Optimizer, RMSprop,
-        StepLR, SGD, clip_grad_norm, clip_grad_value,
+        clip_grad_norm, clip_grad_value, AdaGrad, Adam, ExponentialLR, History, LRScheduler,
+        Metrics, Optimizer, RMSprop, StepLR, SGD,
     };
 
     println!("🎯 Charl Training & Optimization Demonstration\n");
@@ -180,7 +180,10 @@ fn main() {
 
     println!("\nBest Results:");
     println!("  Best Val Loss: {:.4}", history.best_val_loss().unwrap());
-    println!("  Best Val Acc:  {:.2}%", history.best_val_accuracy().unwrap() * 100.0);
+    println!(
+        "  Best Val Acc:  {:.2}%",
+        history.best_val_accuracy().unwrap() * 100.0
+    );
     println!("✅ Training history tracking works!");
 
     // Example 9: Simple Training Loop Simulation
@@ -237,7 +240,10 @@ fn main() {
         // Optimizer step
         optimizer.step(&mut model.parameters_mut());
 
-        println!("  Step {}: loss = {:.4}, output = {:.4}", step, loss, output.data[0]);
+        println!(
+            "  Step {}: loss = {:.4}, output = {:.4}",
+            step, loss, output.data[0]
+        );
 
         // Zero gradients
         optimizer.zero_grad(&mut model.parameters_mut());

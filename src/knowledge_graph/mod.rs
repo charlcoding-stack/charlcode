@@ -24,16 +24,16 @@
 // let results = graph.query(Some(user), None, None);
 // ```
 
-pub mod triple;
-pub mod graph;
 pub mod ast_to_graph;
 pub mod gnn;
+pub mod graph;
+pub mod triple;
 
 // Re-export main types for convenience
-pub use triple::{Entity, EntityId, EntityType, RelationType, Triple};
-pub use graph::{KnowledgeGraph, GraphStats};
 pub use ast_to_graph::AstToGraphConverter;
-pub use gnn::{GraphNeuralNetwork, GraphAttentionLayer, NodeEmbedding};
+pub use gnn::{GraphAttentionLayer, GraphNeuralNetwork, NodeEmbedding};
+pub use graph::{GraphStats, KnowledgeGraph};
+pub use triple::{Entity, EntityId, EntityType, RelationType, Triple};
 
 /// Knowledge Graph configuration
 #[derive(Debug, Clone)]
@@ -61,16 +61,16 @@ impl KGConfig {
     /// Configuration for code analysis
     pub fn for_code_analysis() -> Self {
         KGConfig {
-            enable_fuzzy_logic: false,  // Code relationships are binary
-            max_path_depth: 20,          // Allow deeper traversal for dependencies
-            enable_transitive_closure: true,  // Important for transitive deps
+            enable_fuzzy_logic: false,       // Code relationships are binary
+            max_path_depth: 20,              // Allow deeper traversal for dependencies
+            enable_transitive_closure: true, // Important for transitive deps
         }
     }
 
     /// Configuration for concept learning
     pub fn for_concept_learning() -> Self {
         KGConfig {
-            enable_fuzzy_logic: true,   // Concepts have confidence scores
+            enable_fuzzy_logic: true, // Concepts have confidence scores
             max_path_depth: 15,
             enable_transitive_closure: true,
         }
@@ -97,7 +97,8 @@ impl CodeGraphBuilder {
 
     /// Add a function
     pub fn add_function(&mut self, name: &str) -> EntityId {
-        self.graph.add_entity(EntityType::Function, name.to_string())
+        self.graph
+            .add_entity(EntityType::Function, name.to_string())
     }
 
     /// Add a module
@@ -183,8 +184,7 @@ mod tests {
 
     #[test]
     fn test_builder_pattern() {
-        let graph = CodeGraphBuilder::new()
-            .build();
+        let graph = CodeGraphBuilder::new().build();
 
         assert_eq!(graph.num_entities(), 0);
         assert_eq!(graph.num_triples(), 0);

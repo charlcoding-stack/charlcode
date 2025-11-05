@@ -2,10 +2,8 @@
 // Demonstrates real-world quantization scenarios for model compression
 
 use charl::quantization::{
-    QuantType, QuantConfig, QuantParams,
-    quantize_tensor_auto, quantize_tensor_percentile,
-    post_training_quantization, CalibrationMethod,
-    QuantizationMetrics,
+    post_training_quantization, quantize_tensor_auto, quantize_tensor_percentile,
+    CalibrationMethod, QuantConfig, QuantParams, QuantType, QuantizationMetrics,
 };
 
 #[test]
@@ -13,11 +11,13 @@ fn test_model_weights_quantization_int8() {
     // Simulate quantizing a model layer's weights
     // Example: A dense layer with 1000 weights
 
-    let weights: Vec<f32> = (0..1000).map(|i| {
-        // Simulate realistic weight distribution (normalized)
-        let x = i as f32 / 1000.0;
-        (x * 2.0 - 1.0) * 0.5 // Range: [-0.5, 0.5]
-    }).collect();
+    let weights: Vec<f32> = (0..1000)
+        .map(|i| {
+            // Simulate realistic weight distribution (normalized)
+            let x = i as f32 / 1000.0;
+            (x * 2.0 - 1.0) * 0.5 // Range: [-0.5, 0.5]
+        })
+        .collect();
 
     println!("Original weights:");
     println!("  Count: {}", weights.len());
@@ -50,10 +50,12 @@ fn test_model_weights_quantization_int8() {
 fn test_model_weights_quantization_int4() {
     // Test aggressive quantization (INT4) for maximum compression
 
-    let weights: Vec<f32> = (0..1000).map(|i| {
-        let x = i as f32 / 1000.0;
-        (x * 2.0 - 1.0) * 0.3 // Smaller range for better INT4 accuracy
-    }).collect();
+    let weights: Vec<f32> = (0..1000)
+        .map(|i| {
+            let x = i as f32 / 1000.0;
+            (x * 2.0 - 1.0) * 0.3 // Smaller range for better INT4 accuracy
+        })
+        .collect();
 
     println!("Original weights:");
     println!("  Count: {}", weights.len());
@@ -91,23 +93,36 @@ fn test_post_training_quantization_workflow() {
     // This is how you'd quantize a pre-trained model
 
     // 1. Model weights (simulated)
-    let weights: Vec<f32> = (0..5000).map(|i| {
-        let x = i as f32 / 5000.0;
-        ((x * 6.28).sin() + (x * 12.56).cos()) * 0.5
-    }).collect();
+    let weights: Vec<f32> = (0..5000)
+        .map(|i| {
+            let x = i as f32 / 5000.0;
+            ((x * 6.28).sin() + (x * 12.56).cos()) * 0.5
+        })
+        .collect();
 
     println!("Model weights: {} parameters", weights.len());
-    println!("Original memory: {} bytes ({:.2} KB)", weights.len() * 4, weights.len() * 4 / 1024);
+    println!(
+        "Original memory: {} bytes ({:.2} KB)",
+        weights.len() * 4,
+        weights.len() * 4 / 1024
+    );
 
     // 2. Calibration data (representative activations)
-    let calibration_data: Vec<Vec<f32>> = (0..10).map(|batch| {
-        (0..100).map(|i| {
-            let x = (batch * 100 + i) as f32 / 1000.0;
-            x.sin()
-        }).collect()
-    }).collect();
+    let calibration_data: Vec<Vec<f32>> = (0..10)
+        .map(|batch| {
+            (0..100)
+                .map(|i| {
+                    let x = (batch * 100 + i) as f32 / 1000.0;
+                    x.sin()
+                })
+                .collect()
+        })
+        .collect();
 
-    println!("\nCalibration: {} batches of 100 samples", calibration_data.len());
+    println!(
+        "\nCalibration: {} batches of 100 samples",
+        calibration_data.len()
+    );
 
     // 3. Perform PTQ
     let quantized = post_training_quantization(
@@ -115,12 +130,15 @@ fn test_post_training_quantization_workflow() {
         &calibration_data,
         QuantType::INT8,
         CalibrationMethod::MinMax,
-    ).unwrap();
+    )
+    .unwrap();
 
     println!("\nPost-Training Quantization complete:");
-    println!("  Quantized memory: {} bytes ({:.2} KB)",
-             quantized.memory_bytes(),
-             quantized.memory_bytes() / 1024);
+    println!(
+        "  Quantized memory: {} bytes ({:.2} KB)",
+        quantized.memory_bytes(),
+        quantized.memory_bytes() / 1024
+    );
     println!("  Memory reduction: {}x", quantized.memory_reduction());
 
     // 4. Measure quality
@@ -141,10 +159,12 @@ fn test_quantization_with_outliers() {
     // Test robust quantization with outlier rejection
 
     // Data with outliers (simulates real neural network weights)
-    let mut weights: Vec<f32> = (0..1000).map(|i| {
-        let x = i as f32 / 1000.0;
-        (x * 2.0 - 1.0) * 0.3 // Most weights in [-0.3, 0.3]
-    }).collect();
+    let mut weights: Vec<f32> = (0..1000)
+        .map(|i| {
+            let x = i as f32 / 1000.0;
+            (x * 2.0 - 1.0) * 0.3 // Most weights in [-0.3, 0.3]
+        })
+        .collect();
 
     // Add outliers (happens in real models)
     weights[500] = 10.0; // Huge outlier
@@ -152,9 +172,11 @@ fn test_quantization_with_outliers() {
 
     println!("Weights with outliers:");
     println!("  Count: {}", weights.len());
-    println!("  Range: [{:.2}, {:.2}]",
-             weights.iter().copied().fold(f32::INFINITY, f32::min),
-             weights.iter().copied().fold(f32::NEG_INFINITY, f32::max));
+    println!(
+        "  Range: [{:.2}, {:.2}]",
+        weights.iter().copied().fold(f32::INFINITY, f32::min),
+        weights.iter().copied().fold(f32::NEG_INFINITY, f32::max)
+    );
 
     // Quantize with percentile calibration (robust to outliers)
     let quantized = quantize_tensor_percentile(
@@ -162,7 +184,8 @@ fn test_quantization_with_outliers() {
         vec![1000],
         QuantType::INT8,
         0.999, // Use 99.9th percentile
-    ).unwrap();
+    )
+    .unwrap();
 
     let metrics = QuantizationMetrics::compute(&weights, &quantized);
 
@@ -195,37 +218,59 @@ fn test_large_model_compression_simulation() {
 
     for layer in 0..NUM_LAYERS {
         // Generate realistic weight distribution
-        let weights: Vec<f32> = (0..PARAMS_PER_LAYER).map(|i| {
-            let x = i as f32 / PARAMS_PER_LAYER as f32;
-            ((x + layer as f32) * 3.14).sin() * 0.2
-        }).collect();
+        let weights: Vec<f32> = (0..PARAMS_PER_LAYER)
+            .map(|i| {
+                let x = i as f32 / PARAMS_PER_LAYER as f32;
+                ((x + layer as f32) * 3.14).sin() * 0.2
+            })
+            .collect();
 
         total_fp32_memory += weights.len() * 4;
 
         // INT8 quantization
-        let int8_quantized = quantize_tensor_auto(&weights, vec![PARAMS_PER_LAYER], QuantType::INT8).unwrap();
+        let int8_quantized =
+            quantize_tensor_auto(&weights, vec![PARAMS_PER_LAYER], QuantType::INT8).unwrap();
         total_int8_memory += int8_quantized.memory_bytes();
 
         // INT4 quantization (packed)
-        let mut int4_quantized = quantize_tensor_auto(&weights, vec![PARAMS_PER_LAYER], QuantType::INT4).unwrap();
+        let mut int4_quantized =
+            quantize_tensor_auto(&weights, vec![PARAMS_PER_LAYER], QuantType::INT4).unwrap();
         int4_quantized.pack().unwrap();
         total_int4_memory += int4_quantized.memory_bytes();
     }
 
     println!("\nMemory usage:");
-    println!("  FP32:  {} bytes ({:.2} MB)", total_fp32_memory, total_fp32_memory as f32 / 1_048_576.0);
-    println!("  INT8:  {} bytes ({:.2} MB)", total_int8_memory, total_int8_memory as f32 / 1_048_576.0);
-    println!("  INT4:  {} bytes ({:.2} MB)", total_int4_memory, total_int4_memory as f32 / 1_048_576.0);
+    println!(
+        "  FP32:  {} bytes ({:.2} MB)",
+        total_fp32_memory,
+        total_fp32_memory as f32 / 1_048_576.0
+    );
+    println!(
+        "  INT8:  {} bytes ({:.2} MB)",
+        total_int8_memory,
+        total_int8_memory as f32 / 1_048_576.0
+    );
+    println!(
+        "  INT4:  {} bytes ({:.2} MB)",
+        total_int4_memory,
+        total_int4_memory as f32 / 1_048_576.0
+    );
 
     println!("\nReductions:");
-    println!("  INT8: {}x smaller than FP32", total_fp32_memory / total_int8_memory);
-    println!("  INT4: {}x smaller than FP32", total_fp32_memory / total_int4_memory);
+    println!(
+        "  INT8: {}x smaller than FP32",
+        total_fp32_memory / total_int8_memory
+    );
+    println!(
+        "  INT4: {}x smaller than FP32",
+        total_fp32_memory / total_int4_memory
+    );
 
     assert_eq!(total_fp32_memory / total_int8_memory, 4);
     assert_eq!(total_fp32_memory / total_int4_memory, 8);
 
     println!("\n✅ Large model compression:");
-    println!("   - GPT-2 size model (120K params)")  ;
+    println!("   - GPT-2 size model (120K params)");
     println!("   - INT8: 4x compression");
     println!("   - INT4: 8x compression");
 }
@@ -234,10 +279,12 @@ fn test_large_model_compression_simulation() {
 fn test_quantization_accuracy_vs_precision() {
     // Compare accuracy across different quantization types
 
-    let original: Vec<f32> = (0..1000).map(|i| {
-        let x = i as f32 / 1000.0;
-        x.sin() * 0.5
-    }).collect();
+    let original: Vec<f32> = (0..1000)
+        .map(|i| {
+            let x = i as f32 / 1000.0;
+            x.sin() * 0.5
+        })
+        .collect();
 
     println!("Testing quantization types:");
 
@@ -245,7 +292,10 @@ fn test_quantization_accuracy_vs_precision() {
     let fp16_config = QuantConfig::fp16();
     println!("\nFP16:");
     println!("  Bits: {}", fp16_config.quant_type.bits());
-    println!("  Memory reduction: {}x", fp16_config.quant_type.reduction_factor());
+    println!(
+        "  Memory reduction: {}x",
+        fp16_config.quant_type.reduction_factor()
+    );
 
     // INT8 (good balance)
     let int8_quantized = quantize_tensor_auto(&original, vec![1000], QuantType::INT8).unwrap();

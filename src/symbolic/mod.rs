@@ -31,31 +31,19 @@
 // let violations = engine.get_violations(&graph);
 // ```
 
-pub mod rule_engine;
 pub mod architectural_rules;
-pub mod type_inference;
-pub mod fol;
-pub mod differentiable_logic;
 pub mod concept_learning;
+pub mod differentiable_logic;
+pub mod fol;
+pub mod rule_engine;
+pub mod type_inference;
 
 // Re-export main types
-pub use rule_engine::{
-    Rule, RuleEngine, RuleMatch,
-    Condition, Action, Severity,
-};
 pub use architectural_rules::ArchitecturalRules;
-pub use type_inference::{
-    TypeInference, InferredType, TypeVar,
-    TypeConstraint, TypeError,
-};
-pub use fol::{
-    Term, Formula, Clause, FOLSolver,
-    Substitution, UnificationResult, unify,
-};
+pub use concept_learning::{Concept, ConceptGraph, ConceptLearner, ConceptRelation};
 pub use differentiable_logic::{
-    FuzzyValue, FuzzyLogic, TNorm, TConorm,
-    DifferentiableGate, ProbabilisticTruth, soft_unify,
+    soft_unify, DifferentiableGate, FuzzyLogic, FuzzyValue, ProbabilisticTruth, TConorm, TNorm,
 };
-pub use concept_learning::{
-    Concept, ConceptGraph, ConceptLearner, ConceptRelation,
-};
+pub use fol::{unify, Clause, FOLSolver, Formula, Substitution, Term, UnificationResult};
+pub use rule_engine::{Action, Condition, Rule, RuleEngine, RuleMatch, Severity};
+pub use type_inference::{InferredType, TypeConstraint, TypeError, TypeInference, TypeVar};

@@ -105,7 +105,7 @@ pub enum EntityType {
     Struct,
     Enum,
     Type,
-    Concept,  // Abstract concept (for meta-learning)
+    Concept, // Abstract concept (for meta-learning)
 }
 
 impl fmt::Display for EntityType {
@@ -158,7 +158,7 @@ pub struct Triple {
     pub subject: EntityId,
     pub predicate: RelationType,
     pub object: EntityId,
-    pub confidence: Option<f64>,  // Optional confidence score (for fuzzy logic)
+    pub confidence: Option<f64>, // Optional confidence score (for fuzzy logic)
 }
 
 impl Triple {
@@ -194,9 +194,9 @@ impl Triple {
         predicate: Option<&RelationType>,
         object: Option<EntityId>,
     ) -> bool {
-        let subject_match = subject.map_or(true, |s| s == self.subject);
-        let predicate_match = predicate.map_or(true, |p| p == &self.predicate);
-        let object_match = object.map_or(true, |o| o == self.object);
+        let subject_match = subject.is_none_or(|s| s == self.subject);
+        let predicate_match = predicate.is_none_or(|p| p == &self.predicate);
+        let object_match = object.is_none_or(|o| o == self.object);
 
         subject_match && predicate_match && object_match
     }
@@ -288,14 +288,20 @@ mod tests {
     fn test_relation_type_display() {
         assert_eq!(format!("{}", RelationType::Inherits), "inherits");
         assert_eq!(format!("{}", RelationType::Calls), "calls");
-        assert_eq!(format!("{}", RelationType::Custom("customRel".to_string())), "customRel");
+        assert_eq!(
+            format!("{}", RelationType::Custom("customRel".to_string())),
+            "customRel"
+        );
     }
 
     #[test]
     fn test_relation_type_from_str() {
         assert_eq!(RelationType::from_str("inherits"), RelationType::Inherits);
         assert_eq!(RelationType::from_str("calls"), RelationType::Calls);
-        assert_eq!(RelationType::from_str("customRel"), RelationType::Custom("customRel".to_string()));
+        assert_eq!(
+            RelationType::from_str("customRel"),
+            RelationType::Custom("customRel".to_string())
+        );
     }
 
     #[test]

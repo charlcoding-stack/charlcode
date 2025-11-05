@@ -52,27 +52,16 @@
 // let output = moe.forward(&input);
 // ```
 
-pub mod s4;
-pub mod mamba;
 pub mod linear_attention;
+pub mod mamba;
 pub mod moe;
+pub mod s4;
 
 // Re-export main types
-pub use s4::{
-    S4Layer, SSMConfig, InitStrategy, DiscretizationMethod,
-    ParallelScan,
-};
+pub use s4::{DiscretizationMethod, InitStrategy, ParallelScan, S4Layer, SSMConfig};
 
-pub use mamba::{
-    MambaBlock, MambaConfig, SelectiveParams,
-    GatedSSM,
-};
+pub use mamba::{GatedSSM, MambaBlock, MambaConfig, SelectiveParams};
 
-pub use linear_attention::{
-    Linformer, Performer, FNet, RWKV,
-};
+pub use linear_attention::{FNet, Linformer, Performer, RWKV};
 
-pub use moe::{
-    MoELayer, Router, Expert,
-    RoutingStrategy, LoadBalancingLoss,
-};
+pub use moe::{Expert, LoadBalancingLoss, MoELayer, Router, RoutingStrategy};

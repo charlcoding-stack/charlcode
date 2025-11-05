@@ -143,11 +143,7 @@ pub struct FusionOpportunity {
 
 impl FusionOpportunity {
     /// Create a new fusion opportunity
-    pub fn new(
-        pattern: FusionPattern,
-        node_ids: Vec<usize>,
-        tensor_size: usize,
-    ) -> Self {
+    pub fn new(pattern: FusionPattern, node_ids: Vec<usize>, tensor_size: usize) -> Self {
         let memory_savings = pattern.memory_savings(tensor_size);
 
         // Estimate speedup based on memory bandwidth reduction
@@ -240,7 +236,10 @@ mod tests {
     #[test]
     fn test_pattern_num_ops() {
         assert_eq!(FusionPattern::AddMul.num_ops(), 2);
-        assert_eq!(FusionPattern::Chain(vec![OpType::Add, OpType::Mul, OpType::Div]).num_ops(), 3);
+        assert_eq!(
+            FusionPattern::Chain(vec![OpType::Add, OpType::Mul, OpType::Div]).num_ops(),
+            3
+        );
     }
 
     #[test]
@@ -258,11 +257,7 @@ mod tests {
 
     #[test]
     fn test_fusion_opportunity_beneficial() {
-        let opportunity = FusionOpportunity::new(
-            FusionPattern::AddMul,
-            vec![1, 2, 3],
-            10000,
-        );
+        let opportunity = FusionOpportunity::new(FusionPattern::AddMul, vec![1, 2, 3], 10000);
 
         assert!(opportunity.is_beneficial(1024)); // 80KB > 1KB
         assert!(!opportunity.is_beneficial(100_000)); // 80KB < 100KB

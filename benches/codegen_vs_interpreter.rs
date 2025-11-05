@@ -2,7 +2,7 @@
 // This demonstrates the speedup achieved by Phase 7 optimizations
 
 use charl::ast::*;
-use charl::codegen::{BytecodeCompiler, VM, tensor_ops};
+use charl::codegen::{tensor_ops, BytecodeCompiler, VM};
 use charl::interpreter::{Interpreter, Value};
 use std::time::Instant;
 
@@ -130,10 +130,15 @@ fn benchmark_tensor_operations() {
         tensor_ops::vector_add(&a, &b, &mut result);
     }
     let duration = start.elapsed();
-    println!("Vector Addition ({} elements, {} iterations):", size, iterations);
+    println!(
+        "Vector Addition ({} elements, {} iterations):",
+        size, iterations
+    );
     println!("  Time: {:?}", duration);
-    println!("  Throughput: {:.0} M ops/sec",
-        (size as f64 * iterations as f64 / duration.as_secs_f64()) / 1_000_000.0);
+    println!(
+        "  Throughput: {:.0} M ops/sec",
+        (size as f64 * iterations as f64 / duration.as_secs_f64()) / 1_000_000.0
+    );
 
     // Benchmark dot product
     let start = Instant::now();
@@ -142,11 +147,16 @@ fn benchmark_tensor_operations() {
         dot_result = tensor_ops::dot_product(&a, &b);
     }
     let duration = start.elapsed();
-    println!("\nDot Product ({} elements, {} iterations):", size, iterations);
+    println!(
+        "\nDot Product ({} elements, {} iterations):",
+        size, iterations
+    );
     println!("  Time: {:?}", duration);
     println!("  Result: {}", dot_result);
-    println!("  Throughput: {:.0} M ops/sec",
-        (size as f64 * iterations as f64 / duration.as_secs_f64()) / 1_000_000.0);
+    println!(
+        "  Throughput: {:.0} M ops/sec",
+        (size as f64 * iterations as f64 / duration.as_secs_f64()) / 1_000_000.0
+    );
 
     // Benchmark matrix multiplication (smaller for reasonable time)
     let m = 100;
@@ -162,11 +172,17 @@ fn benchmark_tensor_operations() {
         tensor_ops::matmul(&mat_a, &mat_b, &mut mat_result, m, n, p);
     }
     let duration = start.elapsed();
-    println!("\nMatrix Multiplication ({}x{} * {}x{}, {} iterations):", m, n, n, p, mat_iterations);
+    println!(
+        "\nMatrix Multiplication ({}x{} * {}x{}, {} iterations):",
+        m, n, n, p, mat_iterations
+    );
     println!("  Time: {:?}", duration);
     println!("  Avg time per matmul: {:?}", duration / mat_iterations);
-    println!("  GFLOPS: {:.2}",
-        (2.0 * m as f64 * n as f64 * p as f64 * mat_iterations as f64 / duration.as_secs_f64()) / 1_000_000_000.0);
+    println!(
+        "  GFLOPS: {:.2}",
+        (2.0 * m as f64 * n as f64 * p as f64 * mat_iterations as f64 / duration.as_secs_f64())
+            / 1_000_000_000.0
+    );
 }
 
 fn main() {
@@ -188,14 +204,20 @@ fn main() {
     let (result_interp, time_interp) = benchmark_interpreter(&stmts, &expr, iterations);
     println!("  Result: {}", result_interp);
     println!("  Time:   {:?}", time_interp);
-    println!("  Ops/sec: {:.0}\n", iterations as f64 / time_interp.as_secs_f64());
+    println!(
+        "  Ops/sec: {:.0}\n",
+        iterations as f64 / time_interp.as_secs_f64()
+    );
 
     // Benchmark Bytecode VM
     println!("Running Bytecode VM...");
     let (result_vm, time_vm) = benchmark_bytecode_vm(&stmts, &expr, iterations);
     println!("  Result: {}", result_vm);
     println!("  Time:   {:?}", time_vm);
-    println!("  Ops/sec: {:.0}\n", iterations as f64 / time_vm.as_secs_f64());
+    println!(
+        "  Ops/sec: {:.0}\n",
+        iterations as f64 / time_vm.as_secs_f64()
+    );
 
     // Calculate speedup
     let speedup = time_interp.as_secs_f64() / time_vm.as_secs_f64();
@@ -205,9 +227,15 @@ fn main() {
     if speedup >= 10.0 {
         println!("✅ TARGET ACHIEVED: 10-50x speedup range!");
     } else if speedup >= 5.0 {
-        println!("⚠️  Close to target: {:.1}x speedup (target: 10-50x)", speedup);
+        println!(
+            "⚠️  Close to target: {:.1}x speedup (target: 10-50x)",
+            speedup
+        );
     } else if speedup >= 2.0 {
-        println!("📊 Moderate speedup: {:.1}x faster (target: 10-50x)", speedup);
+        println!(
+            "📊 Moderate speedup: {:.1}x faster (target: 10-50x)",
+            speedup
+        );
     } else {
         println!("❌ Below target: {:.1}x speedup (target: 10-50x)", speedup);
     }

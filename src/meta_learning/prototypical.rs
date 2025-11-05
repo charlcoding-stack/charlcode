@@ -17,8 +17,6 @@
 // References:
 // - Snell et al. (2017): "Prototypical Networks for Few-shot Learning"
 
-use std::collections::HashMap;
-
 /// Embedding function (maps input to embedding space)
 pub type EmbeddingFn = Box<dyn Fn(&[f32]) -> Vec<f32>>;
 
@@ -169,7 +167,11 @@ impl PrototypicalNetwork {
         // Sum embeddings for each class
         for (input, class_id) in support_set {
             let embedding = embed_fn(input);
-            assert_eq!(embedding.len(), self.embedding_dim, "Embedding dimension mismatch");
+            assert_eq!(
+                embedding.len(),
+                self.embedding_dim,
+                "Embedding dimension mismatch"
+            );
 
             for (i, val) in embedding.iter().enumerate() {
                 prototypes[*class_id][i] += val;
@@ -314,7 +316,10 @@ impl MatchingNetwork {
             .collect();
 
         // Softmax
-        let max_sim = similarities.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        let max_sim = similarities
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max);
         let exp_sims: Vec<f32> = similarities.iter().map(|s| (s - max_sim).exp()).collect();
         let sum_exp: f32 = exp_sims.iter().sum();
         let attention: Vec<f32> = exp_sims.iter().map(|e| e / sum_exp).collect();
@@ -343,12 +348,8 @@ impl MatchingNetwork {
     ) -> f32 {
         let mut correct = 0;
         for (query_input, true_class) in &episode.query_set {
-            let (predicted_class, _) = self.classify_query(
-                query_input,
-                &episode.support_set,
-                episode.n_way,
-                embed_fn,
-            );
+            let (predicted_class, _) =
+                self.classify_query(query_input, &episode.support_set, episode.n_way, embed_fn);
             if predicted_class == *true_class {
                 correct += 1;
             }

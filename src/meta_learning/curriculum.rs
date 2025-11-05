@@ -122,7 +122,8 @@ impl DifficultyScorer {
 
     /// Update difficulty score (e.g., after training iteration)
     pub fn update_difficulty(&mut self, example_id: impl Into<String>, new_score: f32) {
-        self.scores.insert(example_id.into(), new_score.clamp(0.0, 1.0));
+        self.scores
+            .insert(example_id.into(), new_score.clamp(0.0, 1.0));
     }
 
     /// Get all difficulty scores
@@ -161,11 +162,7 @@ pub struct CurriculumScheduler {
 
 impl CurriculumScheduler {
     /// Create new curriculum scheduler
-    pub fn new(
-        strategy: CurriculumStrategy,
-        total_steps: usize,
-        progression_rate: f32,
-    ) -> Self {
+    pub fn new(strategy: CurriculumStrategy, total_steps: usize, progression_rate: f32) -> Self {
         Self {
             strategy,
             current_threshold: 0.0, // Start with easiest examples
@@ -304,7 +301,7 @@ pub struct TeacherStudentCurriculum {
 }
 
 impl TeacherStudentCurriculum {
-    pub fn new(initial_gap: f32, progression_rate: f32) -> Self {
+    pub fn new(_initial_gap: f32, progression_rate: f32) -> Self {
         let teacher_threshold = 1.0;
         let student_threshold = 0.0;
         Self {
@@ -369,8 +366,8 @@ mod tests {
 
     #[test]
     fn test_training_example_creation() {
-        let example = TrainingExample::new("ex1", vec![1.0, 2.0], vec![3.0])
-            .with_metadata("difficulty", 0.5);
+        let example =
+            TrainingExample::new("ex1", vec![1.0, 2.0], vec![3.0]).with_metadata("difficulty", 0.5);
 
         assert_eq!(example.id, "ex1");
         assert_eq!(example.input, vec![1.0, 2.0]);
@@ -390,8 +387,8 @@ mod tests {
     #[test]
     fn test_difficulty_scorer_manual() {
         let mut scorer = DifficultyScorer::new(DifficultyMetric::ManualLabels);
-        let example = TrainingExample::new("ex1", vec![1.0], vec![2.0])
-            .with_metadata("difficulty", 0.8);
+        let example =
+            TrainingExample::new("ex1", vec![1.0], vec![2.0]).with_metadata("difficulty", 0.8);
 
         let difficulty = scorer.estimate_difficulty(&example, None);
         assert!((difficulty - 0.8).abs() < 1e-5);
@@ -400,8 +397,8 @@ mod tests {
     #[test]
     fn test_difficulty_scorer_cache() {
         let mut scorer = DifficultyScorer::new(DifficultyMetric::ManualLabels);
-        let example = TrainingExample::new("ex1", vec![1.0], vec![2.0])
-            .with_metadata("difficulty", 0.7);
+        let example =
+            TrainingExample::new("ex1", vec![1.0], vec![2.0]).with_metadata("difficulty", 0.7);
 
         // First call
         let diff1 = scorer.estimate_difficulty(&example, None);
@@ -414,11 +411,7 @@ mod tests {
 
     #[test]
     fn test_curriculum_scheduler_linear() {
-        let mut scheduler = CurriculumScheduler::new(
-            CurriculumStrategy::Linear,
-            100,
-            1.0,
-        );
+        let mut scheduler = CurriculumScheduler::new(CurriculumStrategy::Linear, 100, 1.0);
 
         assert_eq!(scheduler.get_threshold(), 0.0);
 
@@ -433,11 +426,7 @@ mod tests {
 
     #[test]
     fn test_curriculum_scheduler_exponential() {
-        let mut scheduler = CurriculumScheduler::new(
-            CurriculumStrategy::Exponential,
-            100,
-            5.0,
-        );
+        let mut scheduler = CurriculumScheduler::new(CurriculumStrategy::Exponential, 100, 5.0);
 
         assert_eq!(scheduler.get_threshold(), 0.0);
 
@@ -458,11 +447,7 @@ mod tests {
 
     #[test]
     fn test_curriculum_scheduler_adaptive() {
-        let mut scheduler = CurriculumScheduler::new(
-            CurriculumStrategy::Adaptive,
-            100,
-            1.0,
-        );
+        let mut scheduler = CurriculumScheduler::new(CurriculumStrategy::Adaptive, 100, 1.0);
 
         let initial = scheduler.get_threshold();
 
@@ -479,11 +464,7 @@ mod tests {
 
     #[test]
     fn test_curriculum_scheduler_should_include() {
-        let scheduler = CurriculumScheduler::new(
-            CurriculumStrategy::Linear,
-            100,
-            1.0,
-        );
+        let scheduler = CurriculumScheduler::new(CurriculumStrategy::Linear, 100, 1.0);
 
         // At threshold 0.0, only easiest examples
         assert!(scheduler.should_include(0.0));
@@ -496,12 +477,9 @@ mod tests {
         let mut learner = SelfPacedLearner::new(0.3, 0.1, DifficultyMetric::ManualLabels);
 
         let examples = vec![
-            TrainingExample::new("easy", vec![1.0], vec![1.0])
-                .with_metadata("difficulty", 0.1),
-            TrainingExample::new("medium", vec![2.0], vec![2.0])
-                .with_metadata("difficulty", 0.5),
-            TrainingExample::new("hard", vec![3.0], vec![3.0])
-                .with_metadata("difficulty", 0.9),
+            TrainingExample::new("easy", vec![1.0], vec![1.0]).with_metadata("difficulty", 0.1),
+            TrainingExample::new("medium", vec![2.0], vec![2.0]).with_metadata("difficulty", 0.5),
+            TrainingExample::new("hard", vec![3.0], vec![3.0]).with_metadata("difficulty", 0.9),
         ];
 
         let losses = HashMap::new();
@@ -548,12 +526,9 @@ mod tests {
         let mut scorer = DifficultyScorer::new(DifficultyMetric::ManualLabels);
 
         let examples = vec![
-            TrainingExample::new("easy", vec![1.0], vec![1.0])
-                .with_metadata("difficulty", 0.1),
-            TrainingExample::new("medium", vec![2.0], vec![2.0])
-                .with_metadata("difficulty", 0.5),
-            TrainingExample::new("hard", vec![3.0], vec![3.0])
-                .with_metadata("difficulty", 0.9),
+            TrainingExample::new("easy", vec![1.0], vec![1.0]).with_metadata("difficulty", 0.1),
+            TrainingExample::new("medium", vec![2.0], vec![2.0]).with_metadata("difficulty", 0.5),
+            TrainingExample::new("hard", vec![3.0], vec![3.0]).with_metadata("difficulty", 0.9),
         ];
 
         let teacher_ex = curriculum.get_teacher_examples(&examples, &mut scorer);

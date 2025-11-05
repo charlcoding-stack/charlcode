@@ -8,13 +8,13 @@
 //   charl repl                     - Start interactive REPL
 //   charl --version                - Show version info
 
-use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-use std::fs;
-use std::io::{self, Write};
+use charl::interpreter::Interpreter;
 use charl::lexer::Lexer;
 use charl::parser::Parser as CharlParser;
-use charl::interpreter::Interpreter;
+use clap::{Parser, Subcommand};
+use std::fs;
+use std::io::{self, Write};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "charl")]
@@ -103,7 +103,8 @@ fn build_executable(file: &PathBuf, output: Option<PathBuf>, release: bool) {
         .replace("\t", "\\t");
 
     // Generate wrapper Rust code
-    let wrapper_code = format!(r#"// Auto-generated Charl executable
+    let wrapper_code = format!(
+        r#"// Auto-generated Charl executable
 // Source: {}
 
 use charl::lexer::Lexer;
@@ -134,7 +135,10 @@ fn main() {{
         }}
     }}
 }}
-"#, file.display(), escaped_source);
+"#,
+        file.display(),
+        escaped_source
+    );
 
     // Write wrapper code
     let wrapper_path = temp_dir.join("main.rs");
@@ -144,7 +148,8 @@ fn main() {{
     }
 
     // Create Cargo.toml
-    let cargo_toml = format!(r#"
+    let cargo_toml = format!(
+        r#"
 [package]
 name = "charl_executable"
 version = "0.1.0"
@@ -157,7 +162,9 @@ charl = {{ path = "{}" }}
 opt-level = 3
 lto = true
 codegen-units = 1
-"#, std::env::current_dir().unwrap().display());
+"#,
+        std::env::current_dir().unwrap().display()
+    );
 
     let cargo_toml_path = temp_dir.join("Cargo.toml");
     if let Err(e) = fs::write(&cargo_toml_path, cargo_toml) {
@@ -200,7 +207,11 @@ codegen-units = 1
     match build_result {
         Ok(output) if output.status.success() => {
             // Copy compiled binary to output location
-            let binary_name = if cfg!(windows) { "charl_executable.exe" } else { "charl_executable" };
+            let binary_name = if cfg!(windows) {
+                "charl_executable.exe"
+            } else {
+                "charl_executable"
+            };
             let compiled_path = if release {
                 temp_dir.join("target/release").join(binary_name)
             } else {
@@ -296,16 +307,14 @@ fn run_repl() {
                 let mut parser = CharlParser::new(lexer);
 
                 match parser.parse_program() {
-                    Ok(program) => {
-                        match interpreter.eval(program) {
-                            Ok(result) => {
-                                println!("=> {:?}", result);
-                            }
-                            Err(e) => {
-                                eprintln!("Runtime error: {}", e);
-                            }
+                    Ok(program) => match interpreter.eval(program) {
+                        Ok(result) => {
+                            println!("=> {:?}", result);
                         }
-                    }
+                        Err(e) => {
+                            eprintln!("Runtime error: {}", e);
+                        }
+                    },
                     Err(e) => {
                         eprintln!("Parse error: {}", e);
                     }
@@ -392,7 +401,11 @@ fn main() {
             run_script(&file, verbose);
         }
 
-        Some(Commands::Build { file, output, release }) => {
+        Some(Commands::Build {
+            file,
+            output,
+            release,
+        }) => {
             build_executable(&file, output, release);
         }
 

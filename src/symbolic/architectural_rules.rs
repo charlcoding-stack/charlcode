@@ -15,7 +15,7 @@
 // let violations = rules.execute(&knowledge_graph);
 // ```
 
-use super::rule_engine::{Rule, RuleEngine, Condition, Action, Severity};
+use super::rule_engine::{Action, Condition, Rule, RuleEngine, Severity};
 use crate::knowledge_graph::{EntityType, RelationType};
 
 /// Builder for architectural rule sets
@@ -91,7 +91,7 @@ impl ArchitecturalRules {
                 .action(Action::Violation {
                     severity: Severity::High,
                     message: "Circular dependency detected".to_string(),
-                })
+                }),
         );
 
         // Rule: God classes (classes with too many dependencies)
@@ -105,7 +105,7 @@ impl ArchitecturalRules {
                 })
                 .action(Action::Warning {
                     message: "Classes ending in 'Manager' often become god classes".to_string(),
-                })
+                }),
         );
 
         engine

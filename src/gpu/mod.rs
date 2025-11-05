@@ -73,11 +73,7 @@ pub trait ComputeBackend: Send + Sync {
     fn deallocate(&mut self, buffer: TensorBuffer) -> Result<(), BackendError>;
 
     /// Memory transfer operations
-    fn copy_to_device(
-        &mut self,
-        data: &[f32],
-        buffer: &TensorBuffer,
-    ) -> Result<(), BackendError>;
+    fn copy_to_device(&mut self, data: &[f32], buffer: &TensorBuffer) -> Result<(), BackendError>;
     fn copy_from_device(
         &mut self,
         buffer: &TensorBuffer,

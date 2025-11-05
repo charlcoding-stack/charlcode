@@ -41,10 +41,7 @@ pub enum Term {
     Constant(String),
 
     /// Function application: f(t1, t2, ..., tn)
-    Function {
-        name: String,
-        args: Vec<Term>,
-    },
+    Function { name: String, args: Vec<Term> },
 }
 
 impl Term {
@@ -104,16 +101,12 @@ impl Term {
     /// Apply substitution to term
     pub fn substitute(&self, subst: &Substitution) -> Term {
         match self {
-            Term::Variable(name) => {
-                subst.get(name).cloned().unwrap_or_else(|| self.clone())
-            }
+            Term::Variable(name) => subst.get(name).cloned().unwrap_or_else(|| self.clone()),
             Term::Constant(_) => self.clone(),
-            Term::Function { name, args } => {
-                Term::Function {
-                    name: name.clone(),
-                    args: args.iter().map(|arg| arg.substitute(subst)).collect(),
-                }
-            }
+            Term::Function { name, args } => Term::Function {
+                name: name.clone(),
+                args: args.iter().map(|arg| arg.substitute(subst)).collect(),
+            },
         }
     }
 }
@@ -239,7 +232,9 @@ impl Formula {
                 }
             }
             Formula::Not(f) => f.collect_free_variables(free, bound),
-            Formula::And(left, right) | Formula::Or(left, right) | Formula::Implies(left, right) => {
+            Formula::And(left, right)
+            | Formula::Or(left, right)
+            | Formula::Implies(left, right) => {
                 left.collect_free_variables(free, bound);
                 right.collect_free_variables(free, bound);
             }
@@ -255,31 +250,23 @@ impl Formula {
     /// Apply substitution to formula
     pub fn substitute(&self, subst: &Substitution) -> Formula {
         match self {
-            Formula::Predicate { name, args } => {
-                Formula::Predicate {
-                    name: name.clone(),
-                    args: args.iter().map(|arg| arg.substitute(subst)).collect(),
-                }
-            }
+            Formula::Predicate { name, args } => Formula::Predicate {
+                name: name.clone(),
+                args: args.iter().map(|arg| arg.substitute(subst)).collect(),
+            },
             Formula::Not(f) => Formula::Not(Box::new(f.substitute(subst))),
-            Formula::And(left, right) => {
-                Formula::And(
-                    Box::new(left.substitute(subst)),
-                    Box::new(right.substitute(subst)),
-                )
-            }
-            Formula::Or(left, right) => {
-                Formula::Or(
-                    Box::new(left.substitute(subst)),
-                    Box::new(right.substitute(subst)),
-                )
-            }
-            Formula::Implies(left, right) => {
-                Formula::Implies(
-                    Box::new(left.substitute(subst)),
-                    Box::new(right.substitute(subst)),
-                )
-            }
+            Formula::And(left, right) => Formula::And(
+                Box::new(left.substitute(subst)),
+                Box::new(right.substitute(subst)),
+            ),
+            Formula::Or(left, right) => Formula::Or(
+                Box::new(left.substitute(subst)),
+                Box::new(right.substitute(subst)),
+            ),
+            Formula::Implies(left, right) => Formula::Implies(
+                Box::new(left.substitute(subst)),
+                Box::new(right.substitute(subst)),
+            ),
             Formula::ForAll { variable, formula } => {
                 // Don't substitute bound variables
                 let mut new_subst = subst.clone();
@@ -382,7 +369,16 @@ fn unify_terms(t1: &Term, t2: &Term, subst: &mut Substitution) -> bool {
         }
 
         // Function unification
-        (Term::Function { name: n1, args: args1 }, Term::Function { name: n2, args: args2 }) => {
+        (
+            Term::Function {
+                name: n1,
+                args: args1,
+            },
+            Term::Function {
+                name: n2,
+                args: args2,
+            },
+        ) => {
             if n1 != n2 || args1.len() != args2.len() {
                 return false;
             }
@@ -518,7 +514,12 @@ impl FOLSolver {
     }
 
     /// SLD resolution: solve goals with current substitution
-    fn solve(&mut self, goals: Vec<Formula>, subst: &Substitution, results: &mut Vec<Substitution>) {
+    fn solve(
+        &mut self,
+        goals: Vec<Formula>,
+        subst: &Substitution,
+        results: &mut Vec<Substitution>,
+    ) {
         // Base case: all goals satisfied
         if goals.is_empty() {
             results.push(subst.clone());
@@ -550,9 +551,8 @@ impl FOLSolver {
                 new_goals.extend(remaining_goals.iter().cloned());
 
                 // Apply substitution to new goals
-                let new_goals: Vec<_> = new_goals.iter()
-                    .map(|g| g.substitute(&new_subst))
-                    .collect();
+                let new_goals: Vec<_> =
+                    new_goals.iter().map(|g| g.substitute(&new_subst)).collect();
 
                 // Recursively solve new goals
                 self.solve(new_goals, &new_subst, results);
@@ -570,8 +570,16 @@ impl Default for FOLSolver {
 /// Unify two formulas (must be predicates)
 fn unify_formulas(f1: &Formula, f2: &Formula) -> UnificationResult {
     match (f1, f2) {
-        (Formula::Predicate { name: n1, args: args1 },
-         Formula::Predicate { name: n2, args: args2 }) => {
+        (
+            Formula::Predicate {
+                name: n1,
+                args: args1,
+            },
+            Formula::Predicate {
+                name: n2,
+                args: args2,
+            },
+        ) => {
             if n1 != n2 || args1.len() != args2.len() {
                 return UnificationResult::Failure;
             }
@@ -676,7 +684,10 @@ mod tests {
         let mut solver = FOLSolver::new();
 
         // Fact: human(socrates)
-        solver.add_fact(Formula::predicate("human", vec![Term::constant("socrates")]));
+        solver.add_fact(Formula::predicate(
+            "human",
+            vec![Term::constant("socrates")],
+        ));
 
         // Query: human(socrates)?
         let query = Formula::predicate("human", vec![Term::constant("socrates")]);
@@ -694,7 +705,10 @@ mod tests {
         let x = Term::variable("X");
 
         // Fact: human(socrates)
-        solver.add_fact(Formula::predicate("human", vec![Term::constant("socrates")]));
+        solver.add_fact(Formula::predicate(
+            "human",
+            vec![Term::constant("socrates")],
+        ));
 
         // Rule: mortal(X) :- human(X)
         solver.add_rule(
@@ -714,16 +728,13 @@ mod tests {
         let x = Term::variable("X");
 
         // Fact: parent(tom, bob)
-        solver.add_fact(Formula::predicate("parent", vec![
-            Term::constant("tom"),
-            Term::constant("bob"),
-        ]));
+        solver.add_fact(Formula::predicate(
+            "parent",
+            vec![Term::constant("tom"), Term::constant("bob")],
+        ));
 
         // Query: parent(tom, X)?
-        let query = Formula::predicate("parent", vec![
-            Term::constant("tom"),
-            x.clone(),
-        ]);
+        let query = Formula::predicate("parent", vec![Term::constant("tom"), x.clone()]);
 
         let results = solver.query(&query);
         assert_eq!(results.len(), 1);
@@ -739,14 +750,14 @@ mod tests {
         let z = Term::variable("Z");
 
         // Facts:
-        solver.add_fact(Formula::predicate("parent", vec![
-            Term::constant("tom"),
-            Term::constant("bob"),
-        ]));
-        solver.add_fact(Formula::predicate("parent", vec![
-            Term::constant("bob"),
-            Term::constant("ann"),
-        ]));
+        solver.add_fact(Formula::predicate(
+            "parent",
+            vec![Term::constant("tom"), Term::constant("bob")],
+        ));
+        solver.add_fact(Formula::predicate(
+            "parent",
+            vec![Term::constant("bob"), Term::constant("ann")],
+        ));
 
         // Rule: ancestor(X, Y) :- parent(X, Y)
         solver.add_rule(
@@ -764,10 +775,10 @@ mod tests {
         );
 
         // Query: ancestor(tom, ann)?
-        let query = Formula::predicate("ancestor", vec![
-            Term::constant("tom"),
-            Term::constant("ann"),
-        ]);
+        let query = Formula::predicate(
+            "ancestor",
+            vec![Term::constant("tom"), Term::constant("ann")],
+        );
 
         assert!(solver.prove(&query));
     }

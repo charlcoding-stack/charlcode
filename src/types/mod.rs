@@ -20,14 +20,14 @@ pub enum Type {
         params: Vec<Type>,
         return_type: Box<Type>,
     },
-    Void,     // For functions that don't return a value
-    Unknown,  // For type inference
+    Void,    // For functions that don't return a value
+    Unknown, // For type inference
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Shape {
-    Static(Vec<usize>),  // Known at compile time: [2, 3, 4]
-    Dynamic,              // Shape determined at runtime
+    Static(Vec<usize>), // Known at compile time: [2, 3, 4]
+    Dynamic,            // Shape determined at runtime
 }
 
 impl Type {
@@ -62,7 +62,17 @@ impl Type {
         }
 
         // Tensors with same dtype and shape are compatible
-        if let (Type::Tensor { dtype: dt1, shape: s1 }, Type::Tensor { dtype: dt2, shape: s2 }) = (self, other) {
+        if let (
+            Type::Tensor {
+                dtype: dt1,
+                shape: s1,
+            },
+            Type::Tensor {
+                dtype: dt2,
+                shape: s2,
+            },
+        ) = (self, other)
+        {
             return dt1.is_compatible_with(dt2) && s1 == s2;
         }
 
@@ -84,12 +94,18 @@ impl Type {
         }
 
         // Int32 and Int64 -> Int64
-        if matches!((self, other), (Type::Int32, Type::Int64) | (Type::Int64, Type::Int32)) {
+        if matches!(
+            (self, other),
+            (Type::Int32, Type::Int64) | (Type::Int64, Type::Int32)
+        ) {
             return Some(Type::Int64);
         }
 
         // Float32 and Float64 -> Float64
-        if matches!((self, other), (Type::Float32, Type::Float64) | (Type::Float64, Type::Float32)) {
+        if matches!(
+            (self, other),
+            (Type::Float32, Type::Float64) | (Type::Float64, Type::Float32)
+        ) {
             return Some(Type::Float64);
         }
 
@@ -106,13 +122,26 @@ impl Type {
             Type::String => "string".to_string(),
             Type::Tensor { dtype, shape } => {
                 let shape_str = match shape {
-                    Shape::Static(dims) => format!("[{}]", dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(", ")),
+                    Shape::Static(dims) => format!(
+                        "[{}]",
+                        dims.iter()
+                            .map(|d| d.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
                     Shape::Dynamic => "[dynamic]".to_string(),
                 };
                 format!("tensor<{}, {}>", dtype.to_string(), shape_str)
             }
-            Type::Function { params, return_type } => {
-                let params_str = params.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", ");
+            Type::Function {
+                params,
+                return_type,
+            } => {
+                let params_str = params
+                    .iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 format!("fn({}) -> {}", params_str, return_type.to_string())
             }
             Type::Void => "void".to_string(),
@@ -123,6 +152,12 @@ impl Type {
 
 pub struct TypeEnvironment {
     scopes: Vec<HashMap<String, Type>>,
+}
+
+impl Default for TypeEnvironment {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeEnvironment {
@@ -161,6 +196,12 @@ impl TypeEnvironment {
 pub struct TypeChecker {
     env: TypeEnvironment,
     errors: Vec<String>,
+}
+
+impl Default for TypeChecker {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TypeChecker {
@@ -271,31 +312,29 @@ impl TypeChecker {
             Expression::BooleanLiteral(_) => Ok(Type::Bool),
             Expression::StringLiteral(_) => Ok(Type::String),
 
-            Expression::Identifier(name) => {
-                self.env.get(name).ok_or_else(|| {
-                    format!("Undefined variable '{}'", name)
-                })
-            }
+            Expression::Identifier(name) => self
+                .env
+                .get(name)
+                .ok_or_else(|| format!("Undefined variable '{}'", name)),
 
-            Expression::Binary { left, operator, right } => {
-                self.check_binary_expression(left, operator, right)
-            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => self.check_binary_expression(left, operator, right),
 
             Expression::Unary { operator, operand } => {
                 self.check_unary_expression(operator, operand)
             }
 
-            Expression::Call { function, arguments } => {
-                self.check_call_expression(function, arguments)
-            }
+            Expression::Call {
+                function,
+                arguments,
+            } => self.check_call_expression(function, arguments),
 
-            Expression::Index { object, index } => {
-                self.check_index_expression(object, index)
-            }
+            Expression::Index { object, index } => self.check_index_expression(object, index),
 
-            Expression::ArrayLiteral(elements) => {
-                self.check_array_literal(elements)
-            }
+            Expression::ArrayLiteral(elements) => self.check_array_literal(elements),
 
             Expression::TensorLiteral(elements) => {
                 self.check_array_literal(elements) // Same as array for now
@@ -318,7 +357,11 @@ impl TypeChecker {
         let right_type = self.infer_expression(right)?;
 
         match operator {
-            BinaryOperator::Add | BinaryOperator::Subtract | BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Modulo => {
+            BinaryOperator::Add
+            | BinaryOperator::Subtract
+            | BinaryOperator::Multiply
+            | BinaryOperator::Divide
+            | BinaryOperator::Modulo => {
                 // Arithmetic operators require numeric types
                 if !left_type.is_numeric() {
                     return Err(format!(
@@ -355,7 +398,12 @@ impl TypeChecker {
                 Ok(left_type)
             }
 
-            BinaryOperator::Equal | BinaryOperator::NotEqual | BinaryOperator::LessThan | BinaryOperator::LessEqual | BinaryOperator::GreaterThan | BinaryOperator::GreaterEqual => {
+            BinaryOperator::Equal
+            | BinaryOperator::NotEqual
+            | BinaryOperator::LessThan
+            | BinaryOperator::LessEqual
+            | BinaryOperator::GreaterThan
+            | BinaryOperator::GreaterEqual => {
                 // Comparison operators return bool
                 if !left_type.is_compatible_with(&right_type) {
                     return Err(format!(
@@ -370,10 +418,18 @@ impl TypeChecker {
             BinaryOperator::And | BinaryOperator::Or => {
                 // Logical operators require bool
                 if left_type != Type::Bool {
-                    return Err(format!("Left operand of {:?} must be bool, got {}", operator, left_type.to_string()));
+                    return Err(format!(
+                        "Left operand of {:?} must be bool, got {}",
+                        operator,
+                        left_type.to_string()
+                    ));
                 }
                 if right_type != Type::Bool {
-                    return Err(format!("Right operand of {:?} must be bool, got {}", operator, right_type.to_string()));
+                    return Err(format!(
+                        "Right operand of {:?} must be bool, got {}",
+                        operator,
+                        right_type.to_string()
+                    ));
                 }
                 Ok(Type::Bool)
             }
@@ -390,13 +446,19 @@ impl TypeChecker {
         match operator {
             UnaryOperator::Negate => {
                 if !operand_type.is_numeric() {
-                    return Err(format!("Negation requires numeric type, got {}", operand_type.to_string()));
+                    return Err(format!(
+                        "Negation requires numeric type, got {}",
+                        operand_type.to_string()
+                    ));
                 }
                 Ok(operand_type)
             }
             UnaryOperator::Not => {
                 if operand_type != Type::Bool {
-                    return Err(format!("Logical NOT requires bool type, got {}", operand_type.to_string()));
+                    return Err(format!(
+                        "Logical NOT requires bool type, got {}",
+                        operand_type.to_string()
+                    ));
                 }
                 Ok(Type::Bool)
             }
@@ -410,7 +472,11 @@ impl TypeChecker {
     ) -> Result<Type, String> {
         let func_type = self.infer_expression(function)?;
 
-        if let Type::Function { params, return_type } = func_type {
+        if let Type::Function {
+            params,
+            return_type,
+        } = func_type
+        {
             // Check argument count
             if arguments.len() != params.len() {
                 return Err(format!(
@@ -435,7 +501,10 @@ impl TypeChecker {
 
             Ok(*return_type)
         } else {
-            Err(format!("Cannot call non-function type: {}", func_type.to_string()))
+            Err(format!(
+                "Cannot call non-function type: {}",
+                func_type.to_string()
+            ))
         }
     }
 
@@ -449,7 +518,10 @@ impl TypeChecker {
 
         // Index must be integer
         if !index_type.is_integer() {
-            return Err(format!("Index must be integer type, got {}", index_type.to_string()));
+            return Err(format!(
+                "Index must be integer type, got {}",
+                index_type.to_string()
+            ));
         }
 
         // For now, return the dtype of tensor or Unknown for arrays
@@ -525,7 +597,10 @@ mod tests {
     #[test]
     fn test_common_type() {
         assert_eq!(Type::Int32.common_type(&Type::Int64), Some(Type::Int64));
-        assert_eq!(Type::Float32.common_type(&Type::Float64), Some(Type::Float64));
+        assert_eq!(
+            Type::Float32.common_type(&Type::Float64),
+            Some(Type::Float64)
+        );
         assert_eq!(Type::Int32.common_type(&Type::Float32), Some(Type::Float32));
         assert_eq!(Type::Int32.common_type(&Type::Bool), None);
     }
@@ -566,10 +641,10 @@ mod tests {
     #[test]
     fn test_binary_expression_types() {
         let inputs = vec![
-            ("let x = 5 + 10", true),         // int + int -> ok
-            ("let x = 5.0 + 10.0", true),     // float + float -> ok
-            ("let x = 5 + 10.0", true),       // int + float -> ok (coercion)
-            ("let x = true + 5", false),      // bool + int -> error
+            ("let x = 5 + 10", true),     // int + int -> ok
+            ("let x = 5.0 + 10.0", true), // float + float -> ok
+            ("let x = 5 + 10.0", true),   // int + float -> ok (coercion)
+            ("let x = true + 5", false),  // bool + int -> error
         ];
 
         for (input, should_pass) in inputs {
@@ -611,8 +686,8 @@ mod tests {
             ("let x = true and false", true),
             ("let x = true or false", true),
             ("let x = not true", true),
-            ("let x = 5 and 10", false),      // int and int -> error
-            ("let x = true and 5", false),    // bool and int -> error
+            ("let x = 5 and 10", false),   // int and int -> error
+            ("let x = true and 5", false), // bool and int -> error
         ];
 
         for (input, should_pass) in inputs {
@@ -633,8 +708,8 @@ mod tests {
             ("let x = -5", true),
             ("let x = -5.0", true),
             ("let x = not true", true),
-            ("let x = -true", false),         // can't negate bool
-            ("let x = not 5", false),         // can't NOT int
+            ("let x = -true", false), // can't negate bool
+            ("let x = not 5", false), // can't NOT int
         ];
 
         for (input, should_pass) in inputs {
@@ -651,7 +726,7 @@ mod tests {
 
     #[test]
     fn test_undefined_variable() {
-        let input = "let x = y + 5";  // y is undefined
+        let input = "let x = y + 5"; // y is undefined
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program().unwrap();
@@ -745,7 +820,7 @@ let result = add(true, 10)
 
     #[test]
     fn test_array_mixed_types_error() {
-        let input = "let arr = [1, 2.0, 3]";  // Mixed int and float
+        let input = "let arr = [1, 2.0, 3]"; // Mixed int and float
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program().unwrap();
@@ -757,7 +832,7 @@ let result = add(true, 10)
 
     #[test]
     fn test_array_incompatible_types_error() {
-        let input = "let arr = [1, true, 3]";  // int and bool
+        let input = "let arr = [1, true, 3]"; // int and bool
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program().unwrap();

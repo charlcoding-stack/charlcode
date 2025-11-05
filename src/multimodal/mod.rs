@@ -40,24 +40,20 @@
 // let cot = reasoner.reason("Where is the cat?", &scene);
 // ```
 
-pub mod vision_language;
-pub mod scene_understanding;
 pub mod cross_modal_reasoning;
+pub mod scene_understanding;
+pub mod vision_language;
 
 // Re-export main types
 pub use vision_language::{
-    CLIPEncoder, VQASystem, VQAAnswer,
-    Image, MultimodalEmbedding, Modality,
-    CrossModalRetrieval,
+    CLIPEncoder, CrossModalRetrieval, Image, Modality, MultimodalEmbedding, VQAAnswer, VQASystem,
 };
 
 pub use scene_understanding::{
-    SceneGraph, SceneObject, ObjectRelation,
-    SpatialRelation, TemporalRelation, TemporalEvent,
-    SceneGraphGenerator,
+    ObjectRelation, SceneGraph, SceneGraphGenerator, SceneObject, SpatialRelation, TemporalEvent,
+    TemporalRelation,
 };
 
 pub use cross_modal_reasoning::{
-    MultimodalCoT, MultimodalReasoningStep, ReasoningModality,
-    VisualGrounding, MultimodalReasoner,
+    MultimodalCoT, MultimodalReasoner, MultimodalReasoningStep, ReasoningModality, VisualGrounding,
 };
