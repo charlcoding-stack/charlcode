@@ -188,6 +188,40 @@ charl --version
 charl --help
 ```
 
+## Editor Support
+
+### VS Code Extension
+
+Charl includes an official VS Code extension with full language support:
+
+**Features:**
+- 🎨 Syntax highlighting for all Charl keywords and types
+- 📝 22+ code snippets (fn, match, for, tuple, etc.)
+- ⚙️ Auto-indentation and bracket matching
+- 🔧 Auto-closing pairs for brackets and quotes
+- 📂 Code folding regions
+
+**Installation:**
+
+The extension is automatically installed when using `install.sh`. If you need to install it manually:
+
+```bash
+# Copy extension to VS Code extensions directory
+cp -r vscode-charl ~/.vscode/extensions/charl-lang.charl-1.0.0
+
+# Restart VS Code
+```
+
+**Usage:**
+
+Once installed, all `.ch` files will have:
+- Colorized syntax highlighting
+- IntelliSense code snippets (type `fn` + Tab, `match` + Tab, etc.)
+- Automatic indentation
+- Bracket matching and auto-closing
+
+For more details, see: [vscode-charl/README.md](vscode-charl/README.md)
+
 ## Project Structure
 
 ```
@@ -202,9 +236,14 @@ charlcode/
 │   ├── nn/             # Neural network layers
 │   ├── optim/          # Optimizers
 │   └── gpu/            # Hardware acceleration
+├── vscode-charl/       # VS Code extension
+│   ├── syntaxes/       # TextMate grammar
+│   ├── snippets/       # Code templates
+│   └── package.json    # Extension manifest
 ├── examples/           # Example programs
-├── benches/           # Benchmarks
-└── tests/             # Integration tests
+├── benches/            # Benchmarks
+├── tests/              # Integration tests
+└── install.sh          # Installation script
 ```
 
 ## Contributing

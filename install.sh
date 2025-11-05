@@ -98,6 +98,34 @@ else
     echo "✅ Charl already in PATH"
 fi
 
+# Install VS Code extension (if VS Code is installed)
+echo ""
+echo "🎨 Checking for VS Code..."
+if command -v code &> /dev/null; then
+    echo "✅ VS Code found"
+    echo "📦 Installing Charl language extension for VS Code..."
+
+    VSCODE_EXT_DIR="$HOME/.vscode/extensions/charl-lang.charl-1.0.0"
+
+    # Check if vscode-charl directory exists in the installation source
+    if [ -d "vscode-charl" ]; then
+        mkdir -p "$HOME/.vscode/extensions"
+        cp -r vscode-charl "$VSCODE_EXT_DIR"
+        echo "✅ VS Code extension installed"
+        echo "   • Syntax highlighting for .ch files"
+        echo "   • Auto-indentation and bracket matching"
+        echo "   • 22 code snippets ready to use"
+        echo "   • Restart VS Code to activate the extension"
+    else
+        echo "⚠️  VS Code extension not found in installation package"
+        echo "   You can download it from: https://charlbase.org/downloads"
+    fi
+else
+    echo "ℹ️  VS Code not found - skipping extension installation"
+    echo "   Install VS Code from: https://code.visualstudio.com/"
+    echo "   Then install the Charl extension from: https://charlbase.org/downloads"
+fi
+
 # Cleanup
 cd ..
 rm -rf "$TEMP_DIR"
@@ -112,8 +140,15 @@ echo ""
 echo "📚 To get started:"
 echo "   1. Restart your terminal (or run: source $SHELL_RC)"
 echo "   2. Verify installation: charl --version"
-echo "   3. Try the examples: charl run examples/hello.charl"
+echo "   3. Try the examples: charl run examples/hello.ch"
 echo ""
+if command -v code &> /dev/null && [ -d "$HOME/.vscode/extensions/charl-lang.charl-1.0.0" ]; then
+echo "🎨 VS Code Extension:"
+echo "   • Restart VS Code to activate syntax highlighting"
+echo "   • Open any .ch file to see colorized code"
+echo "   • Use snippets: type 'fn', 'match', 'for' and press Tab"
+echo ""
+fi
 echo "📖 Learn more:"
 echo "   • Documentation: https://charlbase.org/docs"
 echo "   • Website: https://charlbase.org"

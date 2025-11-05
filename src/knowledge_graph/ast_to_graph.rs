@@ -58,12 +58,39 @@ impl AstToGraphConverter {
     fn process_statement(&mut self, statement: &Statement) {
         match statement {
             Statement::Let(let_stmt) => self.process_let(let_stmt),
+            Statement::Assign(assign_stmt) => {
+                // Process assignment - similar to let but updates existing variable
+                self.process_expression(&assign_stmt.value);
+            }
             Statement::Function(func_stmt) => self.process_function(func_stmt),
             Statement::Return(ret_stmt) => {
                 self.process_expression(&ret_stmt.value);
             }
             Statement::Expression(expr_stmt) => {
                 self.process_expression(&expr_stmt.expression);
+            }
+            Statement::If(if_stmt) => {
+                self.process_expression(&if_stmt.condition);
+                for stmt in &if_stmt.consequence {
+                    self.process_statement(stmt);
+                }
+                if let Some(alt) = &if_stmt.alternative {
+                    for stmt in alt {
+                        self.process_statement(stmt);
+                    }
+                }
+            }
+            Statement::While(while_stmt) => {
+                self.process_expression(&while_stmt.condition);
+                for stmt in &while_stmt.body {
+                    self.process_statement(stmt);
+                }
+            }
+            Statement::For(for_stmt) => {
+                self.process_expression(&for_stmt.iterable);
+                for stmt in &for_stmt.body {
+                    self.process_statement(stmt);
+                }
             }
         }
     }
@@ -169,6 +196,47 @@ impl AstToGraphConverter {
                 self.process_expression(expression);
             }
 
+            Expression::Range { start, end } => {
+                self.process_expression(start);
+                self.process_expression(end);
+            }
+
+            Expression::InclusiveRange { start, end } => {
+                self.process_expression(start);
+                self.process_expression(end);
+            }
+
+            Expression::If {
+                condition,
+                consequence,
+                alternative,
+            } => {
+                self.process_expression(condition);
+                for stmt in consequence {
+                    self.process_statement(stmt);
+                }
+                for stmt in alternative {
+                    self.process_statement(stmt);
+                }
+            }
+
+            Expression::Match { value, arms } => {
+                self.process_expression(value);
+                for arm in arms {
+                    self.process_expression(&arm.expression);
+                }
+            }
+
+            Expression::TupleLiteral(elements) => {
+                for elem in elements {
+                    self.process_expression(elem);
+                }
+            }
+
+            Expression::TupleIndex { tuple, index: _ } => {
+                self.process_expression(tuple);
+            }
+
             Expression::ArrayLiteral(exprs) | Expression::TensorLiteral(exprs) => {
                 for expr in exprs {
                     self.process_expression(expr);
@@ -252,6 +320,44 @@ impl AstToGraphConverter {
 
             Expression::Autograd { expression } => {
                 self.extract_expression_dependencies(expression, dependent_id, relation);
+            }
+
+            Expression::Range { start, end } => {
+                self.extract_expression_dependencies(start, dependent_id, relation.clone());
+                self.extract_expression_dependencies(end, dependent_id, relation);
+            }
+
+            Expression::InclusiveRange { start, end } => {
+                self.extract_expression_dependencies(start, dependent_id, relation.clone());
+                self.extract_expression_dependencies(end, dependent_id, relation);
+            }
+
+            Expression::If {
+                condition,
+                consequence: _,
+                alternative: _,
+            } => {
+                // If expressions depend on their condition
+                // The branches are self-contained and will be processed separately
+                self.extract_expression_dependencies(condition, dependent_id, relation);
+            }
+
+            Expression::Match { value, arms: _ } => {
+                // Match expressions depend on the value being matched
+                // The arm expressions will be processed separately
+                self.extract_expression_dependencies(value, dependent_id, relation);
+            }
+
+            Expression::TupleLiteral(elements) => {
+                // Tuple depends on all its element expressions
+                for elem in elements {
+                    self.extract_expression_dependencies(elem, dependent_id, relation.clone());
+                }
+            }
+
+            Expression::TupleIndex { tuple, index: _ } => {
+                // Tuple indexing depends on the tuple expression
+                self.extract_expression_dependencies(tuple, dependent_id, relation);
             }
 
             Expression::ArrayLiteral(exprs) | Expression::TensorLiteral(exprs) => {

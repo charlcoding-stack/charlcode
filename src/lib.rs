@@ -12,6 +12,7 @@ pub mod nn;
 pub mod optim;
 pub mod parser;
 pub mod quantization;
+pub mod stdlib;
 pub mod types;
 
 // Phase 7: LLVM Backend (optional feature)

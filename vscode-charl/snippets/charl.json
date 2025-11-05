@@ -1,0 +1,170 @@
+{
+  "Function Declaration": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:function_name}(${2:params}) -> ${3:int64} {",
+      "\t${4:// function body}",
+      "\treturn ${5:0};",
+      "}"
+    ],
+    "description": "Create a function declaration"
+  },
+  "Function with Type Annotations": {
+    "prefix": "fnt",
+    "body": [
+      "fn ${1:function_name}(${2:param}: ${3:int64}) -> ${4:int64} {",
+      "\t${5:// function body}",
+      "\treturn ${6:0};",
+      "}"
+    ],
+    "description": "Create a function with typed parameters"
+  },
+  "Let Variable": {
+    "prefix": "let",
+    "body": "let ${1:name}: ${2:int64} = ${3:value};",
+    "description": "Create a variable with type annotation"
+  },
+  "Const Variable": {
+    "prefix": "const",
+    "body": "const ${1:name}: ${2:int64} = ${3:value};",
+    "description": "Create a constant with type annotation"
+  },
+  "If Statement": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition} {",
+      "\t${2:// code}",
+      "}"
+    ],
+    "description": "Create an if statement"
+  },
+  "If-Else Statement": {
+    "prefix": "ife",
+    "body": [
+      "if ${1:condition} {",
+      "\t${2:// code}",
+      "} else {",
+      "\t${3:// code}",
+      "}"
+    ],
+    "description": "Create an if-else statement"
+  },
+  "While Loop": {
+    "prefix": "while",
+    "body": [
+      "while ${1:condition} {",
+      "\t${2:// code}",
+      "}"
+    ],
+    "description": "Create a while loop"
+  },
+  "For Loop": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:collection} {",
+      "\t${3:// code}",
+      "}"
+    ],
+    "description": "Create a for loop"
+  },
+  "For Range Loop": {
+    "prefix": "forr",
+    "body": [
+      "for ${1:i} in ${2:0}..${3:10} {",
+      "\t${4:// code}",
+      "}"
+    ],
+    "description": "Create a for loop with range"
+  },
+  "For Inclusive Range Loop": {
+    "prefix": "forri",
+    "body": [
+      "for ${1:i} in ${2:0}..=${3:10} {",
+      "\t${4:// code}",
+      "}"
+    ],
+    "description": "Create a for loop with inclusive range"
+  },
+  "Match Expression": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value} {",
+      "\t${2:pattern} => ${3:result},",
+      "\t_ => ${4:default}",
+      "}"
+    ],
+    "description": "Create a match expression"
+  },
+  "Match with Multiple Arms": {
+    "prefix": "matchm",
+    "body": [
+      "match ${1:value} {",
+      "\t${2:0} => ${3:\"zero\"},",
+      "\t${4:1} => ${5:\"one\"},",
+      "\t${6:n} => ${7:\"other\"},",
+      "\t_ => ${8:\"default\"}",
+      "}"
+    ],
+    "description": "Create a match expression with multiple arms"
+  },
+  "Tuple Declaration": {
+    "prefix": "tuple",
+    "body": "let ${1:name}: (${2:int64}, ${3:string}) = (${4:0}, ${5:\"value\"});",
+    "description": "Create a tuple variable"
+  },
+  "Array Declaration": {
+    "prefix": "arr",
+    "body": "let ${1:name}: [${2:int64}] = [${3:1, 2, 3}];",
+    "description": "Create an array variable"
+  },
+  "Array with Size": {
+    "prefix": "arrs",
+    "body": "let ${1:name}: [${2:int64}; ${3:10}] = [${4:0}; ${3:10}];",
+    "description": "Create a fixed-size array"
+  },
+  "Print Statement": {
+    "prefix": "print",
+    "body": "print(${1:\"message\"});",
+    "description": "Print a message"
+  },
+  "Comment": {
+    "prefix": "//",
+    "body": "// ${1:comment}",
+    "description": "Create a line comment"
+  },
+  "Comment Block": {
+    "prefix": "/*",
+    "body": [
+      "/*",
+      " * ${1:description}",
+      " */"
+    ],
+    "description": "Create a block comment"
+  },
+  "Tensor Declaration": {
+    "prefix": "tensor",
+    "body": "let ${1:name}: tensor = tensor([${2:1.0, 2.0, 3.0}]);",
+    "description": "Create a tensor variable"
+  },
+  "Model Definition": {
+    "prefix": "model",
+    "body": [
+      "model ${1:ModelName} {",
+      "\tlayers {",
+      "\t\t${2:// layer definitions}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a model definition"
+  },
+  "Dense Layer": {
+    "prefix": "dense",
+    "body": "dense(${1:input_size}, ${2:output_size})",
+    "description": "Create a dense layer"
+  },
+  "Activation Layer": {
+    "prefix": "activation",
+    "body": "activation(${1:relu})",
+    "description": "Create an activation layer"
+  }
+}

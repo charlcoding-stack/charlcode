@@ -47,6 +47,10 @@ pub enum TokenType {
     Semicolon, // ;
     Colon,     // :
     Arrow,     // ->
+    FatArrow,  // =>
+    Dot,          // . (tuple indexing)
+    DotDot,       // .. (range)
+    DotDotEqual,  // ..= (inclusive range)
 
     // Brackets
     LParen,   // (
@@ -66,6 +70,7 @@ pub enum TokenType {
     Else,     // else
     For,      // for
     While,    // while
+    Match,    // match
     Break,    // break
     Continue, // continue
     True,     // true
@@ -77,6 +82,7 @@ pub enum TokenType {
     Float32, // float32
     Float64, // float64
     Bool,    // bool
+    StringType, // string (type annotation)
     Tensor,  // tensor
 
     // AI/ML specific keywords
@@ -108,6 +114,7 @@ impl TokenType {
             "else" => TokenType::Else,
             "for" => TokenType::For,
             "while" => TokenType::While,
+            "match" => TokenType::Match,
             "break" => TokenType::Break,
             "continue" => TokenType::Continue,
             "true" => TokenType::True,
@@ -122,6 +129,7 @@ impl TokenType {
             "float32" => TokenType::Float32,
             "float64" => TokenType::Float64,
             "bool" => TokenType::Bool,
+            "string" => TokenType::StringType,
             "tensor" => TokenType::Tensor,
 
             // AI/ML keywords

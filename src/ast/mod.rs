@@ -9,15 +9,25 @@ pub struct Program {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Let(LetStatement),
+    Assign(AssignStatement),
     Return(ReturnStatement),
     Expression(ExpressionStatement),
     Function(FunctionStatement),
+    If(IfStatement),
+    While(WhileStatement),
+    For(ForStatement),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LetStatement {
     pub name: String,
     pub type_annotation: Option<TypeAnnotation>,
+    pub value: Expression,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssignStatement {
+    pub name: String,
     pub value: Expression,
 }
 
@@ -43,6 +53,26 @@ pub struct FunctionStatement {
 pub struct Parameter {
     pub name: String,
     pub type_annotation: TypeAnnotation,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub consequence: Vec<Statement>,
+    pub alternative: Option<Vec<Statement>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForStatement {
+    pub variable: String,
+    pub iterable: Expression,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +114,65 @@ pub enum Expression {
     Autograd {
         expression: Box<Expression>,
     },
+
+    // Range expression: start..end (exclusive)
+    Range {
+        start: Box<Expression>,
+        end: Box<Expression>,
+    },
+
+    // Inclusive range expression: start..=end (inclusive)
+    InclusiveRange {
+        start: Box<Expression>,
+        end: Box<Expression>,
+    },
+
+    // If expression: if cond { block } else { block }
+    // Returns the value of the last expression in the executed block
+    If {
+        condition: Box<Expression>,
+        consequence: Vec<Statement>,
+        alternative: Vec<Statement>,
+    },
+
+    // Match expression: match value { pattern => expr, ... }
+    // Pattern matching with multiple arms
+    Match {
+        value: Box<Expression>,
+        arms: Vec<MatchArm>,
+    },
+
+    // Tuple literal: (1, "hello", true)
+    TupleLiteral(Vec<Expression>),
+
+    // Tuple indexing: tuple.0, tuple.1
+    TupleIndex {
+        tuple: Box<Expression>,
+        index: usize,
+    },
+}
+
+/// Pattern for match expressions
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pattern {
+    // Literal patterns: 1, "hello", true
+    IntegerLiteral(i64),
+    FloatLiteral(f64),
+    BooleanLiteral(bool),
+    StringLiteral(String),
+
+    // Variable pattern: binds the value to a name
+    Variable(String),
+
+    // Wildcard pattern: _ (matches anything)
+    Wildcard,
+}
+
+/// Match arm: pattern => expression
+#[derive(Debug, Clone, PartialEq)]
+pub struct MatchArm {
+    pub pattern: Pattern,
+    pub expression: Expression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -117,10 +206,13 @@ pub enum TypeAnnotation {
     Float32,
     Float64,
     Bool,
+    String,
+    Array(Box<TypeAnnotation>), // [int32], [float32], etc.
     Tensor {
         dtype: Box<TypeAnnotation>,
         shape: Vec<usize>,
     },
+    Tuple(Vec<TypeAnnotation>), // (int64, string, bool)
 }
 
 #[cfg(test)]

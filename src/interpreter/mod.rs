@@ -3,6 +3,7 @@
 
 use crate::ast::*;
 use crate::autograd::{ComputationGraph, Tensor as AutogradTensor};
+use crate::stdlib::{self, BuiltinFn};
 use std::collections::HashMap;
 
 // Runtime value representation
@@ -23,6 +24,7 @@ pub enum Value {
         body: Vec<Statement>,
         closure: Environment,
     },
+    Tuple(Vec<Value>),
     Null,
 }
 
@@ -49,6 +51,7 @@ impl PartialEq for Value {
                 a.data == b.data && a.shape == b.shape
             }
             (Value::Function { .. }, Value::Function { .. }) => false, // Functions are never equal
+            (Value::Tuple(a), Value::Tuple(b)) => a == b,
             (Value::Null, Value::Null) => true,
             _ => false,
         }
@@ -66,6 +69,7 @@ impl Value {
             Value::Tensor { .. } => "tensor",
             Value::AutogradTensor(_) => "autograd_tensor",
             Value::Function { .. } => "function",
+            Value::Tuple(_) => "tuple",
             Value::Null => "null",
         }
     }
@@ -134,6 +138,19 @@ impl Environment {
         }
     }
 
+    /// Update an existing variable in the scope where it was declared
+    /// Returns true if the variable was found and updated, false otherwise
+    pub fn update(&mut self, name: &str, value: Value) -> bool {
+        // Search from innermost to outermost scope
+        for scope in self.scopes.iter_mut().rev() {
+            if scope.contains_key(name) {
+                scope.insert(name.to_string(), value);
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn get(&self, name: &str) -> Option<&Value> {
         // Search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
@@ -149,6 +166,7 @@ pub struct Interpreter {
     env: Environment,
     return_value: Option<Value>,
     graph: ComputationGraph,
+    builtins: HashMap<String, BuiltinFn>,
 }
 
 impl Default for Interpreter {
@@ -159,10 +177,23 @@ impl Default for Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
+        let mut builtins = HashMap::new();
+
+        // Register built-in functions
+        builtins.insert("print".to_string(), stdlib::builtin_print as BuiltinFn);
+        builtins.insert("len".to_string(), stdlib::builtin_len as BuiltinFn);
+        builtins.insert("range".to_string(), stdlib::builtin_range as BuiltinFn);
+        builtins.insert("push".to_string(), stdlib::builtin_push as BuiltinFn);
+        builtins.insert("pop".to_string(), stdlib::builtin_pop as BuiltinFn);
+        builtins.insert("type".to_string(), stdlib::builtin_type as BuiltinFn);
+        builtins.insert("str".to_string(), stdlib::builtin_str as BuiltinFn);
+        builtins.insert("assert".to_string(), stdlib::builtin_assert as BuiltinFn);
+
         Interpreter {
             env: Environment::new(),
             return_value: None,
             graph: ComputationGraph::new(),
+            builtins,
         }
     }
 
@@ -184,9 +215,13 @@ impl Interpreter {
     pub fn eval_statement(&mut self, stmt: &Statement) -> Result<Value, String> {
         match stmt {
             Statement::Let(let_stmt) => self.eval_let_statement(let_stmt),
+            Statement::Assign(assign_stmt) => self.eval_assign_statement(assign_stmt),
             Statement::Return(ret_stmt) => self.eval_return_statement(ret_stmt),
             Statement::Expression(expr_stmt) => self.eval_expression(&expr_stmt.expression),
             Statement::Function(func_stmt) => self.eval_function_statement(func_stmt),
+            Statement::If(if_stmt) => self.eval_if_statement(if_stmt),
+            Statement::While(while_stmt) => self.eval_while_statement(while_stmt),
+            Statement::For(for_stmt) => self.eval_for_statement(for_stmt),
         }
     }
 
@@ -194,6 +229,18 @@ impl Interpreter {
         let value = self.eval_expression(&stmt.value)?;
         self.env.set(stmt.name.clone(), value.clone());
         Ok(value)
+    }
+
+    fn eval_assign_statement(&mut self, stmt: &AssignStatement) -> Result<Value, String> {
+        // Evaluate new value
+        let value = self.eval_expression(&stmt.value)?;
+
+        // Update the variable in the scope where it was declared
+        if self.env.update(&stmt.name, value.clone()) {
+            Ok(value)
+        } else {
+            Err(format!("Cannot assign to undefined variable: {}", stmt.name))
+        }
     }
 
     fn eval_return_statement(&mut self, stmt: &ReturnStatement) -> Result<Value, String> {
@@ -210,6 +257,104 @@ impl Interpreter {
         };
         self.env.set(stmt.name.clone(), func.clone());
         Ok(func)
+    }
+
+    fn eval_if_statement(&mut self, stmt: &IfStatement) -> Result<Value, String> {
+        let condition = self.eval_expression(&stmt.condition)?;
+
+        if condition.is_truthy() {
+            // Execute consequence block
+            let mut result = Value::Null;
+            for statement in &stmt.consequence {
+                result = self.eval_statement(statement)?;
+
+                // Check for return statement
+                if self.return_value.is_some() {
+                    break;
+                }
+            }
+            Ok(result)
+        } else if let Some(alternative) = &stmt.alternative {
+            // Execute alternative (else) block
+            let mut result = Value::Null;
+            for statement in alternative {
+                result = self.eval_statement(statement)?;
+
+                // Check for return statement
+                if self.return_value.is_some() {
+                    break;
+                }
+            }
+            Ok(result)
+        } else {
+            Ok(Value::Null)
+        }
+    }
+
+    fn eval_while_statement(&mut self, stmt: &WhileStatement) -> Result<Value, String> {
+        let mut result = Value::Null;
+
+        loop {
+            let condition = self.eval_expression(&stmt.condition)?;
+
+            if !condition.is_truthy() {
+                break;
+            }
+
+            // Execute loop body
+            for statement in &stmt.body {
+                result = self.eval_statement(statement)?;
+
+                // Check for return statement
+                if self.return_value.is_some() {
+                    return Ok(result);
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn eval_for_statement(&mut self, stmt: &ForStatement) -> Result<Value, String> {
+        let iterable = self.eval_expression(&stmt.iterable)?;
+        let mut result = Value::Null;
+
+        // Create new scope for loop variable
+        self.env.push_scope();
+
+        // Handle different iterable types
+        match iterable {
+            Value::Array(elements) => {
+                for element in elements {
+                    // Set loop variable
+                    self.env.set(stmt.variable.clone(), element);
+
+                    // Execute loop body
+                    for statement in &stmt.body {
+                        result = self.eval_statement(statement)?;
+
+                        // Check for return statement
+                        if self.return_value.is_some() {
+                            self.env.pop_scope();
+                            return Ok(result);
+                        }
+                    }
+                }
+            }
+
+            // TODO: Handle range expressions (0..10)
+            // For now, error on non-array iterables
+            _ => {
+                self.env.pop_scope();
+                return Err(format!(
+                    "Cannot iterate over type {}",
+                    iterable.type_name()
+                ));
+            }
+        }
+
+        self.env.pop_scope();
+        Ok(result)
     }
 
     pub fn eval_expression(&mut self, expr: &Expression) -> Result<Value, String> {
@@ -257,6 +402,30 @@ impl Interpreter {
             Expression::Index { object, index } => self.eval_index_expression(object, index),
 
             Expression::Autograd { expression } => self.eval_autograd_expression(expression),
+
+            Expression::Range { start, end } => self.eval_range_expression(start, end),
+
+            Expression::InclusiveRange { start, end } => {
+                self.eval_inclusive_range_expression(start, end)
+            }
+
+            Expression::If {
+                condition,
+                consequence,
+                alternative,
+            } => self.eval_if_expression(condition, consequence, alternative),
+
+            Expression::Match { value, arms } => self.eval_match_expression(value, arms),
+
+            Expression::TupleLiteral(elements) => {
+                let values: Result<Vec<Value>, String> =
+                    elements.iter().map(|e| self.eval_expression(e)).collect();
+                Ok(Value::Tuple(values?))
+            }
+
+            Expression::TupleIndex { tuple, index } => {
+                self.eval_tuple_index_expression(tuple, *index)
+            }
         }
     }
 
@@ -298,6 +467,12 @@ impl Interpreter {
             (Value::Integer(l), Value::Float(r)) => Ok(Value::Float(*l as f64 + r)),
             (Value::Float(l), Value::Integer(r)) => Ok(Value::Float(l + *r as f64)),
             (Value::String(l), Value::String(r)) => Ok(Value::String(format!("{}{}", l, r))),
+            (Value::Array(l), Value::Array(r)) => {
+                // Array concatenation: [1, 2] + [3, 4] = [1, 2, 3, 4]
+                let mut result = l.clone();
+                result.extend(r.clone());
+                Ok(Value::Array(result))
+            }
             _ => Err(format!(
                 "Cannot add {} and {}",
                 left.type_name(),
@@ -467,6 +642,25 @@ impl Interpreter {
         function: &Expression,
         arguments: &[Expression],
     ) -> Result<Value, String> {
+        // Check if this is a built-in function call
+        if let Expression::Identifier(name) = function {
+            if let Some(&builtin) = self.builtins.get(name) {
+                // Clone the builtin function pointer before evaluating arguments
+                // This avoids borrowing self while we need mutable access for eval_expression
+
+                // Evaluate arguments
+                let arg_values: Result<Vec<Value>, String> = arguments
+                    .iter()
+                    .map(|arg| self.eval_expression(arg))
+                    .collect();
+                let arg_values = arg_values?;
+
+                // Call built-in function
+                return builtin(arg_values);
+            }
+        }
+
+        // Not a built-in, evaluate as regular function
         let func_val = self.eval_expression(function)?;
 
         match func_val {
@@ -535,16 +729,44 @@ impl Interpreter {
         let obj_val = self.eval_expression(object)?;
         let idx_val = self.eval_expression(index)?;
 
-        let idx = match idx_val {
-            Value::Integer(i) => i,
+        // Check if this is a slice operation (index is a range/array)
+        match idx_val {
+            Value::Array(ref range_values) => {
+                // This is a slice operation: arr[range]
+                // The range was already evaluated to an array like [1, 2, 3]
+                // We extract start and end from the range
+                if range_values.is_empty() {
+                    return Ok(Value::Array(vec![]));
+                }
+
+                // Get start index from first element
+                let start = match range_values.first().unwrap() {
+                    Value::Integer(i) => *i,
+                    _ => return Err("Range values must be integers".to_string()),
+                };
+
+                // Get end index from last element + 1 (to make it exclusive for slicing)
+                let end = match range_values.last().unwrap() {
+                    Value::Integer(i) => i + 1,
+                    _ => return Err("Range values must be integers".to_string()),
+                };
+
+                return self.eval_slice(obj_val, start, end);
+            }
+            Value::Integer(i) => {
+                // Single index access (existing behavior)
+                return self.eval_single_index(obj_val, i);
+            }
             _ => {
                 return Err(format!(
-                    "Index must be an integer, got {}",
+                    "Index must be an integer or range, got {}",
                     idx_val.type_name()
                 ))
             }
-        };
+        }
+    }
 
+    fn eval_single_index(&self, obj_val: Value, idx: i64) -> Result<Value, String> {
         match obj_val {
             Value::Array(ref elements) => {
                 let idx = if idx < 0 {
@@ -570,6 +792,68 @@ impl Interpreter {
                     .ok_or_else(|| format!("Index out of bounds: {}", idx))
             }
             _ => Err(format!("Cannot index into {}", obj_val.type_name())),
+        }
+    }
+
+    fn eval_slice(&self, obj_val: Value, start: i64, end: i64) -> Result<Value, String> {
+        match obj_val {
+            Value::Array(ref elements) => {
+                let len = elements.len() as i64;
+
+                // Normalize negative indices
+                let start_idx = if start < 0 {
+                    (len + start).max(0) as usize
+                } else {
+                    start.min(len) as usize
+                };
+
+                let end_idx = if end < 0 {
+                    (len + end).max(0) as usize
+                } else {
+                    end.min(len) as usize
+                };
+
+                // Ensure start <= end
+                if start_idx > end_idx {
+                    return Ok(Value::Array(vec![]));
+                }
+
+                // Extract slice
+                let slice = elements[start_idx..end_idx].to_vec();
+                Ok(Value::Array(slice))
+            }
+            Value::Tensor { ref data, shape } => {
+                let len = data.len() as i64;
+
+                // Normalize negative indices
+                let start_idx = if start < 0 {
+                    (len + start).max(0) as usize
+                } else {
+                    start.min(len) as usize
+                };
+
+                let end_idx = if end < 0 {
+                    (len + end).max(0) as usize
+                } else {
+                    end.min(len) as usize
+                };
+
+                // Ensure start <= end
+                if start_idx > end_idx {
+                    return Ok(Value::Tensor {
+                        data: vec![],
+                        shape: vec![0],
+                    });
+                }
+
+                // Extract slice
+                let slice = data[start_idx..end_idx].to_vec();
+                Ok(Value::Tensor {
+                    data: slice,
+                    shape: vec![end_idx - start_idx],
+                })
+            }
+            _ => Err(format!("Cannot slice {}", obj_val.type_name())),
         }
     }
 
@@ -617,6 +901,210 @@ impl Interpreter {
             _ => Err(format!(
                 "autograd() can only be applied to numbers or arrays, got {}",
                 value.type_name()
+            )),
+        }
+    }
+
+    fn eval_range_expression(
+        &mut self,
+        start: &Expression,
+        end: &Expression,
+    ) -> Result<Value, String> {
+        // Evaluate start and end expressions
+        let start_val = self.eval_expression(start)?;
+        let end_val = self.eval_expression(end)?;
+
+        // Convert to integers
+        let start_int = start_val.to_integer()?;
+        let end_int = end_val.to_integer()?;
+
+        // Generate range (same as range() builtin with 2 arguments)
+        let mut result = Vec::new();
+        let mut i = start_int;
+        while i < end_int {
+            result.push(Value::Integer(i));
+            i += 1;
+        }
+
+        Ok(Value::Array(result))
+    }
+
+    fn eval_inclusive_range_expression(
+        &mut self,
+        start: &Expression,
+        end: &Expression,
+    ) -> Result<Value, String> {
+        // Evaluate start and end expressions
+        let start_val = self.eval_expression(start)?;
+        let end_val = self.eval_expression(end)?;
+
+        // Convert to integers
+        let start_int = start_val.to_integer()?;
+        let end_int = end_val.to_integer()?;
+
+        // Generate inclusive range (includes end value)
+        let mut result = Vec::new();
+        let mut i = start_int;
+        while i <= end_int {
+            result.push(Value::Integer(i));
+            i += 1;
+        }
+
+        Ok(Value::Array(result))
+    }
+
+    fn eval_if_expression(
+        &mut self,
+        condition: &Expression,
+        consequence: &[Statement],
+        alternative: &[Statement],
+    ) -> Result<Value, String> {
+        // Evaluate condition
+        let cond_val = self.eval_expression(condition)?;
+
+        // Choose which block to execute
+        let block = if cond_val.is_truthy() {
+            consequence
+        } else {
+            alternative
+        };
+
+        // Execute the chosen block and return the last expression's value
+        let mut result = Value::Null;
+        for statement in block {
+            result = self.eval_statement(statement)?;
+
+            // If we hit a return statement, propagate it
+            if self.return_value.is_some() {
+                break;
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn eval_match_expression(
+        &mut self,
+        value: &Expression,
+        arms: &[MatchArm],
+    ) -> Result<Value, String> {
+        // Evaluate the value to match against
+        let match_value = self.eval_expression(value)?;
+
+        // Try each arm in order
+        for arm in arms {
+            if let Some(bindings) = self.pattern_matches(&arm.pattern, &match_value)? {
+                // Pattern matched! Apply bindings and evaluate expression
+
+                // Push new scope for bindings
+                self.env.push_scope();
+
+                // Add bindings to environment
+                for (name, value) in bindings {
+                    self.env.set(name, value);
+                }
+
+                // Evaluate the arm's expression
+                let result = self.eval_expression(&arm.expression)?;
+
+                // Pop scope
+                self.env.pop_scope();
+
+                return Ok(result);
+            }
+        }
+
+        // No pattern matched - this is an error
+        Err(format!(
+            "Non-exhaustive match: value {} didn't match any pattern",
+            match_value.type_name()
+        ))
+    }
+
+    /// Check if a pattern matches a value, returning bindings if it does
+    fn pattern_matches(
+        &self,
+        pattern: &Pattern,
+        value: &Value,
+    ) -> Result<Option<Vec<(String, Value)>>, String> {
+        match pattern {
+            Pattern::IntegerLiteral(expected) => {
+                if let Value::Integer(actual) = value {
+                    if expected == actual {
+                        Ok(Some(vec![]))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            Pattern::FloatLiteral(expected) => {
+                if let Value::Float(actual) = value {
+                    if (expected - actual).abs() < f64::EPSILON {
+                        Ok(Some(vec![]))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            Pattern::BooleanLiteral(expected) => {
+                if let Value::Boolean(actual) = value {
+                    if expected == actual {
+                        Ok(Some(vec![]))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            Pattern::StringLiteral(expected) => {
+                if let Value::String(actual) = value {
+                    if expected == actual {
+                        Ok(Some(vec![]))
+                    } else {
+                        Ok(None)
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            Pattern::Variable(name) => {
+                // Variable pattern always matches and binds the value
+                Ok(Some(vec![(name.clone(), value.clone())]))
+            }
+            Pattern::Wildcard => {
+                // Wildcard always matches but doesn't bind
+                Ok(Some(vec![]))
+            }
+        }
+    }
+
+    fn eval_tuple_index_expression(
+        &mut self,
+        tuple_expr: &Expression,
+        index: usize,
+    ) -> Result<Value, String> {
+        let tuple_value = self.eval_expression(tuple_expr)?;
+
+        match tuple_value {
+            Value::Tuple(elements) => {
+                if index < elements.len() {
+                    Ok(elements[index].clone())
+                } else {
+                    Err(format!(
+                        "Tuple index out of bounds: index {} on tuple of length {}",
+                        index,
+                        elements.len()
+                    ))
+                }
+            }
+            _ => Err(format!(
+                "Cannot index type {} with tuple index syntax",
+                tuple_value.type_name()
             )),
         }
     }

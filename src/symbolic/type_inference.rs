@@ -35,6 +35,9 @@ pub enum InferredType {
     String,
     Void,
 
+    /// Array type: [element_type]
+    Array(Box<InferredType>),
+
     /// Tensor type with optional shape
     Tensor(Option<Vec<usize>>),
 
@@ -52,6 +55,9 @@ pub enum InferredType {
         name: String,
         params: Vec<InferredType>,
     },
+
+    /// Tuple type: (type1, type2, ...)
+    Tuple(Vec<InferredType>),
 
     /// Unknown type (inference in progress)
     Unknown,
@@ -78,7 +84,17 @@ impl InferredType {
             TypeAnnotation::Int32 | TypeAnnotation::Int64 => InferredType::Int,
             TypeAnnotation::Float32 | TypeAnnotation::Float64 => InferredType::Float,
             TypeAnnotation::Bool => InferredType::Bool,
+            TypeAnnotation::String => InferredType::String,
+            TypeAnnotation::Array(element_type) => {
+                InferredType::Array(Box::new(InferredType::from_ast(element_type)))
+            }
             TypeAnnotation::Tensor { shape, .. } => InferredType::Tensor(Some(shape.clone())),
+            TypeAnnotation::Tuple(element_types) => InferredType::Tuple(
+                element_types
+                    .iter()
+                    .map(|t| InferredType::from_ast(t))
+                    .collect(),
+            ),
         }
     }
 }
@@ -91,6 +107,7 @@ impl std::fmt::Display for InferredType {
             InferredType::Bool => write!(f, "bool"),
             InferredType::String => write!(f, "string"),
             InferredType::Void => write!(f, "void"),
+            InferredType::Array(element_type) => write!(f, "[{}]", element_type),
             InferredType::Tensor(Some(shape)) => write!(f, "tensor{:?}", shape),
             InferredType::Tensor(None) => write!(f, "tensor"),
             InferredType::Function {
@@ -117,6 +134,17 @@ impl std::fmt::Display for InferredType {
                     params
                         .iter()
                         .map(|p| p.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+            InferredType::Tuple(element_types) => {
+                write!(
+                    f,
+                    "({})",
+                    element_types
+                        .iter()
+                        .map(|t| t.to_string())
                         .collect::<Vec<_>>()
                         .join(", ")
                 )
@@ -471,6 +499,26 @@ impl TypeInference {
                 Ok(())
             }
 
+            Statement::Assign(assign_stmt) => {
+                // Infer value type
+                let value_type = self.infer_expression(&assign_stmt.value)?;
+
+                // Check if variable exists and types match
+                if let Some(var_type) = self.env.get(&assign_stmt.name).cloned() {
+                    self.unify(
+                        &var_type,
+                        &value_type,
+                        &format!("assignment to {}", assign_stmt.name),
+                    )?;
+                } else {
+                    // Variable doesn't exist - will be caught at runtime
+                    // For now, just add to environment
+                    self.env.insert(assign_stmt.name.clone(), value_type);
+                }
+
+                Ok(())
+            }
+
             Statement::Function(func) => {
                 // Build function type
                 let param_types: Vec<InferredType> = func
@@ -519,6 +567,51 @@ impl TypeInference {
 
             Statement::Expression(expr_stmt) => {
                 self.infer_expression(&expr_stmt.expression)?;
+                Ok(())
+            }
+
+            Statement::If(if_stmt) => {
+                // Infer condition type
+                self.infer_expression(&if_stmt.condition)?;
+
+                // Infer consequence statements
+                for stmt in &if_stmt.consequence {
+                    self.infer_statement(stmt)?;
+                }
+
+                // Infer alternative statements if present
+                if let Some(alt) = &if_stmt.alternative {
+                    for stmt in alt {
+                        self.infer_statement(stmt)?;
+                    }
+                }
+
+                Ok(())
+            }
+
+            Statement::While(while_stmt) => {
+                // Infer condition type
+                self.infer_expression(&while_stmt.condition)?;
+
+                // Infer body statements
+                for stmt in &while_stmt.body {
+                    self.infer_statement(stmt)?;
+                }
+
+                Ok(())
+            }
+
+            Statement::For(for_stmt) => {
+                // Infer iterable type
+                self.infer_expression(&for_stmt.iterable)?;
+
+                // TODO: Add loop variable to environment with proper type
+
+                // Infer body statements
+                for stmt in &for_stmt.body {
+                    self.infer_statement(stmt)?;
+                }
+
                 Ok(())
             }
         }
