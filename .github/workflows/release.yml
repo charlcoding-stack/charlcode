@@ -1,303 +1,253 @@
 name: Build and Release
 
+# Trigger on new tags or manual dispatch
 on:
   push:
-    branches: [ main ]
     tags:
-      - 'v*'
-  pull_request:
-    branches: [ main ]
+      - 'v*.*.*'
+  release:
+    types: [created]
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 0.1.0)'
+        required: true
+        default: '0.1.0'
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Run Tests
+  # Build for Linux x86_64
+  build-linux-x64:
+    name: Build Linux x86_64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
+          profile: minimal
           override: true
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v3
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Run tests
-        run: cargo test --verbose
-
-      - name: Run tests (release mode)
-        run: cargo test --release --verbose
-
-  build:
-    name: Build - ${{ matrix.platform.name }}
-    runs-on: ${{ matrix.platform.os }}
-    needs: test
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - name: Linux x86_64
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: charl-linux-x86_64
-            binary_ext: ''
-
-          - name: Linux ARM64
-            os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact_name: charl-linux-arm64
-            binary_ext: ''
-
-          - name: macOS x86_64
-            os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: charl-macos-x86_64
-            binary_ext: ''
-
-          - name: macOS ARM64
-            os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: charl-macos-arm64
-            binary_ext: ''
-
-          - name: Windows x86_64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: charl-windows-x86_64
-            binary_ext: '.exe'
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.platform.target }}
-          override: true
-
-      - name: Install cross-compilation tools (ARM64 Linux)
-        if: matrix.platform.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-${{ matrix.platform.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.platform.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --bin charl --verbose
 
-      - name: Strip binary (Linux and macOS)
-        if: matrix.platform.os != 'windows-latest'
+      - name: Strip binary
+        run: strip target/release/charl
+
+      - name: Create tarball
         run: |
-          strip target/${{ matrix.platform.target }}/release/charl${{ matrix.platform.binary_ext }} || true
+          mkdir -p dist
+          tar -czf dist/charl-linux-x86_64.tar.gz -C target/release charl
 
-      - name: Create artifact directory
-        run: mkdir -p artifacts
-
-      - name: Copy binary to artifacts
+      - name: Generate checksum
         run: |
-          cp target/${{ matrix.platform.target }}/release/charl${{ matrix.platform.binary_ext }} artifacts/charl${{ matrix.platform.binary_ext }}
+          cd dist
+          sha256sum charl-linux-x86_64.tar.gz > charl-linux-x86_64.tar.gz.sha256
 
-      - name: Create tarball (Unix)
-        if: matrix.platform.os != 'windows-latest'
-        run: |
-          cd artifacts
-          tar -czf ${{ matrix.platform.artifact_name }}.tar.gz charl${{ matrix.platform.binary_ext }}
-
-      - name: Create zip (Windows)
-        if: matrix.platform.os == 'windows-latest'
-        run: |
-          cd artifacts
-          Compress-Archive -Path charl${{ matrix.platform.binary_ext }} -DestinationPath ${{ matrix.platform.artifact_name }}.zip
-
-      - name: Upload artifact (Unix)
-        if: matrix.platform.os != 'windows-latest'
+      - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.platform.artifact_name }}
-          path: artifacts/${{ matrix.platform.artifact_name }}.tar.gz
+          name: linux-x86_64
+          path: dist/*
 
-      - name: Upload artifact (Windows)
-        if: matrix.platform.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.platform.artifact_name }}
-          path: artifacts/${{ matrix.platform.artifact_name }}.zip
-
-      - name: Get file size
-        run: |
-          ls -lh target/${{ matrix.platform.target }}/release/charl${{ matrix.platform.binary_ext }}
-
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+  # Build for macOS x86_64 (Intel)
+  build-macos-x64:
+    name: Build macOS x86_64
+    runs-on: macos-13
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build release binary
+        run: cargo build --release --bin charl --verbose
+
+      - name: Strip binary
+        run: strip target/release/charl
+
+      - name: Create tarball
+        run: |
+          mkdir -p dist
+          tar -czf dist/charl-macos-x86_64.tar.gz -C target/release charl
+
+      - name: Generate checksum
+        run: |
+          cd dist
+          shasum -a 256 charl-macos-x86_64.tar.gz > charl-macos-x86_64.tar.gz.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-x86_64
+          path: dist/*
+
+  # Build for macOS ARM64 (Apple Silicon)
+  build-macos-arm64:
+    name: Build macOS ARM64
+    runs-on: macos-14
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build release binary
+        run: cargo build --release --bin charl --verbose
+
+      - name: Strip binary
+        run: strip target/release/charl
+
+      - name: Create tarball
+        run: |
+          mkdir -p dist
+          tar -czf dist/charl-macos-arm64.tar.gz -C target/release charl
+
+      - name: Generate checksum
+        run: |
+          cd dist
+          shasum -a 256 charl-macos-arm64.tar.gz > charl-macos-arm64.tar.gz.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-arm64
+          path: dist/*
+
+  # Build for Windows x86_64
+  build-windows-x64:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build release binary
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cargo build --release --bin charl --verbose
+
+      - name: Create portable package
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path dist,temp-package | Out-Null
+          Copy-Item target\release\charl.exe temp-package\
+          
+          # Create install.bat
+          @'
+@echo off
+echo Installing Charl...
+set INSTALL_DIR=%USERPROFILE%\.charl\bin
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+copy /Y charl.exe "%INSTALL_DIR%\charl.exe" >nul
+echo Charl installed!
+for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set UserPath=%%B
+echo %UserPath% | findstr /C:"%INSTALL_DIR%" >nul || setx PATH "%UserPath%;%INSTALL_DIR%" >nul
+echo Done! Restart terminal to use 'charl'
+pause
+'@ | Out-File temp-package\install.bat -Encoding ASCII
+
+          # Create README
+          "Charl - Windows Installation`n`n1. Run install.bat`n2. Restart terminal`n3. Type: charl --version`n`nMore: https://charlbase.org" | Out-File temp-package\README.txt -Encoding UTF8
+          
+          Compress-Archive -Path temp-package\* -DestinationPath dist\charl-windows-x86_64.zip -Force
+          Remove-Item -Recurse -Force temp-package
+
+      - name: Generate checksum
+        shell: powershell
+        run: |
+          cd dist
+          (Get-FileHash charl-windows-x86_64.zip -Algorithm SHA256).Hash + "  charl-windows-x86_64.zip" | Out-File charl-windows-x86_64.zip.sha256 -Encoding ASCII
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-x86_64
+          path: dist/*
+
+  # Create release
+  create-release:
+    name: Create Release
+    needs: [build-linux-x64, build-macos-x64, build-macos-arm64, build-windows-x64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
-          path: release-artifacts
+          path: artifacts
 
-      - name: List artifacts
-        run: ls -R release-artifacts
+      - name: Consolidate checksums
+        run: cat artifacts/*/*.sha256 > SHA256SUMS
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Charl ${{ github.ref }}
-          draft: false
-          prerelease: false
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Charl ${{ steps.version.outputs.version }}
           body: |
-            ## Charl Language Release
-
-            Pre-compiled binaries for the Charl programming language.
-
-            ### Downloads
-            Choose the appropriate binary for your platform:
-
-            - **Linux x86_64**: charl-linux-x86_64.tar.gz
-            - **Linux ARM64**: charl-linux-arm64.tar.gz
-            - **macOS x86_64**: charl-macos-x86_64.tar.gz (Intel Mac)
-            - **macOS ARM64**: charl-macos-arm64.tar.gz (Apple Silicon)
-            - **Windows x86_64**: charl-windows-x86_64.zip
-
-            ### Installation
-
-            **Linux/macOS:**
-            ```bash
-            # Download and extract
-            tar -xzf charl-*.tar.gz
-
-            # Move to PATH
-            sudo mv charl /usr/local/bin/
-
-            # Verify installation
-            charl --version
-            ```
-
-            **Windows:**
-            ```powershell
-            # Extract the zip file
-            # Move charl.exe to a directory in your PATH
-            # Verify installation
-            charl.exe --version
-            ```
-
-            ### Quick Start
-            ```bash
-            # Run a script
-            charl run hello.ch
-
-            # Interactive REPL
-            charl repl
-
-            # Build standalone executable
-            charl build app.ch -o app
-            ```
-
-            ### Documentation
-            - Website: https://charlbase.org
-            - Getting Started: https://charlbase.org/docs/getting-started.html
-            - Language Reference: https://charlbase.org/docs/language-reference.html
-
-      - name: Upload Linux x86_64
-        uses: actions/upload-release-asset@v1
+            # Charl ${{ steps.version.outputs.version }} - Multi-Platform Release
+            
+            ## Downloads
+            - Linux x86_64: `charl-linux-x86_64.tar.gz`
+            - macOS Intel: `charl-macos-x86_64.tar.gz`
+            - macOS Apple Silicon: `charl-macos-arm64.tar.gz`
+            - Windows x86_64: `charl-windows-x86_64.zip`
+            
+            ## Installation
+            **Linux/macOS:** `curl -sSf https://charlbase.org/install.sh | sh`
+            **Windows:** `irm https://charlbase.org/install.ps1 | iex`
+            
+            ## Verification
+            See `SHA256SUMS` for checksums.
+          files: |
+            artifacts/linux-x86_64/*
+            artifacts/macos-x86_64/*
+            artifacts/macos-arm64/*
+            artifacts/windows-x86_64/*
+            SHA256SUMS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/charl-linux-x86_64/charl-linux-x86_64.tar.gz
-          asset_name: charl-linux-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux ARM64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/charl-linux-arm64/charl-linux-arm64.tar.gz
-          asset_name: charl-linux-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload macOS x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/charl-macos-x86_64/charl-macos-x86_64.tar.gz
-          asset_name: charl-macos-x86_64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload macOS ARM64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/charl-macos-arm64/charl-macos-arm64.tar.gz
-          asset_name: charl-macos-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Windows x86_64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release-artifacts/charl-windows-x86_64/charl-windows-x86_64.zip
-          asset_name: charl-windows-x86_64.zip
-          asset_content_type: application/zip
