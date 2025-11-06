@@ -4,6 +4,7 @@
 use crate::ast::*;
 use crate::autograd::{ComputationGraph, Tensor as AutogradTensor};
 use crate::stdlib::{self, BuiltinFn};
+use crate::tensor_builtins;
 use std::collections::HashMap;
 
 // Runtime value representation
@@ -188,6 +189,61 @@ impl Interpreter {
         builtins.insert("type".to_string(), stdlib::builtin_type as BuiltinFn);
         builtins.insert("str".to_string(), stdlib::builtin_str as BuiltinFn);
         builtins.insert("assert".to_string(), stdlib::builtin_assert as BuiltinFn);
+
+        // Register tensor built-in functions (Phase 1)
+        // Basic tensor operations
+        builtins.insert("tensor".to_string(), tensor_builtins::builtin_tensor as BuiltinFn);
+        builtins.insert("tensor_shape".to_string(), tensor_builtins::builtin_tensor_shape as BuiltinFn);
+        builtins.insert("tensor_print".to_string(), tensor_builtins::builtin_tensor_print as BuiltinFn);
+
+        // Arithmetic operations
+        builtins.insert("tensor_add".to_string(), tensor_builtins::builtin_tensor_add as BuiltinFn);
+        builtins.insert("tensor_sub".to_string(), tensor_builtins::builtin_tensor_sub as BuiltinFn);
+        builtins.insert("tensor_mul".to_string(), tensor_builtins::builtin_tensor_mul as BuiltinFn);
+        builtins.insert("tensor_div".to_string(), tensor_builtins::builtin_tensor_div as BuiltinFn);
+        builtins.insert("tensor_matmul".to_string(), tensor_builtins::builtin_tensor_matmul as BuiltinFn);
+
+        // Reduction operations
+        builtins.insert("tensor_sum".to_string(), tensor_builtins::builtin_tensor_sum as BuiltinFn);
+        builtins.insert("tensor_mean".to_string(), tensor_builtins::builtin_tensor_mean as BuiltinFn);
+
+        // Shape operations
+        builtins.insert("tensor_reshape".to_string(), tensor_builtins::builtin_tensor_reshape as BuiltinFn);
+        builtins.insert("tensor_transpose".to_string(), tensor_builtins::builtin_tensor_transpose as BuiltinFn);
+
+        // Tensor creation
+        builtins.insert("tensor_zeros".to_string(), tensor_builtins::builtin_tensor_zeros as BuiltinFn);
+        builtins.insert("tensor_ones".to_string(), tensor_builtins::builtin_tensor_ones as BuiltinFn);
+        builtins.insert("tensor_randn".to_string(), tensor_builtins::builtin_tensor_randn as BuiltinFn);
+
+        // Autograd operations
+        builtins.insert("tensor_requires_grad".to_string(), tensor_builtins::builtin_tensor_requires_grad as BuiltinFn);
+        builtins.insert("tensor_zero_grad".to_string(), tensor_builtins::builtin_tensor_zero_grad as BuiltinFn);
+        builtins.insert("tensor_grad".to_string(), tensor_builtins::builtin_tensor_grad as BuiltinFn);
+        builtins.insert("tensor_set_grad".to_string(), tensor_builtins::builtin_tensor_set_grad as BuiltinFn);
+
+        // Neural network layers and activations
+        builtins.insert("nn_linear".to_string(), tensor_builtins::builtin_nn_linear as BuiltinFn);
+        builtins.insert("nn_relu".to_string(), tensor_builtins::builtin_nn_relu as BuiltinFn);
+        builtins.insert("nn_sigmoid".to_string(), tensor_builtins::builtin_nn_sigmoid as BuiltinFn);
+        builtins.insert("nn_tanh".to_string(), tensor_builtins::builtin_nn_tanh as BuiltinFn);
+        builtins.insert("nn_softmax".to_string(), tensor_builtins::builtin_nn_softmax as BuiltinFn);
+
+        // Loss functions
+        builtins.insert("loss_mse".to_string(), tensor_builtins::builtin_loss_mse as BuiltinFn);
+        builtins.insert("loss_cross_entropy".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+
+        // Optimizers
+        builtins.insert("optim_sgd_step".to_string(), tensor_builtins::builtin_optim_sgd_step as BuiltinFn);
+        builtins.insert("optim_sgd_momentum_step".to_string(), tensor_builtins::builtin_optim_sgd_momentum_step as BuiltinFn);
+        builtins.insert("optim_adam_step".to_string(), tensor_builtins::builtin_optim_adam_step as BuiltinFn);
+        builtins.insert("tensor_clip_grad".to_string(), tensor_builtins::builtin_tensor_clip_grad as BuiltinFn);
+
+        // Autograd helpers (backward pass computation)
+        builtins.insert("autograd_compute_linear_grad".to_string(), tensor_builtins::builtin_autograd_compute_linear_grad as BuiltinFn);
+        builtins.insert("autograd_compute_relu_grad".to_string(), tensor_builtins::builtin_autograd_compute_relu_grad as BuiltinFn);
+        builtins.insert("autograd_compute_sigmoid_grad".to_string(), tensor_builtins::builtin_autograd_compute_sigmoid_grad as BuiltinFn);
+        builtins.insert("autograd_compute_mse_grad".to_string(), tensor_builtins::builtin_autograd_compute_mse_grad as BuiltinFn);
 
         Interpreter {
             env: Environment::new(),
