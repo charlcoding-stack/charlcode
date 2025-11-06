@@ -1651,6 +1651,40 @@ pub fn builtin_batchnorm(args: Vec<Value>) -> Result<Value, String> {
     Ok(Value::BatchNormLayer(Box::new(layer)))
 }
 
+/// layernorm(features: int) -> LayerNormLayer
+/// Create a LayerNorm layer for Transformers
+pub fn builtin_layernorm(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("layernorm() expects 1 argument: layernorm(features)".to_string());
+    }
+
+    let features = args[0].to_integer()? as usize;
+
+    if features == 0 {
+        return Err("layernorm() features must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::LayerNorm::new_1d(features);
+    Ok(Value::LayerNormLayer(Box::new(layer)))
+}
+
+/// dropout(p: float) -> DropoutLayer
+/// Create a Dropout layer for regularization (p = dropout probability)
+pub fn builtin_dropout(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("dropout() expects 1 argument: dropout(p)".to_string());
+    }
+
+    let p = args[0].to_float()?;
+
+    if p < 0.0 || p > 1.0 {
+        return Err(format!("dropout() p must be between 0.0 and 1.0, got {}", p));
+    }
+
+    let layer = crate::nn::gpu_layers::Dropout::new(p);
+    Ok(Value::DropoutLayer(Box::new(layer)))
+}
+
 /// layer_forward(layer: Layer, input: Tensor) -> Tensor
 /// Perform forward pass through a layer
 pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
@@ -1809,7 +1843,67 @@ pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
 
             Ok(Value::AutogradTensor(output_clone.tensor))
         }
-        (Value::LinearLayer(_), _) | (Value::Conv2dLayer(_), _) | (Value::MaxPool2dLayer(_), _) | (Value::AvgPool2dLayer(_), _) | (Value::BatchNormLayer(_), _) => {
+        // LayerNorm Layer + GPU Tensor
+        (Value::LayerNormLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("LayerNorm forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // LayerNorm Layer + CPU Tensor
+        (Value::LayerNormLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::LayerNormLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("LayerNorm forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        // Dropout Layer + GPU Tensor
+        (Value::DropoutLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("Dropout forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // Dropout Layer + CPU Tensor
+        (Value::DropoutLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::DropoutLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("Dropout forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        (Value::LinearLayer(_), _) | (Value::Conv2dLayer(_), _) | (Value::MaxPool2dLayer(_), _) | (Value::AvgPool2dLayer(_), _) | (Value::BatchNormLayer(_), _) | (Value::LayerNormLayer(_), _) | (Value::DropoutLayer(_), _) => {
             Err(format!("layer_forward() expects tensor input, got {}", args[1].type_name()))
         }
         _ => {

@@ -141,7 +141,7 @@ impl TokenType {
             "dense" => TokenType::Dense,
             // "conv2d" => TokenType::Conv2D,  // Removed: using as builtin function instead
             "activation" => TokenType::Activation,
-            "dropout" => TokenType::Dropout,
+            // "dropout" => TokenType::Dropout,  // Removed: using as builtin function instead
 
             // Activations
             "relu" => TokenType::Relu,

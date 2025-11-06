@@ -761,6 +761,165 @@ impl BatchNorm {
     }
 }
 
+/// LayerNorm - Layer Normalization for Transformers
+/// Normalizes across feature dimension: y = (x - mean) / sqrt(var + eps) * gamma + beta
+#[derive(Debug, Clone)]
+pub struct LayerNorm {
+    pub normalized_shape: Vec<usize>,
+
+    /// Learnable scale parameter (gamma)
+    pub weight: GPUTensor,
+
+    /// Learnable shift parameter (beta)
+    pub bias: GPUTensor,
+
+    /// Small constant for numerical stability
+    pub epsilon: f64,
+}
+
+impl LayerNorm {
+    /// Create LayerNorm layer
+    /// normalized_shape: shape of features to normalize over (e.g., [768] for BERT)
+    pub fn new(normalized_shape: Vec<usize>) -> Self {
+        let num_elements: usize = normalized_shape.iter().product();
+
+        // Initialize gamma to 1.0, beta to 0.0
+        let weight_data = vec![1.0; num_elements];
+        let bias_data = vec![0.0; num_elements];
+
+        LayerNorm {
+            normalized_shape: normalized_shape.clone(),
+            weight: GPUTensor::new(weight_data, normalized_shape.clone()),
+            bias: GPUTensor::new(bias_data, normalized_shape),
+            epsilon: 1e-5,
+        }
+    }
+
+    /// Create LayerNorm for 1D features (most common)
+    pub fn new_1d(features: usize) -> Self {
+        Self::new(vec![features])
+    }
+
+    /// Forward pass: normalize across last dimensions
+    /// Input: [..., normalized_shape]
+    /// Output: [..., normalized_shape] (same shape)
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let input_shape = &input.tensor.shape;
+        let norm_size: usize = self.normalized_shape.iter().product();
+
+        // Verify input ends with normalized_shape
+        if input_shape.len() < self.normalized_shape.len() {
+            return Err(format!(
+                "Input shape {:?} incompatible with normalized_shape {:?}",
+                input_shape, self.normalized_shape
+            ));
+        }
+
+        let batch_dims: Vec<usize> = input_shape[..input_shape.len() - self.normalized_shape.len()].to_vec();
+        let batch_size: usize = if batch_dims.is_empty() { 1 } else { batch_dims.iter().product() };
+
+        let mut output_data = vec![0.0; input.tensor.data.len()];
+
+        // Normalize each instance in the batch
+        for b in 0..batch_size {
+            let start = b * norm_size;
+            let end = start + norm_size;
+
+            // Calculate mean
+            let sum: f64 = input.tensor.data[start..end].iter().sum();
+            let mean = sum / norm_size as f64;
+
+            // Calculate variance
+            let var_sum: f64 = input.tensor.data[start..end]
+                .iter()
+                .map(|&x| {
+                    let diff = x - mean;
+                    diff * diff
+                })
+                .sum();
+            let variance = var_sum / norm_size as f64;
+            let std = (variance + self.epsilon).sqrt();
+
+            // Normalize and scale
+            for i in 0..norm_size {
+                let idx = start + i;
+                let normalized = (input.tensor.data[idx] - mean) / std;
+                output_data[idx] = self.weight.tensor.data[i] * normalized + self.bias.tensor.data[i];
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, input.tensor.shape.clone()))
+    }
+}
+
+/// Dropout - Regularization by randomly dropping units
+/// During training: randomly sets elements to 0 with probability p
+/// During inference: acts as identity (no dropout)
+#[derive(Debug, Clone)]
+pub struct Dropout {
+    /// Dropout probability (0.0 to 1.0)
+    pub p: f64,
+
+    /// Training mode flag
+    pub training: bool,
+}
+
+impl Dropout {
+    /// Create Dropout layer with given probability
+    pub fn new(p: f64) -> Self {
+        if p < 0.0 || p > 1.0 {
+            panic!("Dropout probability must be between 0.0 and 1.0, got {}", p);
+        }
+
+        Dropout {
+            p,
+            training: true,
+        }
+    }
+
+    /// Set training mode
+    pub fn train(mut self) -> Self {
+        self.training = true;
+        self
+    }
+
+    /// Set evaluation mode
+    pub fn eval(mut self) -> Self {
+        self.training = false;
+        self
+    }
+
+    /// Forward pass: randomly drop units during training
+    /// Input: any shape
+    /// Output: same shape
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        if !self.training || self.p == 0.0 {
+            // Inference mode or no dropout: return input unchanged
+            return Ok(input.clone());
+        }
+
+        // Training mode: apply dropout
+        let keep_prob = 1.0 - self.p;
+        let scale = 1.0 / keep_prob; // Inverted dropout (scale up during training)
+
+        let output_data: Vec<f64> = input.tensor.data
+            .iter()
+            .enumerate()
+            .map(|(i, &x)| {
+                // Simple pseudo-random (deterministic for now)
+                let rand = pseudo_random(i);
+                if rand < keep_prob {
+                    x * scale // Keep and scale up
+                } else {
+                    0.0 // Drop
+                }
+            })
+            .collect();
+
+        Ok(GPUTensor::new(output_data, input.tensor.shape.clone()))
+    }
+}
+
 #[cfg(test)]
 mod conv_tests {
     use super::*;

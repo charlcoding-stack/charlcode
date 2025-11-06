@@ -26,6 +26,8 @@ pub enum Value {
     MaxPool2dLayer(Box<crate::nn::gpu_layers::MaxPool2d>), // MaxPool2d for downsampling (v0.2.0)
     AvgPool2dLayer(Box<crate::nn::gpu_layers::AvgPool2d>), // AvgPool2d for downsampling (v0.2.0)
     BatchNormLayer(Box<crate::nn::gpu_layers::BatchNorm>), // BatchNorm for training stability (v0.2.0)
+    LayerNormLayer(Box<crate::nn::gpu_layers::LayerNorm>), // LayerNorm for Transformers (v0.2.0)
+    DropoutLayer(Box<crate::nn::gpu_layers::Dropout>), // Dropout for regularization (v0.2.0)
     Function {
         parameters: Vec<Parameter>,
         body: Vec<Statement>,
@@ -84,6 +86,8 @@ impl Value {
             Value::MaxPool2dLayer(_) => "maxpool2d_layer",
             Value::AvgPool2dLayer(_) => "avgpool2d_layer",
             Value::BatchNormLayer(_) => "batchnorm_layer",
+            Value::LayerNormLayer(_) => "layernorm_layer",
+            Value::DropoutLayer(_) => "dropout_layer",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -273,6 +277,8 @@ impl Interpreter {
         builtins.insert("maxpool2d".to_string(), tensor_builtins::builtin_maxpool2d as BuiltinFn);
         builtins.insert("avgpool2d".to_string(), tensor_builtins::builtin_avgpool2d as BuiltinFn);
         builtins.insert("batchnorm".to_string(), tensor_builtins::builtin_batchnorm as BuiltinFn);
+        builtins.insert("layernorm".to_string(), tensor_builtins::builtin_layernorm as BuiltinFn);
+        builtins.insert("dropout".to_string(), tensor_builtins::builtin_dropout as BuiltinFn);
         builtins.insert("layer_forward".to_string(), tensor_builtins::builtin_layer_forward as BuiltinFn);
 
         // Activation Functions - GPU Accelerated (v0.2.0)

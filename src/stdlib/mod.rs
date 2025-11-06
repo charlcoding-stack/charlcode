@@ -253,6 +253,18 @@ fn format_value(value: &Value) -> String {
                 layer.num_features, layer.epsilon, layer.training
             )
         }
+        Value::LayerNormLayer(layer) => {
+            format!(
+                "LayerNorm(shape={:?}, eps={})",
+                layer.normalized_shape, layer.epsilon
+            )
+        }
+        Value::DropoutLayer(layer) => {
+            format!(
+                "Dropout(p={}, training={})",
+                layer.p, layer.training
+            )
+        }
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();
