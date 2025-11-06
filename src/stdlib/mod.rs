@@ -223,6 +223,12 @@ fn format_value(value: &Value) -> String {
                 gpu_tensor.tensor.shape, gpu_tensor.device()
             )
         }
+        Value::LinearLayer(layer) => {
+            format!(
+                "Linear({} → {})",
+                layer.in_features, layer.out_features
+            )
+        }
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

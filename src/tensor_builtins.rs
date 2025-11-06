@@ -1547,3 +1547,76 @@ pub fn builtin_tensor_to_cpu(args: Vec<Value>) -> Result<Value, String> {
         _ => Err("tensor_to_cpu() expects a tensor".to_string()),
     }
 }
+
+// =============================================================================
+// NEURAL NETWORK LAYERS (v0.2.0)
+// =============================================================================
+
+/// linear(in_features: int, out_features: int) -> LinearLayer
+/// Create a Linear (Dense/Fully Connected) layer with Xavier initialization
+pub fn builtin_linear(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("linear() expects 2 arguments: linear(in_features, out_features)".to_string());
+    }
+
+    let in_features = args[0].to_integer()? as usize;
+    let out_features = args[1].to_integer()? as usize;
+
+    if in_features == 0 || out_features == 0 {
+        return Err("linear() features must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::Linear::xavier(in_features, out_features);
+    Ok(Value::LinearLayer(Box::new(layer)))
+}
+
+/// layer_forward(layer: LinearLayer, input: Tensor) -> Tensor
+/// Perform forward pass through a layer
+pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("layer_forward() expects 2 arguments: layer_forward(layer, input)".to_string());
+    }
+
+    match (&args[0], &args[1]) {
+        (Value::LinearLayer(layer), Value::GPUTensor(input)) => {
+            // Forward pass through Linear layer
+            let output = layer.forward(input)
+                .map_err(|e| format!("Layer forward failed: {}", e))?;
+
+            Ok(Value::GPUTensor(output))
+        }
+        (Value::LinearLayer(_), Value::AutogradTensor(input)) => {
+            // Convert CPU tensor to GPU, forward, then back to CPU
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            // Forward pass
+            let layer = match &args[0] {
+                Value::LinearLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("Layer forward failed: {}", e))?;
+
+            // Move result back to CPU
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        (Value::LinearLayer(_), _) => {
+            Err(format!("layer_forward() expects tensor input, got {}", args[1].type_name()))
+        }
+        _ => {
+            Err(format!("layer_forward() expects LinearLayer, got {}", args[0].type_name()))
+        }
+    }
+}
