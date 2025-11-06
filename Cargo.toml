@@ -1,9 +1,9 @@
 [package]
 name = "charl"
-version = "0.1.6"
+version = "0.2.0"
 edition = "2021"
 authors = ["Charl Team"]
-description = "A revolutionary programming language for AI and Deep Learning"
+description = "A revolutionary programming language for AI and Deep Learning with GPU-accelerated neural network layers"
 license = "MIT"
 
 # Main Charl executable
