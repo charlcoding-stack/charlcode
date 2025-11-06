@@ -21,6 +21,7 @@ pub enum Value {
     },
     AutogradTensor(AutogradTensor), // Tensor with gradient tracking (CPU)
     GPUTensor(crate::gpu_tensor::GPUTensor), // GPU-accelerated tensor
+    LinearLayer(Box<crate::nn::gpu_layers::Linear>), // Linear/Dense layer (v0.2.0)
     Function {
         parameters: Vec<Parameter>,
         body: Vec<Statement>,
@@ -74,6 +75,7 @@ impl Value {
             Value::Tensor { .. } => "tensor",
             Value::AutogradTensor(_) => "autograd_tensor",
             Value::GPUTensor(_) => "gpu_tensor",
+            Value::LinearLayer(_) => "linear_layer",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -256,6 +258,10 @@ impl Interpreter {
         builtins.insert("tensor_device".to_string(), tensor_builtins::builtin_tensor_device as BuiltinFn);
         builtins.insert("tensor_to_gpu".to_string(), tensor_builtins::builtin_tensor_to_gpu as BuiltinFn);
         builtins.insert("tensor_to_cpu".to_string(), tensor_builtins::builtin_tensor_to_cpu as BuiltinFn);
+
+        // Neural Network Layers (v0.2.0)
+        builtins.insert("linear".to_string(), tensor_builtins::builtin_linear as BuiltinFn);
+        builtins.insert("layer_forward".to_string(), tensor_builtins::builtin_layer_forward as BuiltinFn);
 
         Interpreter {
             env: Environment::new(),

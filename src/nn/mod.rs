@@ -3,6 +3,9 @@
 
 use crate::autograd::{ComputationGraph, Tensor};
 
+// GPU-accelerated layers (v0.2.0)
+pub mod gpu_layers;
+
 // Activation functions
 #[derive(Debug, Clone, PartialEq)]
 pub enum Activation {
