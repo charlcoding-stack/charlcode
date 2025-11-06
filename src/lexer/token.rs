@@ -139,7 +139,7 @@ impl TokenType {
             "autograd" => TokenType::Autograd,
             "gradient" => TokenType::Gradient,
             "dense" => TokenType::Dense,
-            "conv2d" => TokenType::Conv2D,
+            // "conv2d" => TokenType::Conv2D,  // Removed: using as builtin function instead
             "activation" => TokenType::Activation,
             "dropout" => TokenType::Dropout,
 

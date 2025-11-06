@@ -229,6 +229,24 @@ fn format_value(value: &Value) -> String {
                 layer.in_features, layer.out_features
             )
         }
+        Value::Conv2dLayer(layer) => {
+            format!(
+                "Conv2d({} → {}, kernel={}, stride={}, padding={})",
+                layer.in_channels, layer.out_channels, layer.kernel_size, layer.stride, layer.padding
+            )
+        }
+        Value::MaxPool2dLayer(layer) => {
+            format!(
+                "MaxPool2d(kernel={}, stride={})",
+                layer.kernel_size, layer.stride
+            )
+        }
+        Value::AvgPool2dLayer(layer) => {
+            format!(
+                "AvgPool2d(kernel={}, stride={})",
+                layer.kernel_size, layer.stride
+            )
+        }
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

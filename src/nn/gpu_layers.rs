@@ -223,3 +223,387 @@ mod tests {
         assert_eq!(output.tensor.shape, vec![4, 2]);
     }
 }
+
+/// Conv2d Layer - 2D Convolution for CNNs
+/// Performs: output[b,c_out,h,w] = sum(input[b,c_in,h',w'] * weight[c_out,c_in,kh,kw])
+#[derive(Debug, Clone)]
+pub struct Conv2d {
+    pub in_channels: usize,
+    pub out_channels: usize,
+    pub kernel_size: usize,
+    pub stride: usize,
+    pub padding: usize,
+
+    /// Weights: [out_channels, in_channels, kernel_h, kernel_w]
+    pub weight: GPUTensor,
+
+    /// Bias: [out_channels]
+    pub bias: GPUTensor,
+
+    pub use_bias: bool,
+}
+
+impl Conv2d {
+    /// Create Conv2d layer with He initialization (recommended for ReLU)
+    pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize) -> Self {
+        Self::with_params(in_channels, out_channels, kernel_size, 1, 0, Initializer::He)
+    }
+
+    /// Create Conv2d with custom stride and padding
+    pub fn with_params(
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+        initializer: Initializer,
+    ) -> Self {
+        // Weight shape: [out_channels, in_channels, kernel_h, kernel_w]
+        let weight_shape = vec![out_channels, in_channels, kernel_size, kernel_size];
+        let weight_size = out_channels * in_channels * kernel_size * kernel_size;
+        
+        // Initialize with proper fan-in for convolution
+        let weight_data = match initializer {
+            Initializer::He => {
+                let fan_in = in_channels * kernel_size * kernel_size;
+                let scale = (2.0 / fan_in as f64).sqrt();
+                (0..weight_size).map(|i| pseudo_random(i) * scale).collect()
+            }
+            _ => initializer.initialize(&weight_shape),
+        };
+
+        let weight = GPUTensor::new(weight_data, weight_shape);
+
+        // Bias: one per output channel
+        let bias_data = vec![0.0; out_channels];
+        let bias = GPUTensor::new(bias_data, vec![out_channels]);
+
+        Conv2d {
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            weight,
+            bias,
+            use_bias: true,
+        }
+    }
+
+    /// Disable bias term
+    pub fn without_bias(mut self) -> Self {
+        self.use_bias = false;
+        self
+    }
+
+    /// Forward pass: convolve input with learned filters
+    /// Input: [batch, in_channels, height, width]
+    /// Output: [batch, out_channels, out_height, out_width]
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let input_shape = &input.tensor.shape;
+
+        // Validate input shape
+        if input_shape.len() != 4 {
+            return Err(format!(
+                "Conv2d expects 4D input [batch, channels, height, width], got {:?}",
+                input_shape
+            ));
+        }
+
+        let batch = input_shape[0];
+        let in_c = input_shape[1];
+        let in_h = input_shape[2];
+        let in_w = input_shape[3];
+
+        if in_c != self.in_channels {
+            return Err(format!(
+                "Input channel mismatch: expected {}, got {}",
+                self.in_channels, in_c
+            ));
+        }
+
+        // Calculate output dimensions
+        let out_h = (in_h + 2 * self.padding - self.kernel_size) / self.stride + 1;
+        let out_w = (in_w + 2 * self.padding - self.kernel_size) / self.stride + 1;
+
+        // Initialize output
+        let output_size = batch * self.out_channels * out_h * out_w;
+        let mut output_data = vec![0.0; output_size];
+
+        // Naive convolution implementation (can be optimized with im2col later)
+        for b in 0..batch {
+            for oc in 0..self.out_channels {
+                for oh in 0..out_h {
+                    for ow in 0..out_w {
+                        let mut sum = 0.0;
+
+                        // Convolve over all input channels and kernel
+                        for ic in 0..self.in_channels {
+                            for kh in 0..self.kernel_size {
+                                for kw in 0..self.kernel_size {
+                                    // Calculate input position with stride and padding
+                                    let ih = (oh * self.stride + kh) as i32 - self.padding as i32;
+                                    let iw = (ow * self.stride + kw) as i32 - self.padding as i32;
+
+                                    // Check bounds (padding)
+                                    if ih >= 0 && ih < in_h as i32 && iw >= 0 && iw < in_w as i32 {
+                                        let input_idx = b * (in_c * in_h * in_w)
+                                            + ic * (in_h * in_w)
+                                            + (ih as usize) * in_w
+                                            + (iw as usize);
+
+                                        let weight_idx = oc * (self.in_channels * self.kernel_size * self.kernel_size)
+                                            + ic * (self.kernel_size * self.kernel_size)
+                                            + kh * self.kernel_size
+                                            + kw;
+
+                                        sum += input.tensor.data[input_idx] * self.weight.tensor.data[weight_idx];
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add bias
+                        if self.use_bias {
+                            sum += self.bias.tensor.data[oc];
+                        }
+
+                        let output_idx = b * (self.out_channels * out_h * out_w)
+                            + oc * (out_h * out_w)
+                            + oh * out_w
+                            + ow;
+
+                        output_data[output_idx] = sum;
+                    }
+                }
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, vec![batch, self.out_channels, out_h, out_w]))
+    }
+
+    /// Get parameters for optimization
+    pub fn parameters(&self) -> Vec<&GPUTensor> {
+        if self.use_bias {
+            vec![&self.weight, &self.bias]
+        } else {
+            vec![&self.weight]
+        }
+    }
+}
+
+/// MaxPool2d - Max Pooling for downsampling
+/// Takes the maximum value in each pooling window
+#[derive(Debug, Clone)]
+pub struct MaxPool2d {
+    pub kernel_size: usize,
+    pub stride: usize,
+}
+
+impl MaxPool2d {
+    /// Create MaxPool2d layer with kernel_size (stride defaults to kernel_size)
+    pub fn new(kernel_size: usize) -> Self {
+        MaxPool2d {
+            kernel_size,
+            stride: kernel_size, // Default stride = kernel_size (non-overlapping)
+        }
+    }
+
+    /// Create MaxPool2d with custom stride
+    pub fn with_stride(kernel_size: usize, stride: usize) -> Self {
+        MaxPool2d { kernel_size, stride }
+    }
+
+    /// Forward pass: downsample by taking max in each window
+    /// Input: [batch, channels, height, width]
+    /// Output: [batch, channels, out_height, out_width]
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let input_shape = &input.tensor.shape;
+
+        if input_shape.len() != 4 {
+            return Err(format!(
+                "MaxPool2d expects 4D input [batch, channels, height, width], got {:?}",
+                input_shape
+            ));
+        }
+
+        let batch = input_shape[0];
+        let channels = input_shape[1];
+        let in_h = input_shape[2];
+        let in_w = input_shape[3];
+
+        // Calculate output dimensions
+        let out_h = (in_h - self.kernel_size) / self.stride + 1;
+        let out_w = (in_w - self.kernel_size) / self.stride + 1;
+
+        let output_size = batch * channels * out_h * out_w;
+        let mut output_data = vec![f64::NEG_INFINITY; output_size];
+
+        // Max pooling
+        for b in 0..batch {
+            for c in 0..channels {
+                for oh in 0..out_h {
+                    for ow in 0..out_w {
+                        let mut max_val = f64::NEG_INFINITY;
+
+                        // Find max in pooling window
+                        for kh in 0..self.kernel_size {
+                            for kw in 0..self.kernel_size {
+                                let ih = oh * self.stride + kh;
+                                let iw = ow * self.stride + kw;
+
+                                let input_idx = b * (channels * in_h * in_w)
+                                    + c * (in_h * in_w)
+                                    + ih * in_w
+                                    + iw;
+
+                                max_val = max_val.max(input.tensor.data[input_idx]);
+                            }
+                        }
+
+                        let output_idx = b * (channels * out_h * out_w)
+                            + c * (out_h * out_w)
+                            + oh * out_w
+                            + ow;
+
+                        output_data[output_idx] = max_val;
+                    }
+                }
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, vec![batch, channels, out_h, out_w]))
+    }
+}
+
+/// AvgPool2d - Average Pooling for downsampling
+/// Takes the average value in each pooling window
+#[derive(Debug, Clone)]
+pub struct AvgPool2d {
+    pub kernel_size: usize,
+    pub stride: usize,
+}
+
+impl AvgPool2d {
+    /// Create AvgPool2d layer with kernel_size (stride defaults to kernel_size)
+    pub fn new(kernel_size: usize) -> Self {
+        AvgPool2d {
+            kernel_size,
+            stride: kernel_size,
+        }
+    }
+
+    /// Create AvgPool2d with custom stride
+    pub fn with_stride(kernel_size: usize, stride: usize) -> Self {
+        AvgPool2d { kernel_size, stride }
+    }
+
+    /// Forward pass: downsample by taking average in each window
+    /// Input: [batch, channels, height, width]
+    /// Output: [batch, channels, out_height, out_width]
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let input_shape = &input.tensor.shape;
+
+        if input_shape.len() != 4 {
+            return Err(format!(
+                "AvgPool2d expects 4D input [batch, channels, height, width], got {:?}",
+                input_shape
+            ));
+        }
+
+        let batch = input_shape[0];
+        let channels = input_shape[1];
+        let in_h = input_shape[2];
+        let in_w = input_shape[3];
+
+        // Calculate output dimensions
+        let out_h = (in_h - self.kernel_size) / self.stride + 1;
+        let out_w = (in_w - self.kernel_size) / self.stride + 1;
+
+        let output_size = batch * channels * out_h * out_w;
+        let mut output_data = vec![0.0; output_size];
+
+        let pool_area = (self.kernel_size * self.kernel_size) as f64;
+
+        // Average pooling
+        for b in 0..batch {
+            for c in 0..channels {
+                for oh in 0..out_h {
+                    for ow in 0..out_w {
+                        let mut sum = 0.0;
+
+                        // Sum values in pooling window
+                        for kh in 0..self.kernel_size {
+                            for kw in 0..self.kernel_size {
+                                let ih = oh * self.stride + kh;
+                                let iw = ow * self.stride + kw;
+
+                                let input_idx = b * (channels * in_h * in_w)
+                                    + c * (in_h * in_w)
+                                    + ih * in_w
+                                    + iw;
+
+                                sum += input.tensor.data[input_idx];
+                            }
+                        }
+
+                        let output_idx = b * (channels * out_h * out_w)
+                            + c * (out_h * out_w)
+                            + oh * out_w
+                            + ow;
+
+                        output_data[output_idx] = sum / pool_area;
+                    }
+                }
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, vec![batch, channels, out_h, out_w]))
+    }
+}
+
+#[cfg(test)]
+mod conv_tests {
+    use super::*;
+
+    #[test]
+    fn test_conv2d_creation() {
+        let conv = Conv2d::new(3, 16, 3);
+        assert_eq!(conv.in_channels, 3);
+        assert_eq!(conv.out_channels, 16);
+        assert_eq!(conv.kernel_size, 3);
+    }
+
+    #[test]
+    fn test_conv2d_forward_shape() {
+        let conv = Conv2d::new(3, 16, 3);
+        // Input: batch=1, channels=3, height=32, width=32
+        let input = GPUTensor::new(vec![0.0; 1 * 3 * 32 * 32], vec![1, 3, 32, 32]);
+
+        let output = conv.forward(&input).unwrap();
+        // Output: batch=1, channels=16, height=30, width=30 (no padding, stride=1)
+        assert_eq!(output.tensor.shape, vec![1, 16, 30, 30]);
+    }
+
+    #[test]
+    fn test_maxpool2d() {
+        let pool = MaxPool2d::new(2);
+        let input = GPUTensor::new(vec![0.0; 1 * 3 * 32 * 32], vec![1, 3, 32, 32]);
+
+        let output = pool.forward(&input).unwrap();
+        // 32x32 -> 16x16 with 2x2 pooling
+        assert_eq!(output.tensor.shape, vec![1, 3, 16, 16]);
+    }
+
+    #[test]
+    fn test_avgpool2d() {
+        let pool = AvgPool2d::new(2);
+        let input = GPUTensor::new(vec![1.0; 1 * 3 * 32 * 32], vec![1, 3, 32, 32]);
+
+        let output = pool.forward(&input).unwrap();
+        assert_eq!(output.tensor.shape, vec![1, 3, 16, 16]);
+
+        // All values should be 1.0 (average of 1.0s)
+        assert!((output.tensor.data[0] - 1.0).abs() < 1e-6);
+    }
+}

@@ -87,6 +87,17 @@ pub fn builtin_tensor_shape(args: Vec<Value>) -> Result<Value, String> {
 
             Ok(Value::Array(shape_values))
         }
+        Value::GPUTensor(tensor) => {
+            // Convert shape Vec<usize> to Value::Array of integers
+            let shape_values: Vec<Value> = tensor
+                .tensor
+                .shape
+                .iter()
+                .map(|&dim| Value::Integer(dim as i64))
+                .collect();
+
+            Ok(Value::Array(shape_values))
+        }
         _ => Err(format!(
             "tensor_shape() expects a tensor, got {}",
             args[0].type_name()
@@ -1570,7 +1581,60 @@ pub fn builtin_linear(args: Vec<Value>) -> Result<Value, String> {
     Ok(Value::LinearLayer(Box::new(layer)))
 }
 
-/// layer_forward(layer: LinearLayer, input: Tensor) -> Tensor
+/// conv2d(in_channels: int, out_channels: int, kernel_size: int) -> Conv2dLayer
+/// Create a Conv2d layer for CNNs (He initialization)
+pub fn builtin_conv2d(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 3 {
+        return Err("conv2d() expects 3 arguments: conv2d(in_channels, out_channels, kernel_size)".to_string());
+    }
+
+    let in_channels = args[0].to_integer()? as usize;
+    let out_channels = args[1].to_integer()? as usize;
+    let kernel_size = args[2].to_integer()? as usize;
+
+    if in_channels == 0 || out_channels == 0 || kernel_size == 0 {
+        return Err("conv2d() parameters must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::Conv2d::new(in_channels, out_channels, kernel_size);
+    Ok(Value::Conv2dLayer(Box::new(layer)))
+}
+
+/// maxpool2d(kernel_size: int) -> MaxPool2dLayer
+/// Create a MaxPool2d layer for downsampling (stride = kernel_size)
+pub fn builtin_maxpool2d(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("maxpool2d() expects 1 argument: maxpool2d(kernel_size)".to_string());
+    }
+
+    let kernel_size = args[0].to_integer()? as usize;
+
+    if kernel_size == 0 {
+        return Err("maxpool2d() kernel_size must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::MaxPool2d::new(kernel_size);
+    Ok(Value::MaxPool2dLayer(Box::new(layer)))
+}
+
+/// avgpool2d(kernel_size: int) -> AvgPool2dLayer
+/// Create an AvgPool2d layer for downsampling (stride = kernel_size)
+pub fn builtin_avgpool2d(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("avgpool2d() expects 1 argument: avgpool2d(kernel_size)".to_string());
+    }
+
+    let kernel_size = args[0].to_integer()? as usize;
+
+    if kernel_size == 0 {
+        return Err("avgpool2d() kernel_size must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::AvgPool2d::new(kernel_size);
+    Ok(Value::AvgPool2dLayer(Box::new(layer)))
+}
+
+/// layer_forward(layer: LinearLayer | Conv2dLayer | MaxPool2dLayer | AvgPool2dLayer, input: Tensor) -> Tensor
 /// Perform forward pass through a layer
 pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
     if args.len() != 2 {
@@ -1578,32 +1642,28 @@ pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
     }
 
     match (&args[0], &args[1]) {
+        // Linear Layer + GPU Tensor
         (Value::LinearLayer(layer), Value::GPUTensor(input)) => {
-            // Forward pass through Linear layer
             let output = layer.forward(input)
-                .map_err(|e| format!("Layer forward failed: {}", e))?;
-
+                .map_err(|e| format!("Linear forward failed: {}", e))?;
             Ok(Value::GPUTensor(output))
         }
+        // Linear Layer + CPU Tensor
         (Value::LinearLayer(_), Value::AutogradTensor(input)) => {
-            // Convert CPU tensor to GPU, forward, then back to CPU
             let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
-
             with_gpu_backend(|backend| {
                 input_gpu.to_gpu(backend)
                     .map_err(|e| format!("Failed to move input to GPU: {}", e))
             })?;
 
-            // Forward pass
             let layer = match &args[0] {
                 Value::LinearLayer(l) => l,
                 _ => unreachable!(),
             };
 
             let output_gpu = layer.forward(&input_gpu)
-                .map_err(|e| format!("Layer forward failed: {}", e))?;
+                .map_err(|e| format!("Linear forward failed: {}", e))?;
 
-            // Move result back to CPU
             let mut output_clone = output_gpu.clone();
             with_gpu_backend(|backend| {
                 output_clone.to_cpu(backend)
@@ -1612,11 +1672,101 @@ pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
 
             Ok(Value::AutogradTensor(output_clone.tensor))
         }
-        (Value::LinearLayer(_), _) => {
+        // Conv2d Layer + GPU Tensor
+        (Value::Conv2dLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("Conv2d forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // Conv2d Layer + CPU Tensor
+        (Value::Conv2dLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::Conv2dLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("Conv2d forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        // MaxPool2d Layer + GPU Tensor
+        (Value::MaxPool2dLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("MaxPool2d forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // MaxPool2d Layer + CPU Tensor
+        (Value::MaxPool2dLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::MaxPool2dLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("MaxPool2d forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        // AvgPool2d Layer + GPU Tensor
+        (Value::AvgPool2dLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("AvgPool2d forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // AvgPool2d Layer + CPU Tensor
+        (Value::AvgPool2dLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::AvgPool2dLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("AvgPool2d forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        (Value::LinearLayer(_), _) | (Value::Conv2dLayer(_), _) | (Value::MaxPool2dLayer(_), _) | (Value::AvgPool2dLayer(_), _) => {
             Err(format!("layer_forward() expects tensor input, got {}", args[1].type_name()))
         }
         _ => {
-            Err(format!("layer_forward() expects LinearLayer, got {}", args[0].type_name()))
+            Err(format!("layer_forward() expects layer (Linear/Conv2d/MaxPool2d/AvgPool2d), got {}", args[0].type_name()))
         }
     }
 }

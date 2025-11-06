@@ -22,6 +22,9 @@ pub enum Value {
     AutogradTensor(AutogradTensor), // Tensor with gradient tracking (CPU)
     GPUTensor(crate::gpu_tensor::GPUTensor), // GPU-accelerated tensor
     LinearLayer(Box<crate::nn::gpu_layers::Linear>), // Linear/Dense layer (v0.2.0)
+    Conv2dLayer(Box<crate::nn::gpu_layers::Conv2d>), // Conv2d layer for CNNs (v0.2.0)
+    MaxPool2dLayer(Box<crate::nn::gpu_layers::MaxPool2d>), // MaxPool2d for downsampling (v0.2.0)
+    AvgPool2dLayer(Box<crate::nn::gpu_layers::AvgPool2d>), // AvgPool2d for downsampling (v0.2.0)
     Function {
         parameters: Vec<Parameter>,
         body: Vec<Statement>,
@@ -76,6 +79,9 @@ impl Value {
             Value::AutogradTensor(_) => "autograd_tensor",
             Value::GPUTensor(_) => "gpu_tensor",
             Value::LinearLayer(_) => "linear_layer",
+            Value::Conv2dLayer(_) => "conv2d_layer",
+            Value::MaxPool2dLayer(_) => "maxpool2d_layer",
+            Value::AvgPool2dLayer(_) => "avgpool2d_layer",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -261,6 +267,9 @@ impl Interpreter {
 
         // Neural Network Layers (v0.2.0)
         builtins.insert("linear".to_string(), tensor_builtins::builtin_linear as BuiltinFn);
+        builtins.insert("conv2d".to_string(), tensor_builtins::builtin_conv2d as BuiltinFn);
+        builtins.insert("maxpool2d".to_string(), tensor_builtins::builtin_maxpool2d as BuiltinFn);
+        builtins.insert("avgpool2d".to_string(), tensor_builtins::builtin_avgpool2d as BuiltinFn);
         builtins.insert("layer_forward".to_string(), tensor_builtins::builtin_layer_forward as BuiltinFn);
 
         // Activation Functions - GPU Accelerated (v0.2.0)
