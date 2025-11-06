@@ -164,24 +164,25 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist,temp-package | Out-Null
           Copy-Item target\release\charl.exe temp-package\
-          
+
           # Create install.bat
-          @'
-@echo off
-echo Installing Charl...
-set INSTALL_DIR=%USERPROFILE%\.charl\bin
-if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
-copy /Y charl.exe "%INSTALL_DIR%\charl.exe" >nul
-echo Charl installed!
-for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set UserPath=%%B
-echo %UserPath% | findstr /C:"%INSTALL_DIR%" >nul || setx PATH "%UserPath%;%INSTALL_DIR%" >nul
-echo Done! Restart terminal to use 'charl'
-pause
-'@ | Out-File temp-package\install.bat -Encoding ASCII
+          $installScript = @"
+          @echo off
+          echo Installing Charl...
+          set INSTALL_DIR=%USERPROFILE%\.charl\bin
+          if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+          copy /Y charl.exe "%INSTALL_DIR%\charl.exe" >nul
+          echo Charl installed!
+          for /f "usebackq tokens=2,*" %%A in (`reg query HKCU\Environment /v PATH 2^>nul`) do set UserPath=%%B
+          echo %UserPath% | findstr /C:"%INSTALL_DIR%" >nul || setx PATH "%UserPath%;%INSTALL_DIR%" >nul
+          echo Done! Restart terminal to use 'charl'
+          pause
+          "@
+          $installScript | Out-File temp-package\install.bat -Encoding ASCII
 
           # Create README
           "Charl - Windows Installation`n`n1. Run install.bat`n2. Restart terminal`n3. Type: charl --version`n`nMore: https://charlbase.org" | Out-File temp-package\README.txt -Encoding UTF8
-          
+
           Compress-Archive -Path temp-package\* -DestinationPath dist\charl-windows-x86_64.zip -Force
           Remove-Item -Recurse -Force temp-package
 
