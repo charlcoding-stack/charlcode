@@ -1,6 +1,6 @@
 [package]
 name = "charl"
-version = "0.1.0"
+version = "0.1.4"
 edition = "2021"
 authors = ["Charl Team"]
 description = "A revolutionary programming language for AI and Deep Learning"
@@ -20,6 +20,12 @@ path = "benchmarks/pytorch_comparison/mnist/charl_mnist.rs"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# For `charl update` command
+ureq = { version = "2.9", features = ["json"] }
+flate2 = "1.0"
+tar = "0.4"
+zip = "0.6"
 
 # GPU Support (Phase 8) - DESBLOQUEADO EN LINUX ✅
 wgpu = { version = "0.19", features = ["wgsl"] }  # WebGPU for cross-platform GPU compute

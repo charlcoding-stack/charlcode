@@ -13,6 +13,7 @@ pub mod optim;
 pub mod parser;
 pub mod quantization;
 pub mod stdlib;
+pub mod tensor_builtins;
 pub mod types;
 
 // Phase 7: LLVM Backend (optional feature)
