@@ -19,7 +19,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "charl")]
 #[command(author = "Charl Team")]
-#[command(version = "0.1.0")]
+#[command(version = "0.1.4")]
 #[command(about = "Charl - A revolutionary language for AI and Deep Learning")]
 struct Cli {
     #[command(subcommand)]
@@ -51,6 +51,13 @@ enum Commands {
 
     /// Start interactive REPL
     Repl,
+
+    /// Update Charl to the latest version
+    Update {
+        /// Check for updates without installing
+        #[arg(short, long)]
+        check: bool,
+    },
 
     /// Show version and feature info
     Version,
@@ -260,7 +267,7 @@ codegen-units = 1
 
 fn run_repl() {
     println!("╔═══════════════════════════════════════════════════════════╗");
-    println!("║           Charl REPL v0.1.0 - Interactive Mode           ║");
+    println!("║           Charl REPL v0.1.4 - Interactive Mode           ║");
     println!("╚═══════════════════════════════════════════════════════════╝");
     println!();
     println!("Type Charl expressions and statements. Use Ctrl+C or 'exit' to quit.");
@@ -393,6 +400,230 @@ fn run_script(file: &PathBuf, verbose: bool) {
     }
 }
 
+fn run_update(check_only: bool) {
+    const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const GITHUB_REPO: &str = "charlcoding-stack/charlcode";
+    const GITHUB_API: &str = "https://api.github.com/repos";
+
+    println!("╔═══════════════════════════════════════════════════════════╗");
+    println!("║                 Charl Update Manager                      ║");
+    println!("╚═══════════════════════════════════════════════════════════╝");
+    println!();
+    println!("📦 Current version: v{}", CURRENT_VERSION);
+    println!("🔍 Checking for updates...");
+    println!();
+
+    // Fetch latest release from GitHub API
+    let api_url = format!("{}/{}/releases/latest", GITHUB_API, GITHUB_REPO);
+
+    let client = ureq::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build();
+
+    let response = match client.get(&api_url)
+        .set("User-Agent", &format!("charl-cli/{}", CURRENT_VERSION))
+        .call() {
+            Ok(resp) => resp,
+            Err(e) => {
+                eprintln!("❌ Error checking for updates: {}", e);
+                eprintln!("   Please check your internet connection.");
+                eprintln!("   Manual download: https://github.com/{}/releases", GITHUB_REPO);
+                std::process::exit(1);
+            }
+        };
+
+    let release_data: serde_json::Value = match response.into_json() {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("❌ Error parsing release data: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let latest_version = release_data["tag_name"]
+        .as_str()
+        .unwrap_or("unknown")
+        .trim_start_matches('v');
+
+    println!("📦 Latest version: v{}", latest_version);
+    println!();
+
+    // Compare versions
+    if latest_version == CURRENT_VERSION {
+        println!("✅ You are already running the latest version!");
+        println!();
+        return;
+    }
+
+    println!("🎉 A new version is available!");
+    println!("   Current: v{}", CURRENT_VERSION);
+    println!("   Latest:  v{}", latest_version);
+    println!();
+
+    if check_only {
+        println!("Run 'charl update' (without --check) to install the latest version.");
+        println!();
+        return;
+    }
+
+    // Determine platform
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+
+    let (platform, extension) = match (os, arch) {
+        ("linux", "x86_64") => ("linux-x86_64", "tar.gz"),
+        ("linux", "aarch64") => ("linux-arm64", "tar.gz"),
+        ("macos", "x86_64") => ("macos-x86_64", "tar.gz"),
+        ("macos", "aarch64") => ("macos-arm64", "tar.gz"),
+        ("windows", "x86_64") => ("windows-x86_64", "zip"),
+        _ => {
+            eprintln!("❌ Unsupported platform: {} {}", os, arch);
+            eprintln!("   Please download manually from:");
+            eprintln!("   https://github.com/{}/releases/latest", GITHUB_REPO);
+            std::process::exit(1);
+        }
+    };
+
+    let download_url = format!(
+        "https://github.com/{}/releases/download/v{}/charl-{}.{}",
+        GITHUB_REPO, latest_version, platform, extension
+    );
+
+    println!("📥 Downloading update...");
+    println!("   URL: {}", download_url);
+    println!();
+
+    // Download the file
+    let response = match client.get(&download_url).call() {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("❌ Error downloading update: {}", e);
+            eprintln!("   Manual download: {}", download_url);
+            std::process::exit(1);
+        }
+    };
+
+    // Save to temp file
+    let temp_dir = std::env::temp_dir();
+    let temp_file = temp_dir.join(format!("charl-update.{}", extension));
+
+    let mut reader = response.into_reader();
+    let mut file = match fs::File::create(&temp_file) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("❌ Error creating temp file: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    match io::copy(&mut reader, &mut file) {
+        Ok(bytes) => {
+            println!("✅ Downloaded {} bytes", bytes);
+        }
+        Err(e) => {
+            eprintln!("❌ Error saving download: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    // Get current executable path
+    let current_exe = match std::env::current_exe() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("❌ Error getting current executable path: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    println!("📦 Extracting update...");
+
+    // Extract archive
+    let extract_dir = temp_dir.join("charl-update-extract");
+    let _ = fs::remove_dir_all(&extract_dir);
+    fs::create_dir_all(&extract_dir).unwrap();
+
+    if extension == "tar.gz" {
+        // Extract tar.gz
+        let tar_gz = fs::File::open(&temp_file).unwrap();
+        let tar = flate2::read::GzDecoder::new(tar_gz);
+        let mut archive = tar::Archive::new(tar);
+
+        if let Err(e) = archive.unpack(&extract_dir) {
+            eprintln!("❌ Error extracting archive: {}", e);
+            std::process::exit(1);
+        }
+    } else {
+        // Extract zip
+        let file = fs::File::open(&temp_file).unwrap();
+        let mut archive = zip::ZipArchive::new(file).unwrap();
+
+        if let Err(e) = archive.extract(&extract_dir) {
+            eprintln!("❌ Error extracting archive: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    // Find the charl binary in extracted files
+    let binary_name = if cfg!(windows) { "charl.exe" } else { "charl" };
+    let new_binary = extract_dir.join(binary_name);
+
+    if !new_binary.exists() {
+        eprintln!("❌ Error: Binary not found in archive");
+        std::process::exit(1);
+    }
+
+    println!("🔄 Installing update...");
+
+    // On Windows, we need to rename current exe first
+    #[cfg(windows)]
+    {
+        let backup = current_exe.with_extension("exe.old");
+        let _ = fs::remove_file(&backup);
+        if let Err(e) = fs::rename(&current_exe, &backup) {
+            eprintln!("❌ Error backing up current executable: {}", e);
+            std::process::exit(1);
+        }
+
+        if let Err(e) = fs::copy(&new_binary, &current_exe) {
+            // Restore backup
+            let _ = fs::rename(&backup, &current_exe);
+            eprintln!("❌ Error installing update: {}", e);
+            std::process::exit(1);
+        }
+
+        let _ = fs::remove_file(&backup);
+    }
+
+    // On Unix, we can replace directly
+    #[cfg(unix)]
+    {
+        if let Err(e) = fs::copy(&new_binary, &current_exe) {
+            eprintln!("❌ Error installing update: {}", e);
+            std::process::exit(1);
+        }
+
+        // Make executable
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&current_exe).unwrap().permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&current_exe, perms).unwrap();
+    }
+
+    // Cleanup
+    let _ = fs::remove_file(&temp_file);
+    let _ = fs::remove_dir_all(&extract_dir);
+
+    println!();
+    println!("╔═══════════════════════════════════════════════════════════╗");
+    println!("║              Update Successful! 🎉                        ║");
+    println!("╚═══════════════════════════════════════════════════════════╝");
+    println!();
+    println!("✅ Charl has been updated to v{}", latest_version);
+    println!();
+    println!("Run 'charl --version' to verify the update.");
+    println!();
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -413,6 +644,10 @@ fn main() {
             run_repl();
         }
 
+        Some(Commands::Update { check }) => {
+            run_update(check);
+        }
+
         Some(Commands::Version) | None => {
             print_version();
         }
@@ -422,7 +657,7 @@ fn main() {
 fn print_version() {
     println!();
     println!("╔═══════════════════════════════════════════════════════════╗");
-    println!("║           Charl Language v0.1.0 - Alpha                  ║");
+    println!("║           Charl Language v0.1.4 - Alpha                  ║");
     println!("║   Revolutionary AI/ML Programming Language                ║");
     println!("╚═══════════════════════════════════════════════════════════╝");
     println!();
