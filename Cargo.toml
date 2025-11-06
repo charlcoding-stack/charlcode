@@ -1,6 +1,6 @@
 [package]
 name = "charl"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Charl Team"]
 description = "A revolutionary programming language for AI and Deep Learning"

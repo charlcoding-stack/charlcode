@@ -439,6 +439,8 @@ impl Parser {
     fn parse_prefix_expression(&mut self) -> Result<Expression, String> {
         match &self.current_token.token_type {
             TokenType::Ident => Ok(Expression::Identifier(self.current_token.literal.clone())),
+            // Allow "tensor" to be used as a function call (not just a type annotation)
+            TokenType::Tensor => Ok(Expression::Identifier("tensor".to_string())),
             TokenType::Int => {
                 let value = self.current_token.literal.parse::<i64>().map_err(|_| {
                     format!("Could not parse {} as integer", self.current_token.literal)
