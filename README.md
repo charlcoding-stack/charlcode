@@ -1,100 +1,114 @@
 # Charl Programming Language
 
-**A revolutionary programming language for AI and Machine Learning with 22.33x performance over PyTorch**
+A statically-typed programming language for machine learning research and development, implemented in Rust with native tensor operations and automatic differentiation.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
-[![Performance](https://img.shields.io/badge/Performance-22.33x_PyTorch-brightgreen.svg)](benchmarks/)
 
 ---
 
-## 🚀 Why Charl?
+## Overview
 
-Charl is designed to democratize AI development by providing:
+Charl is a domain-specific language designed for machine learning applications. It provides:
 
-- **🔥 22.33x faster** than PyTorch on CPU (validated benchmark)
-- **💪 Native Rust implementation** with zero-copy operations
-- **🎓 Full backpropagation** with automatic gradient computation
-- **🧠 34 ML functions** ready for production
-- **⚡ Edge-ready** - Train models on low-resource devices
-- **📦 Zero dependencies** - Batteries included
+- **Native tensor operations** with zero-copy semantics
+- **Automatic differentiation** for gradient computation
+- **Static type system** with type inference
+- **Rust-based implementation** for memory safety and performance
+- **34 built-in ML functions** covering tensors, neural networks, and optimization
+- **Minimal dependencies** - Core functionality requires no external libraries
 
----
-
-## 📊 Benchmark Results
-
-**Task:** MNIST Classifier Training (1,000 samples, 5 epochs)
-
-| Metric | Charl | PyTorch | Speedup |
-|--------|-------|---------|---------|
-| **Total Time** | 414ms | 9,255ms | **22.33x** |
-| **Throughput** | 12,064 samples/s | 540 samples/s | **22.33x** |
-| **Memory** | Low | High | Efficient |
-
-**Key Advantages:**
-- ✅ Native Rust performance
-- ✅ Zero Python interpreter overhead
-- ✅ Zero-copy tensor operations
-- ✅ LLVM-optimized machine code
-
-[View full benchmark results →](benchmarks/results/)
+The language is designed for researchers and practitioners who need predictable performance and low-level control over ML operations.
 
 ---
 
-## ⚡ Quick Start
+## Performance Characteristics
 
-### Installation
+Benchmark results for MNIST classifier training (1,000 samples, 5 epochs):
 
-**Linux/macOS:**
+| Implementation | Total Time | Throughput | Memory Usage |
+|----------------|-----------|------------|--------------|
+| Charl | 414ms | 12,064 samples/s | Minimal |
+| PyTorch (CPU) | 9,255ms | 540 samples/s | Standard |
+
+**Performance factors:**
+- Compiled ahead-of-time via Rust
+- No interpreter overhead
+- Zero-copy tensor operations
+- Direct LLVM-optimized machine code
+
+Full benchmark methodology and results available in [`benchmarks/`](benchmarks/).
+
+---
+
+## Installation
+
+### Prerequisites
+- Rust 1.70 or higher ([rustup.rs](https://rustup.rs/))
+- Git
+
+### Build from Source
+
 ```bash
-# Clone and build
 git clone https://github.com/charlcoding-stack/charlcode.git
 cd charlcode
 cargo build --release
-
-# Install
-sudo cp target/release/charl /usr/local/bin/
 ```
 
-**Verify:**
+### Install Binary
+
+**Linux/macOS:**
 ```bash
+sudo cp target/release/charl /usr/local/bin/
 charl --version
 ```
 
-### Your First Neural Network
+**Windows:**
+```powershell
+copy target\release\charl.exe C:\Windows\System32\
+charl --version
+```
 
-**File: `hello_ml.ch`**
+---
+
+## Quick Start
+
+### Basic Neural Network Training
+
+Create a file `example.ch`:
 
 ```charl
-// Create training data
-let x = tensor([1.0, 0.0])  // Input
-let y = tensor([1.0])        // Target
+// XOR problem: 2-layer neural network
+let x = tensor([1.0, 0.0])
+let y = tensor([1.0])
 
-// Initialize network parameters (2 -> 4 -> 1)
+// Network architecture: 2 -> 4 -> 1
 let w1 = tensor_randn([2, 4])
 let b1 = tensor_zeros([4])
 let w2 = tensor_randn([4, 1])
 let b2 = tensor_zeros([1])
 
-// Training loop
+// Training parameters
 let lr = 0.5
 let epochs = 100
 let epoch = 0
 
 while epoch < epochs {
     // Forward pass
-    let h1 = nn_relu(nn_linear(x, w1, b1))
-    let pred = nn_sigmoid(nn_linear(h1, w2, b2))
+    let z1 = nn_linear(x, w1, b1)
+    let h1 = nn_relu(z1)
+    let z2 = nn_linear(h1, w2, b2)
+    let pred = nn_sigmoid(z2)
     let loss = loss_mse(pred, y)
 
-    // Backward pass (automatic gradients)
-    let grad_loss = autograd_compute_mse_grad(pred, y)
-    let grad_h2 = autograd_compute_sigmoid_grad(pred, grad_loss)
-    let grads_2 = autograd_compute_linear_grad(h1, w2, b2, grad_h2)
-    let grad_h1 = autograd_compute_relu_grad(h1, grads_2.0)
-    let grads_1 = autograd_compute_linear_grad(x, w1, b1, grad_h1)
+    // Backward pass
+    let grad_pred = autograd_compute_mse_grad(pred, y)
+    let grad_z2 = autograd_compute_sigmoid_grad(pred, grad_pred)
+    let grads_2 = autograd_compute_linear_grad(h1, w2, b2, grad_z2)
+    let grad_z1 = autograd_compute_relu_grad(z1, grads_2.0)
+    let grads_1 = autograd_compute_linear_grad(x, w1, b1, grad_z1)
 
-    // Update parameters
+    // Parameter updates
     w1 = optim_sgd_step(w1, grads_1.1, lr)
     b1 = optim_sgd_step(b1, grads_1.2, lr)
     w2 = optim_sgd_step(w2, grads_2.1, lr)
@@ -103,148 +117,233 @@ while epoch < epochs {
     epoch = epoch + 1
 }
 
-print("Training complete!")
+print("Training complete")
 ```
 
-**Run:**
+Run:
 ```bash
-charl run hello_ml.ch
+charl run example.ch
 ```
 
 ---
 
-## 📚 Complete API Reference
+## Language Reference
 
-### 🔢 Tensor Operations (13 functions)
+### Type System
 
-#### Creation
+Charl uses static typing with inference:
+
 ```charl
-tensor([1.0, 2.0, 3.0])           // Create from array
-tensor_zeros([3, 3])               // Matrix of zeros
-tensor_ones([2, 4])                // Matrix of ones
-tensor_randn([10, 10])             // Random normal (Box-Muller)
+let x: int = 42
+let y: float = 3.14
+let s: string = "text"
+let b: bool = true
+let arr: [float] = [1.0, 2.0, 3.0]
+let tup: (int, float) = (1, 2.0)
 ```
 
-#### Arithmetic
+### Control Flow
+
 ```charl
-tensor_add(a, b)                   // Element-wise addition
-tensor_sub(a, b)                   // Element-wise subtraction
-tensor_mul(a, b)                   // Element-wise or scalar multiplication
-tensor_div(a, b)                   // Element-wise or scalar division
-tensor_matmul(A, B)                // Matrix multiplication
+// Conditional
+if x > 0 {
+    print("positive")
+} else {
+    print("non-positive")
+}
+
+// Loops
+while i < 10 {
+    i = i + 1
+}
+
+// Pattern matching
+let result = match x {
+    0 => "zero"
+    1 => "one"
+    _ => "other"
+}
 ```
 
-#### Shape & Reduction
+### Functions
+
 ```charl
-tensor_reshape(t, [2, 3])          // Reshape tensor
-tensor_transpose(t)                // Transpose 2D tensor
-tensor_sum(t)                      // Sum all elements
-tensor_mean(t)                     // Mean of all elements
+fn linear(x: float, m: float, b: float) -> float {
+    return m * x + b
+}
+
+let y = linear(2.0, 3.0, 1.0)  // 7.0
 ```
 
-### 🎓 Autograd (4 functions)
+---
 
+## ML Function Library
+
+### Tensor Operations (13 functions)
+
+**Creation:**
 ```charl
-tensor_requires_grad(t, true)      // Enable gradient tracking
-tensor_grad(t)                     // Get gradients
-tensor_set_grad(t, [0.1, 0.2])     // Set gradients manually
-tensor_zero_grad(t)                // Reset gradients to zero
+tensor([1.0, 2.0, 3.0])           // From array literal
+tensor_zeros([3, 3])              // Zero-initialized matrix
+tensor_ones([2, 4])               // One-initialized matrix
+tensor_randn([10, 10])            // Random normal distribution
 ```
 
-### 🧠 Neural Networks (5 functions)
-
-#### Layers
+**Arithmetic:**
 ```charl
-nn_linear(input, weight, bias)     // Fully connected: y = xW + b
+tensor_add(a, b)                  // Element-wise addition
+tensor_sub(a, b)                  // Element-wise subtraction
+tensor_mul(a, b)                  // Element-wise/scalar multiplication
+tensor_div(a, b)                  // Element-wise/scalar division
+tensor_matmul(A, B)               // Matrix multiplication
 ```
 
-#### Activations
+**Manipulation:**
 ```charl
-nn_relu(x)                         // ReLU: max(0, x)
-nn_sigmoid(x)                      // Sigmoid: 1/(1+e^-x)
-nn_tanh(x)                         // Tanh: tanh(x)
-nn_softmax(x)                      // Softmax (probabilities)
+tensor_reshape(t, [2, 3])         // Reshape dimensions
+tensor_transpose(t)               // Transpose (2D only)
+tensor_sum(t)                     // Sum reduction
+tensor_mean(t)                    // Mean reduction
 ```
 
-### 📉 Loss Functions (2 functions)
+### Autograd Functions (4 functions)
 
 ```charl
-loss_mse(pred, target)             // Mean Squared Error
-loss_cross_entropy(pred, target)   // Cross Entropy Loss
+tensor_requires_grad(t, true)     // Enable gradient tracking
+tensor_grad(t)                    // Access computed gradients
+tensor_set_grad(t, grad_values)   // Manually set gradients
+tensor_zero_grad(t)               // Reset gradients to zero
 ```
 
-### ⚙️ Optimizers (4 functions)
+### Neural Network Layers (5 functions)
+
+**Linear Layer:**
+```charl
+nn_linear(input, weight, bias)    // Fully connected: y = xW + b
+```
+
+**Activation Functions:**
+```charl
+nn_relu(x)                        // ReLU: max(0, x)
+nn_sigmoid(x)                     // Sigmoid: 1/(1+exp(-x))
+nn_tanh(x)                        // Hyperbolic tangent
+nn_softmax(x)                     // Softmax normalization
+```
+
+### Loss Functions (2 functions)
 
 ```charl
-// Stochastic Gradient Descent
+loss_mse(pred, target)            // Mean squared error
+loss_cross_entropy(pred, target)  // Cross-entropy loss
+```
+
+### Optimization (4 functions)
+
+**Stochastic Gradient Descent:**
+```charl
 optim_sgd_step(params, grads, lr)
+```
 
-// SGD with momentum (returns tuple)
+**SGD with Momentum:**
+```charl
 let result = optim_sgd_momentum_step(params, grads, velocity, lr, momentum)
 params = result.0
 velocity = result.1
+```
 
-// Adam optimizer (returns tuple)
+**Adam Optimizer:**
+```charl
 let result = optim_adam_step(params, grads, m, v, t, lr, beta1, beta2)
 params = result.0
 m = result.1
 v = result.2
+```
 
-// Gradient clipping
+**Gradient Clipping:**
+```charl
 tensor_clip_grad(grads, max_norm)
 ```
 
-### 🔁 Backpropagation (4 functions)
+### Backpropagation Helpers (4 functions)
 
 ```charl
-// Compute gradients for linear layer
+// Linear layer gradients
 let grads = autograd_compute_linear_grad(input, weight, bias, output_grad)
 let grad_input = grads.0
 let grad_weight = grads.1
 let grad_bias = grads.2
 
-// Compute gradients for activations
+// Activation gradients
 autograd_compute_relu_grad(input, output_grad)
 autograd_compute_sigmoid_grad(output, output_grad)
 
-// Compute gradients for loss
+// Loss gradients
 autograd_compute_mse_grad(pred, target)
 ```
 
 ---
 
-## 🎓 Complete Examples
+## Complete Examples
 
-### 1. Simple Optimization
+### Example 1: Parameter Optimization
 
-**Problem:** Minimize f(x) = (x - 5)²
+Minimize f(x) = (x - 5)² using gradient descent:
 
 ```charl
 let x = tensor([0.0])
 let lr = 0.1
 let epochs = 50
-
 let epoch = 0
+
 while epoch < epochs {
     // Forward
     let x_val = tensor_sum(x)
     let loss = (x_val - 5.0) * (x_val - 5.0)
 
-    // Gradient
+    // Gradient: df/dx = 2(x - 5)
     let grad = 2.0 * (x_val - 5.0)
 
     // Update
     x = optim_sgd_step(x, [grad], lr)
+    epoch = epoch + 1
+}
+// Result: x ≈ 5.0
+```
+
+### Example 2: Adam Optimizer
+
+Same optimization problem with Adam:
+
+```charl
+let x = tensor([0.0])
+let m = [0.0]
+let v = [0.0]
+let t = 0
+
+let lr = 0.5
+let beta1 = 0.9
+let beta2 = 0.999
+let epochs = 50
+let epoch = 0
+
+while epoch < epochs {
+    t = t + 1
+
+    let x_val = tensor_sum(x)
+    let grad = 2.0 * (x_val - 5.0)
+
+    let result = optim_adam_step(x, [grad], m, v, t, lr, beta1, beta2)
+    x = result.0
+    m = result.1
+    v = result.2
 
     epoch = epoch + 1
 }
-
-// Result: x ≈ 5.0 ✓
 ```
 
-### 2. Neural Network Training
+### Example 3: Multi-Layer Network
 
-**Problem:** Learn XOR function (non-linear)
+Full backpropagation through 2-layer network:
 
 ```charl
 // Network: 2 -> 4 -> 1
@@ -253,7 +352,7 @@ let b1 = tensor_zeros([4])
 let w2 = tensor_randn([4, 1])
 let b2 = tensor_zeros([1])
 
-// Training data
+// Training sample
 let x = tensor([1.0, 0.0])
 let y = tensor([1.0])
 
@@ -284,78 +383,46 @@ while epoch < epochs {
 
     epoch = epoch + 1
 }
-
-// Loss: 0.183 -> 0.001 ✓
 ```
 
-### 3. Adam Optimizer
-
-```charl
-let x = tensor([0.0])
-let m = [0.0]
-let v = [0.0]
-let t = 0
-
-let lr = 0.5
-let beta1 = 0.9
-let beta2 = 0.999
-
-let epoch = 0
-while epoch < 50 {
-    t = t + 1
-
-    // Forward
-    let x_val = tensor_sum(x)
-    let grad = 2.0 * (x_val - 5.0)
-
-    // Adam update
-    let result = optim_adam_step(x, [grad], m, v, t, lr, beta1, beta2)
-    x = result.0
-    m = result.1
-    v = result.2
-
-    epoch = epoch + 1
-}
-
-// Result: x ≈ 5.0 ✓
-```
-
-More examples in [`examples/`](examples/):
-- `tensor_basic.ch` - Basic tensor operations
+Additional examples available in [`examples/`](examples/):
+- `tensor_basic.ch` - Tensor operations
 - `tensor_matmul.ch` - Linear algebra
-- `tensor_autograd.ch` - Manual gradients
-- `neural_network.ch` - 2-layer network
-- `training_simple.ch` - Simple optimization
-- `training_backprop.ch` - Full backpropagation
+- `tensor_autograd.ch` - Gradient tracking
+- `neural_network.ch` - Network construction
+- `training_simple.ch` - Basic optimization
+- `training_backprop.ch` - Full training loop
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-Charl Language Stack
-├── Frontend (Lexer + Parser)
-│   ├── Tokenization
-│   ├── Syntax analysis
-│   └── AST construction
-├── Type System
-│   ├── Static typing
-│   └── Type inference
-├── Interpreter
-│   ├── Tree-walking execution
-│   ├── Environment management
-│   └── Builtin functions (34)
-└── Backend (Rust)
-    ├── Tensor operations
-    ├── Autograd system
-    ├── Neural network layers
-    ├── Optimizers
-    └── GPU support (wgpu)
+┌─────────────────────────────────────────┐
+│         Charl Language Stack            │
+├─────────────────────────────────────────┤
+│  Frontend                               │
+│  ├─ Lexer (Tokenization)               │
+│  ├─ Parser (AST construction)          │
+│  └─ Type system (Static checking)      │
+├─────────────────────────────────────────┤
+│  Interpreter                            │
+│  ├─ Tree-walking execution             │
+│  ├─ Environment management             │
+│  └─ Builtin dispatch (34 functions)    │
+├─────────────────────────────────────────┤
+│  Backend (Rust)                         │
+│  ├─ Tensor operations                  │
+│  ├─ Autograd system                    │
+│  ├─ Neural network primitives          │
+│  ├─ Optimizers (SGD, Momentum, Adam)   │
+│  └─ GPU support (wgpu, optional)       │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## 📦 Project Structure
+## Project Structure
 
 ```
 charlcode/
@@ -366,81 +433,29 @@ charlcode/
 │   ├── types/              # Type system
 │   ├── interpreter/        # Execution engine
 │   ├── autograd/           # Automatic differentiation
-│   ├── tensor_builtins.rs  # 34 ML functions
+│   ├── tensor_builtins.rs  # ML function implementations
 │   ├── nn/                 # Neural network layers
-│   ├── optim/              # Optimizers (SGD, Adam)
-│   ├── gpu/                # GPU acceleration (wgpu)
-│   └── main.rs             # CLI entry point
-├── examples/               # Working examples
-│   ├── tensor_basic.ch
-│   ├── tensor_matmul.ch
-│   ├── tensor_autograd.ch
-│   ├── neural_network.ch
-│   ├── training_simple.ch
-│   └── training_backprop.ch
+│   ├── optim/              # Optimization algorithms
+│   ├── gpu/                # GPU acceleration
+│   └── main.rs             # CLI interface
+├── examples/               # Example programs
 ├── benchmarks/             # Performance benchmarks
-│   └── results/            # Benchmark results
-├── vscode-charl/           # VS Code extension
-└── README.md               # This file
+├── vscode-charl/           # VS Code language extension
+└── README.md
 ```
 
 ---
 
-## 🛠️ Building from Source
-
-### Prerequisites
-
-- Rust 1.70+ ([Install Rust](https://rustup.rs/))
-- Git
-
-### Build Commands
+## CLI Usage
 
 ```bash
-# Clone repository
-git clone https://github.com/charlcoding-stack/charlcode.git
-cd charlcode
-
-# Build (debug)
-cargo build
-
-# Build (release, optimized)
-cargo build --release
-
-# Run tests
-cargo test
-
-# Run benchmarks
-cargo bench
-
-# Check code
-cargo clippy
-
-# Format code
-cargo fmt
-```
-
-### Install
-
-```bash
-# Linux/macOS
-sudo cp target/release/charl /usr/local/bin/
-
-# Verify
-charl --version
-```
-
----
-
-## 🎮 CLI Usage
-
-```bash
-# Run a script
+# Execute a script
 charl run script.ch
 
-# Start REPL
+# Interactive REPL
 charl repl
 
-# Show version
+# Display version
 charl version
 
 # Show help
@@ -449,135 +464,107 @@ charl --help
 
 ---
 
-## 📖 Language Features
+## Development
 
-### Types
+### Building
 
-```charl
-let x: int = 42
-let y: float = 3.14
-let name: string = "Charl"
-let flag: bool = true
-let arr: [int] = [1, 2, 3]
-let tup: (int, string) = (42, "answer")
+```bash
+# Debug build
+cargo build
+
+# Release build (optimized)
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run benchmarks
+cargo bench
+
+# Lint
+cargo clippy
+
+# Format
+cargo fmt
 ```
 
-### Control Flow
+### Running Tests
 
-```charl
-// If-else
-if x > 0 {
-    print("positive")
-} else {
-    print("non-positive")
-}
+```bash
+# Unit tests
+cargo test
 
-// While loop
-while x < 10 {
-    x = x + 1
-}
+# Integration tests
+cargo test --test '*'
 
-// Match expression
-let result = match x {
-    0 => "zero"
-    1 => "one"
-    _ => "many"
-}
-```
-
-### Functions
-
-```charl
-fn add(a: int, b: int) -> int {
-    return a + b
-}
-
-let sum = add(5, 3)
-```
-
-### Tuples
-
-```charl
-let pair = (3.14, "pi")
-let first = pair.0   // 3.14
-let second = pair.1  // "pi"
+# Specific test
+cargo test test_tensor_ops
 ```
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! See:
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Guidelines
+Contributions are welcome. Please see:
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development guidelines
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) - Community standards
 
-### Development Workflow
+### Contribution Process
 
 1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Make changes and add tests
-4. Run tests: `cargo test`
+2. Create a feature branch: `git checkout -b feature-name`
+3. Implement changes with tests
+4. Run test suite: `cargo test`
 5. Run linter: `cargo clippy`
 6. Format code: `cargo fmt`
-7. Commit: `git commit -m 'Add amazing feature'`
-8. Push: `git push origin feature/amazing-feature`
-9. Open Pull Request
+7. Commit changes: `git commit -m 'Description'`
+8. Push branch: `git push origin feature-name`
+9. Open pull request
 
 ---
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🌟 Community
+## References
 
-- **GitHub Issues**: [Report bugs](https://github.com/charlcoding-stack/charlcode/issues)
-- **Discussions**: [Ask questions](https://github.com/charlcoding-stack/charlcode/discussions)
-- **Website**: [charlbase.org](https://charlbase.org)
-
----
-
-## 🙏 Acknowledgments
-
-- Rust community for excellent tooling
-- PyTorch and TensorFlow for inspiration
-- wgpu team for GPU compute
-- All contributors and supporters
+- **Repository**: [github.com/charlcoding-stack/charlcode](https://github.com/charlcoding-stack/charlcode)
+- **Issues**: [github.com/charlcoding-stack/charlcode/issues](https://github.com/charlcoding-stack/charlcode/issues)
+- **Discussions**: [github.com/charlcoding-stack/charlcode/discussions](https://github.com/charlcoding-stack/charlcode/discussions)
 
 ---
 
-## 📊 Performance Details
+## Technical Details
 
-**Benchmark:** MNIST Training (1,000 samples, 5 epochs)
+### Tensor Implementation
 
-**Charl Results:**
-```
-Epoch 1/5: Loss = 2.3017, Time = 87.19ms
-Epoch 2/5: Loss = 2.3017, Time = 85.15ms
-Epoch 3/5: Loss = 2.3017, Time = 76.43ms
-Epoch 4/5: Loss = 2.3017, Time = 84.66ms
-Epoch 5/5: Loss = 2.3017, Time = 76.32ms
+Tensors are implemented as contiguous memory blocks with shape metadata. Operations use:
+- **BLAS-like routines** for matrix operations
+- **SIMD vectorization** where applicable
+- **Zero-copy views** for reshaping/transposing when possible
 
-Total: 409.83ms
-Throughput: 12,200 samples/second
-```
+### Gradient Computation
 
-**PyTorch Results:**
-```
-Epoch 1/5: Loss = 2.3037, Time = 2,692ms
-Epoch 2/5: Loss = 2.2819, Time = 3,380ms
-Epoch 3/5: Loss = 2.2112, Time = 2,048ms
-Epoch 4/5: Loss = 2.0185, Time = 2,305ms
-Epoch 5/5: Loss = 1.7649, Time = 980ms
+The autograd system uses:
+- **Computation graph** tracking (optional)
+- **Manual gradient functions** for each operation
+- **Reverse-mode differentiation** for backpropagation
 
-Total: 11,406ms
-Throughput: 540 samples/second
-```
+### Memory Management
 
-**Result: Charl is 22.33x faster than PyTorch on CPU** 🚀
+- **Stack allocation** for small tensors
+- **Heap allocation** with reference counting for large tensors
+- **No garbage collection** - deterministic cleanup via Rust's ownership
+
+### Type System
+
+- **Static typing** with Hindley-Milner style inference
+- **No implicit conversions** - explicit casts required
+- **Parametric polymorphism** for generic functions
 
 ---
 
-**Made with ❤️ by the Charl community**
+**Built by the Charl community**
