@@ -217,6 +217,12 @@ fn format_value(value: &Value) -> String {
                 tensor.data, tensor.shape
             )
         }
+        Value::GPUTensor(gpu_tensor) => {
+            format!(
+                "GPUTensor(shape={:?}, device={:?})",
+                gpu_tensor.tensor.shape, gpu_tensor.device()
+            )
+        }
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

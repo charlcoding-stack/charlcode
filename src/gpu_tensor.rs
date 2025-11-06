@@ -12,6 +12,7 @@ pub enum Device {
 }
 
 /// GPU-enabled tensor that can move between CPU and GPU
+#[derive(Debug, Clone)]
 pub struct GPUTensor {
     // Core tensor data (always on CPU for autograd)
     pub tensor: Tensor,

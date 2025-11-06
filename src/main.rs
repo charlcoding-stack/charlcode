@@ -19,7 +19,7 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(name = "charl")]
 #[command(author = "Charl Team")]
-#[command(version = "0.1.5")]
+#[command(version = "0.1.6")]
 #[command(about = "Charl - A revolutionary language for AI and Deep Learning")]
 struct Cli {
     #[command(subcommand)]
