@@ -505,35 +505,6 @@ let second = pair.1  // "pi"
 
 ---
 
-## 🎯 Roadmap
-
-### ✅ Phase 1-2: Core ML Features (Complete)
-- [x] 13 Tensor operations
-- [x] 4 Autograd functions
-- [x] 5 Neural network layers
-- [x] 2 Loss functions
-- [x] 4 Optimizers
-
-### ✅ Phase 3A: Backpropagation (Complete)
-- [x] Automatic gradient computation
-- [x] Full training loop
-- [x] 4 Backprop helper functions
-
-### 🔄 Phase 3B: Advanced Features (In Progress)
-- [ ] Conv2D layers
-- [ ] BatchNorm
-- [ ] Dropout
-- [ ] RMSprop optimizer
-- [ ] AdaGrad optimizer
-
-### 📅 Future
-- [ ] GPU acceleration (backend ready, needs frontend)
-- [ ] LLVM backend (optional)
-- [ ] Advanced architectures (Transformers, etc.)
-- [ ] Distributed training
-
----
-
 ## 🤝 Contributing
 
 We welcome contributions! See:
