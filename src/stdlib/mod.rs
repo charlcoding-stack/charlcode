@@ -247,6 +247,12 @@ fn format_value(value: &Value) -> String {
                 layer.kernel_size, layer.stride
             )
         }
+        Value::BatchNormLayer(layer) => {
+            format!(
+                "BatchNorm(features={}, eps={}, training={})",
+                layer.num_features, layer.epsilon, layer.training
+            )
+        }
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

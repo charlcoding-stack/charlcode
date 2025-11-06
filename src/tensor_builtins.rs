@@ -1634,7 +1634,24 @@ pub fn builtin_avgpool2d(args: Vec<Value>) -> Result<Value, String> {
     Ok(Value::AvgPool2dLayer(Box::new(layer)))
 }
 
-/// layer_forward(layer: LinearLayer | Conv2dLayer | MaxPool2dLayer | AvgPool2dLayer, input: Tensor) -> Tensor
+/// batchnorm(num_features: int) -> BatchNormLayer
+/// Create a BatchNorm layer for training stability
+pub fn builtin_batchnorm(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("batchnorm() expects 1 argument: batchnorm(num_features)".to_string());
+    }
+
+    let num_features = args[0].to_integer()? as usize;
+
+    if num_features == 0 {
+        return Err("batchnorm() num_features must be > 0".to_string());
+    }
+
+    let layer = crate::nn::gpu_layers::BatchNorm::new(num_features);
+    Ok(Value::BatchNormLayer(Box::new(layer)))
+}
+
+/// layer_forward(layer: Layer, input: Tensor) -> Tensor
 /// Perform forward pass through a layer
 pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
     if args.len() != 2 {
@@ -1762,11 +1779,41 @@ pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
 
             Ok(Value::AutogradTensor(output_clone.tensor))
         }
-        (Value::LinearLayer(_), _) | (Value::Conv2dLayer(_), _) | (Value::MaxPool2dLayer(_), _) | (Value::AvgPool2dLayer(_), _) => {
+        // BatchNorm Layer + GPU Tensor
+        (Value::BatchNormLayer(layer), Value::GPUTensor(input)) => {
+            let output = layer.forward(input)
+                .map_err(|e| format!("BatchNorm forward failed: {}", e))?;
+            Ok(Value::GPUTensor(output))
+        }
+        // BatchNorm Layer + CPU Tensor
+        (Value::BatchNormLayer(_), Value::AutogradTensor(input)) => {
+            let mut input_gpu = crate::gpu_tensor::GPUTensor::from_tensor(input.clone());
+            with_gpu_backend(|backend| {
+                input_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move input to GPU: {}", e))
+            })?;
+
+            let layer = match &args[0] {
+                Value::BatchNormLayer(l) => l,
+                _ => unreachable!(),
+            };
+
+            let output_gpu = layer.forward(&input_gpu)
+                .map_err(|e| format!("BatchNorm forward failed: {}", e))?;
+
+            let mut output_clone = output_gpu.clone();
+            with_gpu_backend(|backend| {
+                output_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move output to CPU: {}", e))
+            })?;
+
+            Ok(Value::AutogradTensor(output_clone.tensor))
+        }
+        (Value::LinearLayer(_), _) | (Value::Conv2dLayer(_), _) | (Value::MaxPool2dLayer(_), _) | (Value::AvgPool2dLayer(_), _) | (Value::BatchNormLayer(_), _) => {
             Err(format!("layer_forward() expects tensor input, got {}", args[1].type_name()))
         }
         _ => {
-            Err(format!("layer_forward() expects layer (Linear/Conv2d/MaxPool2d/AvgPool2d), got {}", args[0].type_name()))
+            Err(format!("layer_forward() expects a layer, got {}", args[0].type_name()))
         }
     }
 }

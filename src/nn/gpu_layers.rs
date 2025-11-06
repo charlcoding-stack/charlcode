@@ -562,6 +562,205 @@ impl AvgPool2d {
     }
 }
 
+/// BatchNorm - Batch Normalization for training stability
+/// Normalizes activations: y = (x - mean) / sqrt(var + eps) * gamma + beta
+#[derive(Debug, Clone)]
+pub struct BatchNorm {
+    pub num_features: usize,
+
+    /// Learnable scale parameter (gamma)
+    pub weight: GPUTensor,
+
+    /// Learnable shift parameter (beta)
+    pub bias: GPUTensor,
+
+    /// Running mean for inference
+    pub running_mean: Vec<f64>,
+
+    /// Running variance for inference
+    pub running_var: Vec<f64>,
+
+    /// Small constant for numerical stability
+    pub epsilon: f64,
+
+    /// Momentum for running stats update
+    pub momentum: f64,
+
+    /// Training mode flag
+    pub training: bool,
+}
+
+impl BatchNorm {
+    /// Create BatchNorm layer with default parameters
+    pub fn new(num_features: usize) -> Self {
+        // Initialize gamma to 1.0, beta to 0.0
+        let weight_data = vec![1.0; num_features];
+        let bias_data = vec![0.0; num_features];
+
+        BatchNorm {
+            num_features,
+            weight: GPUTensor::new(weight_data, vec![num_features]),
+            bias: GPUTensor::new(bias_data, vec![num_features]),
+            running_mean: vec![0.0; num_features],
+            running_var: vec![1.0; num_features],
+            epsilon: 1e-5,
+            momentum: 0.1,
+            training: true,
+        }
+    }
+
+    /// Set training mode
+    pub fn train(mut self) -> Self {
+        self.training = true;
+        self
+    }
+
+    /// Set evaluation mode
+    pub fn eval(mut self) -> Self {
+        self.training = false;
+        self
+    }
+
+    /// Forward pass: normalize across batch dimension
+    /// For 2D input [batch, features]: normalize each feature across batch
+    /// For 4D input [batch, channels, height, width]: normalize each channel
+    pub fn forward(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let input_shape = &input.tensor.shape;
+
+        match input_shape.len() {
+            2 => self.forward_2d(input),
+            4 => self.forward_4d(input),
+            _ => Err(format!(
+                "BatchNorm expects 2D [batch, features] or 4D [batch, channels, H, W], got {:?}",
+                input_shape
+            )),
+        }
+    }
+
+    /// Forward pass for 2D input [batch, features]
+    fn forward_2d(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let batch = input.tensor.shape[0];
+        let features = input.tensor.shape[1];
+
+        if features != self.num_features {
+            return Err(format!(
+                "Feature mismatch: expected {}, got {}",
+                self.num_features, features
+            ));
+        }
+
+        let mut output_data = vec![0.0; batch * features];
+
+        // For each feature
+        for f in 0..features {
+            let (mean, var) = if self.training {
+                // Calculate batch statistics
+                let mut sum = 0.0;
+                for b in 0..batch {
+                    sum += input.tensor.data[b * features + f];
+                }
+                let mean = sum / batch as f64;
+
+                let mut var_sum = 0.0;
+                for b in 0..batch {
+                    let diff = input.tensor.data[b * features + f] - mean;
+                    var_sum += diff * diff;
+                }
+                let var = var_sum / batch as f64;
+
+                (mean, var)
+            } else {
+                // Use running statistics
+                (self.running_mean[f], self.running_var[f])
+            };
+
+            let std = (var + self.epsilon).sqrt();
+            let gamma = self.weight.tensor.data[f];
+            let beta = self.bias.tensor.data[f];
+
+            // Normalize and scale
+            for b in 0..batch {
+                let idx = b * features + f;
+                let normalized = (input.tensor.data[idx] - mean) / std;
+                output_data[idx] = gamma * normalized + beta;
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, input.tensor.shape.clone()))
+    }
+
+    /// Forward pass for 4D input [batch, channels, height, width]
+    fn forward_4d(&self, input: &GPUTensor) -> Result<GPUTensor, String> {
+        let batch = input.tensor.shape[0];
+        let channels = input.tensor.shape[1];
+        let height = input.tensor.shape[2];
+        let width = input.tensor.shape[3];
+
+        if channels != self.num_features {
+            return Err(format!(
+                "Channel mismatch: expected {}, got {}",
+                self.num_features, channels
+            ));
+        }
+
+        let mut output_data = vec![0.0; batch * channels * height * width];
+        let spatial_size = height * width;
+
+        // For each channel
+        for c in 0..channels {
+            let (mean, var) = if self.training {
+                // Calculate statistics across batch and spatial dimensions
+                let mut sum = 0.0;
+                let count = (batch * spatial_size) as f64;
+
+                for b in 0..batch {
+                    for h in 0..height {
+                        for w in 0..width {
+                            let idx = b * (channels * spatial_size) + c * spatial_size + h * width + w;
+                            sum += input.tensor.data[idx];
+                        }
+                    }
+                }
+                let mean = sum / count;
+
+                let mut var_sum = 0.0;
+                for b in 0..batch {
+                    for h in 0..height {
+                        for w in 0..width {
+                            let idx = b * (channels * spatial_size) + c * spatial_size + h * width + w;
+                            let diff = input.tensor.data[idx] - mean;
+                            var_sum += diff * diff;
+                        }
+                    }
+                }
+                let var = var_sum / count;
+
+                (mean, var)
+            } else {
+                // Use running statistics
+                (self.running_mean[c], self.running_var[c])
+            };
+
+            let std = (var + self.epsilon).sqrt();
+            let gamma = self.weight.tensor.data[c];
+            let beta = self.bias.tensor.data[c];
+
+            // Normalize and scale
+            for b in 0..batch {
+                for h in 0..height {
+                    for w in 0..width {
+                        let idx = b * (channels * spatial_size) + c * spatial_size + h * width + w;
+                        let normalized = (input.tensor.data[idx] - mean) / std;
+                        output_data[idx] = gamma * normalized + beta;
+                    }
+                }
+            }
+        }
+
+        Ok(GPUTensor::new(output_data, input.tensor.shape.clone()))
+    }
+}
+
 #[cfg(test)]
 mod conv_tests {
     use super::*;
