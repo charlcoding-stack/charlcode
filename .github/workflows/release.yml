@@ -212,8 +212,14 @@ jobs:
         with:
           path: artifacts
 
-      - name: Consolidate checksums
-        run: cat artifacts/*/*.sha256 > SHA256SUMS
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f -exec cp {} release-files/ \;
+          cd release-files
+          cat *.sha256 > SHA256SUMS
+          rm *.sha256
+          ls -lh
 
       - name: Get version
         id: version
@@ -231,24 +237,19 @@ jobs:
           name: Charl ${{ steps.version.outputs.version }}
           body: |
             # Charl ${{ steps.version.outputs.version }} - Multi-Platform Release
-            
+
             ## Downloads
             - Linux x86_64: `charl-linux-x86_64.tar.gz`
             - macOS Intel: `charl-macos-x86_64.tar.gz`
             - macOS Apple Silicon: `charl-macos-arm64.tar.gz`
             - Windows x86_64: `charl-windows-x86_64.zip`
-            
+
             ## Installation
             **Linux/macOS:** `curl -sSf https://charlbase.org/install.sh | sh`
             **Windows:** `irm https://charlbase.org/install.ps1 | iex`
-            
+
             ## Verification
             See `SHA256SUMS` for checksums.
-          files: |
-            artifacts/linux-x86_64/*
-            artifacts/macos-x86_64/*
-            artifacts/macos-arm64/*
-            artifacts/windows-x86_64/*
-            SHA256SUMS
+          files: release-files/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
