@@ -19,7 +19,8 @@ pub enum Value {
         data: Vec<Value>,
         shape: Vec<usize>,
     },
-    AutogradTensor(AutogradTensor), // Tensor with gradient tracking
+    AutogradTensor(AutogradTensor), // Tensor with gradient tracking (CPU)
+    GPUTensor(crate::gpu_tensor::GPUTensor), // GPU-accelerated tensor
     Function {
         parameters: Vec<Parameter>,
         body: Vec<Statement>,
@@ -51,6 +52,9 @@ impl PartialEq for Value {
             (Value::AutogradTensor(a), Value::AutogradTensor(b)) => {
                 a.data == b.data && a.shape == b.shape
             }
+            (Value::GPUTensor(a), Value::GPUTensor(b)) => {
+                a.tensor.data == b.tensor.data && a.tensor.shape == b.tensor.shape
+            }
             (Value::Function { .. }, Value::Function { .. }) => false, // Functions are never equal
             (Value::Tuple(a), Value::Tuple(b)) => a == b,
             (Value::Null, Value::Null) => true,
@@ -69,6 +73,7 @@ impl Value {
             Value::Array(_) => "array",
             Value::Tensor { .. } => "tensor",
             Value::AutogradTensor(_) => "autograd_tensor",
+            Value::GPUTensor(_) => "gpu_tensor",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -244,6 +249,13 @@ impl Interpreter {
         builtins.insert("autograd_compute_relu_grad".to_string(), tensor_builtins::builtin_autograd_compute_relu_grad as BuiltinFn);
         builtins.insert("autograd_compute_sigmoid_grad".to_string(), tensor_builtins::builtin_autograd_compute_sigmoid_grad as BuiltinFn);
         builtins.insert("autograd_compute_mse_grad".to_string(), tensor_builtins::builtin_autograd_compute_mse_grad as BuiltinFn);
+
+        // GPU Functions
+        builtins.insert("gpu_available".to_string(), tensor_builtins::builtin_gpu_available as BuiltinFn);
+        builtins.insert("gpu_info".to_string(), tensor_builtins::builtin_gpu_info as BuiltinFn);
+        builtins.insert("tensor_device".to_string(), tensor_builtins::builtin_tensor_device as BuiltinFn);
+        builtins.insert("tensor_to_gpu".to_string(), tensor_builtins::builtin_tensor_to_gpu as BuiltinFn);
+        builtins.insert("tensor_to_cpu".to_string(), tensor_builtins::builtin_tensor_to_cpu as BuiltinFn);
 
         Interpreter {
             env: Environment::new(),

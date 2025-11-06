@@ -1,6 +1,6 @@
 [package]
 name = "charl"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 authors = ["Charl Team"]
 description = "A revolutionary programming language for AI and Deep Learning"
@@ -32,6 +32,7 @@ wgpu = { version = "0.19", features = ["wgsl"] }  # WebGPU for cross-platform GP
 bytemuck = { version = "1.14", features = ["derive"] }  # Zero-copy casting for GPU buffers
 pollster = "0.3"           # Async executor for wgpu setup
 futures-intrusive = "0.5"  # Async primitives for wgpu
+once_cell = "1.19"         # Global GPU backend singleton
 
 # LLVM Support (Phase 7) - REACTIVADO
 # Nota: Si hay problemas de compilación con Polly, usar llvm-sys directamente

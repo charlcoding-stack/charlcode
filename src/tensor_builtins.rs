@@ -3,6 +3,37 @@
 
 use crate::autograd::Tensor as AutogradTensor;
 use crate::interpreter::Value;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+// Global GPU backend singleton - shared across all GPU operations
+// This ensures buffer IDs remain valid across function calls
+static GPU_BACKEND: Lazy<Mutex<Option<crate::gpu::wgpu_backend::WgpuBackend>>> = Lazy::new(|| {
+    Mutex::new(None)
+});
+
+/// Initialize the global GPU backend if not already initialized
+fn get_or_init_gpu_backend() -> Result<(), String> {
+    let mut backend = GPU_BACKEND.lock().unwrap();
+    if backend.is_none() {
+        *backend = Some(
+            crate::gpu::wgpu_backend::WgpuBackend::new_sync()
+                .map_err(|e| format!("Failed to initialize GPU backend: {:?}", e))?
+        );
+    }
+    Ok(())
+}
+
+/// Execute a GPU operation with the global backend
+fn with_gpu_backend<F, R>(f: F) -> Result<R, String>
+where
+    F: FnOnce(&mut crate::gpu::wgpu_backend::WgpuBackend) -> Result<R, String>,
+{
+    get_or_init_gpu_backend()?;
+    let mut backend = GPU_BACKEND.lock().unwrap();
+    let backend_ref = backend.as_mut().ok_or("GPU backend not initialized")?;
+    f(backend_ref)
+}
 
 /// Builtin function type
 pub type BuiltinFn = fn(Vec<Value>) -> Result<Value, String>;
@@ -71,6 +102,7 @@ pub fn builtin_tensor_add(args: Vec<Value>) -> Result<Value, String> {
     }
 
     match (&args[0], &args[1]) {
+        // CPU + CPU
         (Value::AutogradTensor(a), Value::AutogradTensor(b)) => {
             // Check shapes match
             if a.shape != b.shape {
@@ -91,6 +123,42 @@ pub fn builtin_tensor_add(args: Vec<Value>) -> Result<Value, String> {
             let result_tensor = AutogradTensor::new(result_data, a.shape.clone());
             Ok(Value::AutogradTensor(result_tensor))
         }
+        // GPU + GPU - operates on CPU tensors inside
+        (Value::GPUTensor(a), Value::GPUTensor(b)) => {
+            if a.tensor.shape != b.tensor.shape {
+                return Err(format!(
+                    "tensor_add(): shape mismatch {:?} vs {:?}",
+                    a.tensor.shape, b.tensor.shape
+                ));
+            }
+
+            // Operate on the CPU tensor data (which GPUTensor always has)
+            let result_data: Vec<f64> = a.tensor.data
+                .iter()
+                .zip(b.tensor.data.iter())
+                .map(|(x, y)| x + y)
+                .collect();
+
+            // Create result tensor
+            let result_tensor = AutogradTensor::new(result_data, a.tensor.shape.clone());
+
+            // Create GPU tensor and move to GPU using global backend
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        // Mixed CPU/GPU - require explicit conversion
+        (Value::AutogradTensor(_), Value::GPUTensor(_)) => {
+            Err("Cannot add CPU tensor + GPU tensor. Use tensor_to_gpu() or tensor_to_cpu() to convert first.".to_string())
+        }
+        (Value::GPUTensor(_), Value::AutogradTensor(_)) => {
+            Err("Cannot add GPU tensor + CPU tensor. Use tensor_to_gpu() or tensor_to_cpu() to convert first.".to_string())
+        }
         _ => Err("tensor_add() expects two tensors".to_string()),
     }
 }
@@ -103,7 +171,7 @@ pub fn builtin_tensor_mul(args: Vec<Value>) -> Result<Value, String> {
     }
 
     match (&args[0], &args[1]) {
-        // Tensor * Tensor (element-wise)
+        // CPU Tensor * CPU Tensor (element-wise)
         (Value::AutogradTensor(a), Value::AutogradTensor(b)) => {
             if a.shape != b.shape {
                 return Err(format!(
@@ -122,7 +190,34 @@ pub fn builtin_tensor_mul(args: Vec<Value>) -> Result<Value, String> {
             let result_tensor = AutogradTensor::new(result_data, a.shape.clone());
             Ok(Value::AutogradTensor(result_tensor))
         }
-        // Tensor * Scalar
+        // GPU Tensor * GPU Tensor (element-wise)
+        (Value::GPUTensor(a), Value::GPUTensor(b)) => {
+            if a.tensor.shape != b.tensor.shape {
+                return Err(format!(
+                    "tensor_mul(): shape mismatch {:?} vs {:?}",
+                    a.tensor.shape, b.tensor.shape
+                ));
+            }
+
+            // Operate on CPU tensor data for now (GPU backend has mul but using CPU data is simpler)
+            let result_data: Vec<f64> = a.tensor.data
+                .iter()
+                .zip(b.tensor.data.iter())
+                .map(|(x, y)| x * y)
+                .collect();
+
+            let result_tensor = AutogradTensor::new(result_data, a.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            // Move to GPU using global backend
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        // CPU Tensor * Scalar
         (Value::AutogradTensor(tensor), scalar) => {
             let scalar_val = scalar.to_float()?;
 
@@ -130,6 +225,27 @@ pub fn builtin_tensor_mul(args: Vec<Value>) -> Result<Value, String> {
 
             let result_tensor = AutogradTensor::new(result_data, tensor.shape.clone());
             Ok(Value::AutogradTensor(result_tensor))
+        }
+        // GPU Tensor * Scalar
+        (Value::GPUTensor(tensor), scalar) => {
+            let scalar_val = scalar.to_float()?;
+
+            let result_data: Vec<f64> = tensor.tensor.data.iter().map(|x| x * scalar_val).collect();
+
+            let result_tensor = AutogradTensor::new(result_data, tensor.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            // Move to GPU using global backend
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        // Mixed CPU/GPU - require explicit conversion
+        (Value::AutogradTensor(_), Value::GPUTensor(_)) | (Value::GPUTensor(_), Value::AutogradTensor(_)) => {
+            Err("Cannot multiply CPU tensor and GPU tensor. Use tensor_to_gpu() or tensor_to_cpu() to convert first.".to_string())
         }
         _ => Err("tensor_mul() expects (tensor, tensor) or (tensor, scalar)".to_string()),
     }
@@ -205,6 +321,7 @@ pub fn builtin_tensor_matmul(args: Vec<Value>) -> Result<Value, String> {
     }
 
     match (&args[0], &args[1]) {
+        // CPU matmul
         (Value::AutogradTensor(a), Value::AutogradTensor(b)) => {
             // For now, only support 2D matrices
             if a.shape.len() != 2 || b.shape.len() != 2 {
@@ -236,6 +353,51 @@ pub fn builtin_tensor_matmul(args: Vec<Value>) -> Result<Value, String> {
 
             let result_tensor = AutogradTensor::new(result_data, vec![m, n]);
             Ok(Value::AutogradTensor(result_tensor))
+        }
+        // GPU matmul
+        (Value::GPUTensor(a), Value::GPUTensor(b)) => {
+            // Only support 2D matrices
+            if a.tensor.shape.len() != 2 || b.tensor.shape.len() != 2 {
+                return Err("tensor_matmul() currently only supports 2D matrices".to_string());
+            }
+
+            let (m, k1) = (a.tensor.shape[0], a.tensor.shape[1]);
+            let (k2, n) = (b.tensor.shape[0], b.tensor.shape[1]);
+
+            if k1 != k2 {
+                return Err(format!(
+                    "tensor_matmul(): incompatible shapes ({}, {}) x ({}, {})",
+                    m, k1, k2, n
+                ));
+            }
+
+            // Perform matrix multiplication on CPU data (GPU backend matmul also available)
+            let mut result_data = vec![0.0; m * n];
+
+            for i in 0..m {
+                for j in 0..n {
+                    let mut sum = 0.0;
+                    for k in 0..k1 {
+                        sum += a.tensor.data[i * k1 + k] * b.tensor.data[k * n + j];
+                    }
+                    result_data[i * n + j] = sum;
+                }
+            }
+
+            let result_tensor = AutogradTensor::new(result_data, vec![m, n]);
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            // Move to GPU using global backend
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        // Mixed CPU/GPU - require explicit conversion
+        (Value::AutogradTensor(_), Value::GPUTensor(_)) | (Value::GPUTensor(_), Value::AutogradTensor(_)) => {
+            Err("Cannot matmul CPU tensor and GPU tensor. Use tensor_to_gpu() or tensor_to_cpu() to convert first.".to_string())
         }
         _ => Err("tensor_matmul() expects two tensors".to_string()),
     }
@@ -1277,5 +1439,111 @@ pub fn builtin_autograd_compute_mse_grad(args: Vec<Value>) -> Result<Value, Stri
             Ok(Value::Array(result))
         }
         _ => Err("autograd_compute_mse_grad() expects two tensors".to_string()),
+    }
+}
+
+// ============================================================================
+// GPU FUNCTIONS
+// ============================================================================
+
+/// gpu_available() -> bool
+/// Check if GPU support is available (WGPU backend)
+pub fn builtin_gpu_available(_args: Vec<Value>) -> Result<Value, String> {
+    // Check if WGPU can initialize
+    match crate::gpu::wgpu_backend::WgpuBackend::new_sync() {
+        Ok(_) => Ok(Value::Boolean(true)),
+        Err(_) => Ok(Value::Boolean(false)),
+    }
+}
+
+/// gpu_info() -> string
+/// Get information about available GPU
+pub fn builtin_gpu_info(_args: Vec<Value>) -> Result<Value, String> {
+    match crate::gpu::wgpu_backend::WgpuBackend::new_sync() {
+        Ok(backend) => {
+            let info_struct = backend.adapter_info();
+            let info = format!(
+                "GPU Backend: WGPU\nAdapter: {}\nBackend: {:?}",
+                info_struct.name, info_struct.backend
+            );
+            Ok(Value::String(info))
+        }
+        Err(e) => Ok(Value::String(format!("GPU not available: {:?}", e))),
+    }
+}
+
+/// tensor_device(t: Tensor) -> string
+/// Get the device where a tensor resides
+pub fn builtin_tensor_device(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_device() expects 1 argument: tensor_device(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(_) => {
+            Ok(Value::String("CPU".to_string()))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            let device = if gpu_tensor.is_gpu() { "GPU" } else { "CPU" };
+            Ok(Value::String(device.to_string()))
+        }
+        _ => Err("tensor_device() expects a tensor".to_string()),
+    }
+}
+
+/// tensor_to_gpu(t: Tensor) -> GPUTensor
+/// Move a tensor to GPU memory and return GPU-accelerated tensor
+pub fn builtin_tensor_to_gpu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_to_gpu() expects 1 argument: tensor_to_gpu(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            // Create GPUTensor from AutogradTensor
+            let mut gpu_tensor = crate::gpu_tensor::GPUTensor::from_tensor(tensor.clone());
+
+            // Move data to GPU using global backend
+            with_gpu_backend(|backend| {
+                gpu_tensor.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move tensor to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(gpu_tensor))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            // Already on GPU, return as-is
+            Ok(Value::GPUTensor(gpu_tensor.clone()))
+        }
+        _ => Err("tensor_to_gpu() expects a tensor".to_string()),
+    }
+}
+
+/// tensor_to_cpu(t: Tensor) -> Tensor
+/// Move a tensor from GPU to CPU memory
+pub fn builtin_tensor_to_cpu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_to_cpu() expects 1 argument: tensor_to_cpu(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::GPUTensor(gpu_tensor) => {
+            // Clone the GPU tensor so we can mutate it
+            let mut gpu_tensor_clone = gpu_tensor.clone();
+
+            // Move data from GPU to CPU using global backend
+            with_gpu_backend(|backend| {
+                gpu_tensor_clone.to_cpu(backend)
+                    .map_err(|e| format!("Failed to move tensor to CPU: {}", e))
+            })?;
+
+            // Return the CPU tensor
+            Ok(Value::AutogradTensor(gpu_tensor_clone.tensor))
+        }
+        Value::AutogradTensor(tensor) => {
+            // Already on CPU, return as-is
+            Ok(Value::AutogradTensor(tensor.clone()))
+        }
+        _ => Err("tensor_to_cpu() expects a tensor".to_string()),
     }
 }

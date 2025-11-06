@@ -347,6 +347,11 @@ impl WgpuBackend {
 
         Ok(result)
     }
+
+    /// Get adapter info (for GPU introspection)
+    pub fn adapter_info(&self) -> wgpu::AdapterInfo {
+        self.adapter.get_info()
+    }
 }
 
 impl ComputeBackend for WgpuBackend {
