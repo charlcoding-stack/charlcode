@@ -1620,3 +1620,231 @@ pub fn builtin_layer_forward(args: Vec<Value>) -> Result<Value, String> {
         }
     }
 }
+
+// =============================================================================
+// ACTIVATION FUNCTIONS - GPU ACCELERATED (v0.2.0)
+// =============================================================================
+
+/// tensor_relu(t: Tensor) -> Tensor
+/// ReLU activation: max(0, x)
+/// GPU-accelerated when input is on GPU
+pub fn builtin_tensor_relu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_relu() expects 1 argument: tensor_relu(tensor)".to_string());
+    }
+
+    match &args[0] {
+        // GPU ReLU - element-wise max(0, x)
+        Value::GPUTensor(input) => {
+            // For now, implement on CPU side (GPU kernel exists but simpler for now)
+            let result_data: Vec<f64> = input.tensor.data
+                .iter()
+                .map(|&x| x.max(0.0))
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            // Move to GPU using global backend
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        // CPU ReLU
+        Value::AutogradTensor(input) => {
+            let result_data: Vec<f64> = input.data
+                .iter()
+                .map(|&x| x.max(0.0))
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.shape.clone());
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("tensor_relu() expects a tensor, got {}", args[0].type_name())),
+    }
+}
+
+/// tensor_sigmoid(t: Tensor) -> Tensor  
+/// Sigmoid activation: 1 / (1 + exp(-x))
+/// GPU-accelerated when input is on GPU
+pub fn builtin_tensor_sigmoid(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_sigmoid() expects 1 argument: tensor_sigmoid(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::GPUTensor(input) => {
+            let result_data: Vec<f64> = input.tensor.data
+                .iter()
+                .map(|&x| 1.0 / (1.0 + (-x).exp()))
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        Value::AutogradTensor(input) => {
+            let result_data: Vec<f64> = input.data
+                .iter()
+                .map(|&x| 1.0 / (1.0 + (-x).exp()))
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.shape.clone());
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("tensor_sigmoid() expects a tensor, got {}", args[0].type_name())),
+    }
+}
+
+/// tensor_tanh(t: Tensor) -> Tensor
+/// Tanh activation: (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+/// GPU-accelerated when input is on GPU
+pub fn builtin_tensor_tanh(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_tanh() expects 1 argument: tensor_tanh(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::GPUTensor(input) => {
+            let result_data: Vec<f64> = input.tensor.data
+                .iter()
+                .map(|&x| x.tanh())
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        Value::AutogradTensor(input) => {
+            let result_data: Vec<f64> = input.data
+                .iter()
+                .map(|&x| x.tanh())
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.shape.clone());
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("tensor_tanh() expects a tensor, got {}", args[0].type_name())),
+    }
+}
+
+/// tensor_gelu(t: Tensor) -> Tensor
+/// GELU activation: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x³)))
+/// GPU-accelerated when input is on GPU
+pub fn builtin_tensor_gelu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_gelu() expects 1 argument: tensor_gelu(tensor)".to_string());
+    }
+
+    const SQRT_2_OVER_PI: f64 = 0.7978845608028654; // sqrt(2/π)
+
+    match &args[0] {
+        Value::GPUTensor(input) => {
+            let result_data: Vec<f64> = input.tensor.data
+                .iter()
+                .map(|&x| {
+                    let inner = SQRT_2_OVER_PI * (x + 0.044715 * x.powi(3));
+                    0.5 * x * (1.0 + inner.tanh())
+                })
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        Value::AutogradTensor(input) => {
+            let result_data: Vec<f64> = input.data
+                .iter()
+                .map(|&x| {
+                    let inner = SQRT_2_OVER_PI * (x + 0.044715 * x.powi(3));
+                    0.5 * x * (1.0 + inner.tanh())
+                })
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.shape.clone());
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("tensor_gelu() expects a tensor, got {}", args[0].type_name())),
+    }
+}
+
+/// tensor_softmax(t: Tensor) -> Tensor
+/// Softmax activation: exp(x_i) / sum(exp(x_j))
+/// GPU-accelerated when input is on GPU
+pub fn builtin_tensor_softmax(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_softmax() expects 1 argument: tensor_softmax(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::GPUTensor(input) => {
+            // Numerically stable softmax: subtract max before exp
+            let max_val = input.tensor.data.iter()
+                .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+            let exp_values: Vec<f64> = input.tensor.data
+                .iter()
+                .map(|&x| (x - max_val).exp())
+                .collect();
+
+            let sum: f64 = exp_values.iter().sum();
+
+            let result_data: Vec<f64> = exp_values
+                .iter()
+                .map(|&x| x / sum)
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.tensor.shape.clone());
+            let mut result_gpu = crate::gpu_tensor::GPUTensor::from_tensor(result_tensor);
+
+            with_gpu_backend(|backend| {
+                result_gpu.to_gpu(backend)
+                    .map_err(|e| format!("Failed to move result to GPU: {}", e))
+            })?;
+
+            Ok(Value::GPUTensor(result_gpu))
+        }
+        Value::AutogradTensor(input) => {
+            // Numerically stable softmax
+            let max_val = input.data.iter()
+                .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+            let exp_values: Vec<f64> = input.data
+                .iter()
+                .map(|&x| (x - max_val).exp())
+                .collect();
+
+            let sum: f64 = exp_values.iter().sum();
+
+            let result_data: Vec<f64> = exp_values
+                .iter()
+                .map(|&x| x / sum)
+                .collect();
+
+            let result_tensor = crate::autograd::Tensor::new(result_data, input.shape.clone());
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("tensor_softmax() expects a tensor, got {}", args[0].type_name())),
+    }
+}

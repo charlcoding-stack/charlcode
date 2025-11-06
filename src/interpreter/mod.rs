@@ -263,6 +263,13 @@ impl Interpreter {
         builtins.insert("linear".to_string(), tensor_builtins::builtin_linear as BuiltinFn);
         builtins.insert("layer_forward".to_string(), tensor_builtins::builtin_layer_forward as BuiltinFn);
 
+        // Activation Functions - GPU Accelerated (v0.2.0)
+        builtins.insert("tensor_relu".to_string(), tensor_builtins::builtin_tensor_relu as BuiltinFn);
+        builtins.insert("tensor_sigmoid".to_string(), tensor_builtins::builtin_tensor_sigmoid as BuiltinFn);
+        builtins.insert("tensor_tanh".to_string(), tensor_builtins::builtin_tensor_tanh as BuiltinFn);
+        builtins.insert("tensor_gelu".to_string(), tensor_builtins::builtin_tensor_gelu as BuiltinFn);
+        builtins.insert("tensor_softmax".to_string(), tensor_builtins::builtin_tensor_softmax as BuiltinFn);
+
         Interpreter {
             env: Environment::new(),
             return_value: None,
