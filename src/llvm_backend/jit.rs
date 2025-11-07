@@ -106,6 +106,90 @@ impl<'ctx> JITEngine<'ctx> {
 
         Ok(())
     }
+
+    /// Execute ReLU activation: output[i] = max(0, input[i])
+    ///
+    /// # Safety
+    /// Pointers must be valid and point to arrays of at least `size` elements
+    pub unsafe fn execute_relu(
+        &self,
+        input: *const f32,
+        output: *mut f32,
+        size: usize,
+    ) -> Result<(), String> {
+        type ReLUFn = unsafe extern "C" fn(*const f32, *mut f32, i64);
+
+        let relu_fn: JitFunction<ReLUFn> = self.get_function("relu")?;
+
+        relu_fn.call(input, output, size as i64);
+
+        Ok(())
+    }
+
+    /// Execute Sigmoid activation: output[i] = 1 / (1 + exp(-input[i]))
+    ///
+    /// # Safety
+    /// Pointers must be valid and point to arrays of at least `size` elements
+    pub unsafe fn execute_sigmoid(
+        &self,
+        input: *const f32,
+        output: *mut f32,
+        size: usize,
+    ) -> Result<(), String> {
+        type SigmoidFn = unsafe extern "C" fn(*const f32, *mut f32, i64);
+
+        let sigmoid_fn: JitFunction<SigmoidFn> = self.get_function("sigmoid")?;
+
+        sigmoid_fn.call(input, output, size as i64);
+
+        Ok(())
+    }
+
+    /// Execute Tanh activation: output[i] = tanh(input[i])
+    ///
+    /// # Safety
+    /// Pointers must be valid and point to arrays of at least `size` elements
+    pub unsafe fn execute_tanh(
+        &self,
+        input: *const f32,
+        output: *mut f32,
+        size: usize,
+    ) -> Result<(), String> {
+        type TanhFn = unsafe extern "C" fn(*const f32, *mut f32, i64);
+
+        let tanh_fn: JitFunction<TanhFn> = self.get_function("tanh")?;
+
+        tanh_fn.call(input, output, size as i64);
+
+        Ok(())
+    }
+
+    /// Execute matrix multiplication: C[m×n] = A[m×k] @ B[k×n]
+    ///
+    /// # Safety
+    /// Pointers must be valid and point to arrays of appropriate sizes:
+    /// - a: m * k elements
+    /// - b: k * n elements
+    /// - output: m * n elements
+    pub unsafe fn execute_matmul(
+        &self,
+        a: *const f32,
+        b: *const f32,
+        output: *mut f32,
+        m: u32,
+        n: u32,
+        k: u32,
+    ) -> Result<(), String> {
+        type MatMulFn = unsafe extern "C" fn(*const f32, *const f32, *mut f32, i32, i32, i32);
+
+        // Function name format: matmul_MxNxK
+        let fn_name = format!("matmul_{}x{}x{}", m, n, k);
+        let matmul_fn: JitFunction<MatMulFn> = self.get_function(&fn_name)?;
+
+        matmul_fn.call(a, b, output, m as i32, n as i32, k as i32);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

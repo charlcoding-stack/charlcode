@@ -467,6 +467,7 @@ impl fmt::Display for Clause {
     }
 }
 
+#[derive(Debug, Clone)]
 /// FOL Solver: Prolog-like inference engine
 pub struct FOLSolver {
     /// Knowledge base (clauses)

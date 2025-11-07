@@ -235,6 +235,7 @@ pub enum ConceptRelation {
     Custom(String),
 }
 
+#[derive(Debug, Clone)]
 /// Hierarchical concept graph
 pub struct ConceptGraph {
     /// All concepts

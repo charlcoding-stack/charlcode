@@ -21,6 +21,7 @@ use std::collections::HashMap;
 pub type NodeEmbedding = Vec<f64>;
 
 /// Graph Neural Network Layer
+#[derive(Debug, Clone)]
 pub struct GraphNeuralNetwork {
     /// Embedding dimension
     embedding_dim: usize,

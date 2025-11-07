@@ -105,6 +105,7 @@ pub enum SearchStrategy {
 }
 
 /// Tree of Thoughts reasoner
+#[derive(Debug, Clone)]
 pub struct TreeOfThoughts {
     /// All nodes in the tree
     pub nodes: HashMap<usize, ThoughtNode>,

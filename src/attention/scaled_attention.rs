@@ -15,6 +15,7 @@
 ///
 /// This is the core attention mechanism that computes attention scores
 /// between queries and keys, then uses those scores to weight the values.
+#[derive(Debug, Clone)]
 pub struct ScaledDotProductAttention {
     /// Dimension of keys (for scaling)
     d_k: usize,

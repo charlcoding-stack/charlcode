@@ -31,6 +31,7 @@ use std::f32::consts::PI;
 /// Approximate: QK^T ≈ Q(E^T K)^T where E projects K to lower dimension
 ///
 /// Complexity: O(ndk) where k << n (projection dimension)
+#[derive(Debug, Clone)]
 pub struct Linformer {
     /// Model dimension
     pub d_model: usize,
@@ -164,6 +165,7 @@ impl Linformer {
 /// softmax(qk^T) ≈ φ(q)^T φ(k) where φ is random feature map
 ///
 /// Complexity: O(nd²) where d is typically small
+#[derive(Debug, Clone)]
 pub struct Performer {
     pub d_model: usize,
     pub num_features: usize,
@@ -265,6 +267,7 @@ impl Performer {
 /// No learned parameters for mixing!
 ///
 /// Complexity: O(n log n) vs O(n²) attention
+#[derive(Debug, Clone)]
 pub struct FNet {
     pub d_model: usize,
 }
@@ -326,6 +329,7 @@ impl FNet {
 /// Uses time-mixing and channel-mixing without quadratic attention
 ///
 /// Complexity: O(n) - truly linear!
+#[derive(Debug, Clone)]
 pub struct RWKV {
     pub d_model: usize,
     /// Time-mixing weights

@@ -80,6 +80,19 @@ PROGRESS_SESSION_*.md
 benchmarks/BENCHMARK_RESULTS.md
 benchmarks/PROGRESS_SESSION_*.md
 
+# Training and analysis reports (internal)
+TRAINING_SUCCESS_REPORT.md
+TRAINING_FINAL_REPORT.md
+MEJORAS_PARA_CIENTIFICOS.md
+BACKEND_EXPOSURE_AUDIT.md
+WEEKS_1-15_COMPLETION_STATUS.md
+BACKEND_EXPOSURE_STATUS.md
+BACKEND_COMPLETION_SUMMARY.md
+
+# Test files (development only)
+test_*.ch
+*_debug.ch
+
 # Release binaries (upload to GitHub Releases instead)
 releases/*.tar.gz
 releases/*.zip

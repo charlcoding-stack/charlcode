@@ -300,6 +300,7 @@ fn pattern_matches(text: &str, pattern: &str) -> bool {
     }
 }
 
+#[derive(Debug, Clone)]
 /// Rule Engine - executes multiple rules
 pub struct RuleEngine {
     rules: Vec<Rule>,

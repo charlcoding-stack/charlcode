@@ -13,6 +13,7 @@ pub trait Optimizer {
 }
 
 // SGD (Stochastic Gradient Descent) with optional momentum
+#[derive(Debug, Clone)]
 pub struct SGD {
     pub lr: f64,
     pub momentum: f64,
@@ -98,6 +99,7 @@ impl Optimizer for SGD {
 }
 
 // Adam (Adaptive Moment Estimation)
+#[derive(Debug, Clone)]
 pub struct Adam {
     pub lr: f64,
     pub beta1: f64,
@@ -200,6 +202,7 @@ impl Optimizer for Adam {
 }
 
 // RMSprop (Root Mean Square Propagation)
+#[derive(Debug, Clone)]
 pub struct RMSprop {
     pub lr: f64,
     pub alpha: f64,

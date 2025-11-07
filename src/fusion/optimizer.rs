@@ -27,6 +27,7 @@ pub struct FusionStats {
 
 /// The Fusion Optimizer
 /// Analyzes computational graphs and identifies fusion opportunities
+#[derive(Clone, Debug)]
 pub struct FusionOptimizer {
     config: FusionConfig,
     stats: FusionStats,

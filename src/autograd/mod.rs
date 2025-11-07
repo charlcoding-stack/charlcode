@@ -2,6 +2,7 @@
 // Phase 4: Computational graph and gradient computation
 
 use std::collections::HashMap;
+use std::cell::RefCell;
 
 // Unique ID generator for graph nodes
 static mut NEXT_ID: usize = 0;
@@ -12,6 +13,49 @@ fn next_id() -> usize {
         NEXT_ID += 1;
         id
     }
+}
+
+// Global computation graph (thread-local for safety)
+thread_local! {
+    static GLOBAL_GRAPH: RefCell<ComputationGraph> = RefCell::new(ComputationGraph::new());
+}
+
+// Access the global graph with a closure
+pub fn with_global_graph<F, R>(f: F) -> R
+where
+    F: FnOnce(&ComputationGraph) -> R,
+{
+    GLOBAL_GRAPH.with(|graph| f(&graph.borrow()))
+}
+
+// Access the global graph mutably with a closure
+pub fn with_global_graph_mut<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut ComputationGraph) -> R,
+{
+    GLOBAL_GRAPH.with(|graph| f(&mut graph.borrow_mut()))
+}
+
+// Clear/reset the global graph
+pub fn reset_global_graph() {
+    GLOBAL_GRAPH.with(|graph| {
+        *graph.borrow_mut() = ComputationGraph::new();
+    });
+}
+
+// Add a tensor to the global graph
+pub fn add_to_global_graph(tensor: Tensor) -> usize {
+    with_global_graph_mut(|graph| graph.add_node(tensor))
+}
+
+// Get a tensor from the global graph
+pub fn get_from_global_graph(id: usize) -> Option<Tensor> {
+    with_global_graph(|graph| graph.get_node(id).cloned())
+}
+
+// Perform backward pass on the global graph
+pub fn backward_global(output_id: usize) -> Result<(), String> {
+    with_global_graph_mut(|graph| graph.backward(output_id))
 }
 
 // Operation types in the computational graph
@@ -26,6 +70,14 @@ pub enum Op {
     Pow(usize, f64),      // Power (x^n)
     Sum(usize),           // Sum all elements
     MatMul(usize, usize), // Matrix multiplication
+    // NN Operations
+    Linear(usize, usize, usize), // Linear layer: input, weight, bias
+    ReLU(usize),          // ReLU activation
+    Sigmoid(usize),       // Sigmoid activation
+    Tanh(usize),          // Tanh activation
+    Softmax(usize),       // Softmax activation
+    // Loss functions
+    MSELoss(usize, usize), // Mean Squared Error: pred, target
 }
 
 // Tensor data structure for autograd
@@ -197,6 +249,24 @@ impl ComputationGraph {
                 Op::MatMul(left_id, right_id) => {
                     self.backward_matmul(*left_id, *right_id, &node_grad)?;
                 }
+                Op::Linear(input_id, weight_id, bias_id) => {
+                    self.backward_linear(*input_id, *weight_id, *bias_id, &node_grad)?;
+                }
+                Op::ReLU(input_id) => {
+                    self.backward_relu(*input_id, &node_grad)?;
+                }
+                Op::Sigmoid(input_id) => {
+                    self.backward_sigmoid(*node_id, *input_id, &node_grad)?;
+                }
+                Op::Tanh(input_id) => {
+                    self.backward_tanh(*node_id, *input_id, &node_grad)?;
+                }
+                Op::Softmax(input_id) => {
+                    self.backward_softmax(*node_id, *input_id, &node_grad)?;
+                }
+                Op::MSELoss(pred_id, target_id) => {
+                    self.backward_mse_loss(*pred_id, *target_id, &node_grad)?;
+                }
             }
         }
 
@@ -238,12 +308,17 @@ impl ComputationGraph {
         // Visit dependencies based on operation
         match &node.op {
             Op::Leaf => {}
-            Op::Add(l, r) | Op::Sub(l, r) | Op::Mul(l, r) | Op::Div(l, r) | Op::MatMul(l, r) => {
+            Op::Add(l, r) | Op::Sub(l, r) | Op::Mul(l, r) | Op::Div(l, r) | Op::MatMul(l, r) | Op::MSELoss(l, r) => {
                 self.visit(*l, visited, temp_mark, sorted)?;
                 self.visit(*r, visited, temp_mark, sorted)?;
             }
-            Op::Neg(i) | Op::Pow(i, _) | Op::Sum(i) => {
+            Op::Neg(i) | Op::Pow(i, _) | Op::Sum(i) | Op::ReLU(i) | Op::Sigmoid(i) | Op::Tanh(i) | Op::Softmax(i) => {
                 self.visit(*i, visited, temp_mark, sorted)?;
+            }
+            Op::Linear(input, weight, bias) => {
+                self.visit(*input, visited, temp_mark, sorted)?;
+                self.visit(*weight, visited, temp_mark, sorted)?;
+                self.visit(*bias, visited, temp_mark, sorted)?;
             }
         }
 
@@ -435,13 +510,281 @@ impl ComputationGraph {
 
     fn backward_matmul(
         &mut self,
-        _left_id: usize,
-        _right_id: usize,
-        _grad: &[f64],
+        left_id: usize,
+        right_id: usize,
+        grad_output: &[f64],
     ) -> Result<(), String> {
-        // TODO: Implement matrix multiplication gradient
-        // This is complex and will be implemented in a later phase
-        Err("Matrix multiplication gradients not yet implemented".to_string())
+        // Forward: C = A @ B  (shape: [m,k] @ [k,n] = [m,n])
+        // Backward:
+        //   dL/dA = dL/dC @ B^T  (shape: [m,n] @ [n,k] = [m,k])
+        //   dL/dB = A^T @ dL/dC  (shape: [k,m] @ [m,n] = [k,n])
+
+        let left_node = self.get_node(left_id).unwrap();
+        let right_node = self.get_node(right_id).unwrap();
+
+        let left_shape = left_node.shape.clone();
+        let right_shape = right_node.shape.clone();
+        let left_data = left_node.data.clone();
+        let right_data = right_node.data.clone();
+
+        // Assuming 2D matrices for simplicity
+        if left_shape.len() != 2 || right_shape.len() != 2 {
+            return Err("MatMul gradient only supports 2D matrices".to_string());
+        }
+
+        let (m, k) = (left_shape[0], left_shape[1]);
+        let (_k2, n) = (right_shape[0], right_shape[1]);
+
+        // Compute dL/dA = dL/dC @ B^T
+        if let Some(left) = self.get_node_mut(left_id) {
+            if left.requires_grad {
+                if let Some(ref mut left_grad) = left.grad {
+                    for i in 0..m {
+                        for j in 0..k {
+                            let mut sum = 0.0;
+                            for l in 0..n {
+                                sum += grad_output[i * n + l] * right_data[j * n + l];
+                            }
+                            left_grad[i * k + j] += sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Compute dL/dB = A^T @ dL/dC
+        if let Some(right) = self.get_node_mut(right_id) {
+            if right.requires_grad {
+                if let Some(ref mut right_grad) = right.grad {
+                    for i in 0..k {
+                        for j in 0..n {
+                            let mut sum = 0.0;
+                            for l in 0..m {
+                                sum += left_data[l * k + i] * grad_output[l * n + j];
+                            }
+                            right_grad[i * n + j] += sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_linear(
+        &mut self,
+        input_id: usize,
+        weight_id: usize,
+        bias_id: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: y = x @ W + b
+        // Backward:
+        //   dL/dx = dL/dy @ W^T
+        //   dL/dW = x^T @ dL/dy
+        //   dL/db = sum(dL/dy, axis=0)
+
+        let input_node = self.get_node(input_id).unwrap();
+        let weight_node = self.get_node(weight_id).unwrap();
+
+        let input_data = input_node.data.clone();
+        let weight_data = weight_node.data.clone();
+        let input_shape = input_node.shape.clone();
+        let weight_shape = weight_node.shape.clone();
+
+        let (batch, in_features) = if input_shape.len() == 1 {
+            (1, input_shape[0])
+        } else {
+            (input_shape[0], input_shape[1])
+        };
+        let (_in_features2, out_features) = (weight_shape[0], weight_shape[1]);
+
+        // dL/dx = dL/dy @ W^T
+        if let Some(input) = self.get_node_mut(input_id) {
+            if input.requires_grad {
+                if let Some(ref mut input_grad) = input.grad {
+                    for i in 0..batch {
+                        for j in 0..in_features {
+                            let mut sum = 0.0;
+                            for k in 0..out_features {
+                                sum += grad_output[i * out_features + k] * weight_data[j * out_features + k];
+                            }
+                            let idx = if input_shape.len() == 1 { j } else { i * in_features + j };
+                            input_grad[idx] += sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        // dL/dW = x^T @ dL/dy
+        if let Some(weight) = self.get_node_mut(weight_id) {
+            if weight.requires_grad {
+                if let Some(ref mut weight_grad) = weight.grad {
+                    for i in 0..in_features {
+                        for j in 0..out_features {
+                            let mut sum = 0.0;
+                            for k in 0..batch {
+                                let input_val = if input_shape.len() == 1 {
+                                    input_data[i]
+                                } else {
+                                    input_data[k * in_features + i]
+                                };
+                                sum += input_val * grad_output[k * out_features + j];
+                            }
+                            weight_grad[i * out_features + j] += sum;
+                        }
+                    }
+                }
+            }
+        }
+
+        // dL/db = sum(dL/dy, axis=0)
+        if let Some(bias) = self.get_node_mut(bias_id) {
+            if bias.requires_grad {
+                if let Some(ref mut bias_grad) = bias.grad {
+                    for j in 0..out_features {
+                        let mut sum = 0.0;
+                        for i in 0..batch {
+                            sum += grad_output[i * out_features + j];
+                        }
+                        bias_grad[j] += sum;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_relu(
+        &mut self,
+        input_id: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: y = max(0, x)
+        // Backward: dL/dx = dL/dy * (x > 0 ? 1 : 0)
+
+        let input_data = self.get_node(input_id).unwrap().data.clone();
+
+        if let Some(input) = self.get_node_mut(input_id) {
+            if input.requires_grad {
+                if let Some(ref mut input_grad) = input.grad {
+                    for (i, (&x, &g)) in input_data.iter().zip(grad_output.iter()).enumerate() {
+                        input_grad[i] += if x > 0.0 { g } else { 0.0 };
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_sigmoid(
+        &mut self,
+        output_id: usize,
+        input_id: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: y = 1 / (1 + e^-x)
+        // Backward: dL/dx = dL/dy * y * (1 - y)
+
+        let output_data = self.get_node(output_id).unwrap().data.clone();
+
+        if let Some(input) = self.get_node_mut(input_id) {
+            if input.requires_grad {
+                if let Some(ref mut input_grad) = input.grad {
+                    for (i, (&y, &g)) in output_data.iter().zip(grad_output.iter()).enumerate() {
+                        input_grad[i] += g * y * (1.0 - y);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_tanh(
+        &mut self,
+        output_id: usize,
+        input_id: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: y = tanh(x)
+        // Backward: dL/dx = dL/dy * (1 - y^2)
+
+        let output_data = self.get_node(output_id).unwrap().data.clone();
+
+        if let Some(input) = self.get_node_mut(input_id) {
+            if input.requires_grad {
+                if let Some(ref mut input_grad) = input.grad {
+                    for (i, (&y, &g)) in output_data.iter().zip(grad_output.iter()).enumerate() {
+                        input_grad[i] += g * (1.0 - y * y);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_softmax(
+        &mut self,
+        output_id: usize,
+        input_id: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: y_i = e^x_i / sum(e^x_j)
+        // Backward: dL/dx_i = sum_j(dL/dy_j * (delta_ij * y_i - y_i * y_j))
+        //                    = y_i * (dL/dy_i - sum_j(dL/dy_j * y_j))
+
+        let output_data = self.get_node(output_id).unwrap().data.clone();
+        let n = output_data.len();
+
+        // Compute sum_j(dL/dy_j * y_j)
+        let mut dot_product = 0.0;
+        for i in 0..n {
+            dot_product += grad_output[i] * output_data[i];
+        }
+
+        if let Some(input) = self.get_node_mut(input_id) {
+            if input.requires_grad {
+                if let Some(ref mut input_grad) = input.grad {
+                    for i in 0..n {
+                        input_grad[i] += output_data[i] * (grad_output[i] - dot_product);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_mse_loss(
+        &mut self,
+        pred_id: usize,
+        target_id: usize,
+        _grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: L = mean((pred - target)^2)
+        // Backward: dL/dpred = 2/n * (pred - target)
+
+        let pred_data = self.get_node(pred_id).unwrap().data.clone();
+        let target_data = self.get_node(target_id).unwrap().data.clone();
+        let n = pred_data.len() as f64;
+
+        if let Some(pred) = self.get_node_mut(pred_id) {
+            if pred.requires_grad {
+                if let Some(ref mut pred_grad) = pred.grad {
+                    for (i, (&p, &t)) in pred_data.iter().zip(target_data.iter()).enumerate() {
+                        pred_grad[i] += 2.0 / n * (p - t);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -590,6 +933,137 @@ pub fn sum(graph: &mut ComputationGraph, a: &Tensor) -> Result<Tensor, String> {
         result.grad = Some(vec![0.0]);
     }
     result.op = Op::Sum(a.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+/// Linear layer: output = input @ weight + bias
+/// Registers Linear operation in the computation graph for backprop
+pub fn linear(graph: &mut ComputationGraph, input: &Tensor, weight: &Tensor, bias: &Tensor) -> Result<Tensor, String> {
+    // Handle 1D input: reshape to (1, in_features)
+    let (input_data, input_shape) = if input.shape.len() == 1 {
+        (input.data.clone(), vec![1, input.shape[0]])
+    } else {
+        (input.data.clone(), input.shape.clone())
+    };
+
+    if input_shape.len() != 2 || weight.shape.len() != 2 || bias.shape.len() != 1 {
+        return Err(format!(
+            "linear(): invalid shapes - input: {:?}, weight: {:?}, bias: {:?}",
+            input_shape, weight.shape, bias.shape
+        ));
+    }
+
+    let (batch, in_features) = (input_shape[0], input_shape[1]);
+    let (weight_in, out_features) = (weight.shape[0], weight.shape[1]);
+
+    if in_features != weight_in {
+        return Err(format!(
+            "linear(): input features {} doesn't match weight input {}",
+            in_features, weight_in
+        ));
+    }
+
+    if bias.shape[0] != out_features {
+        return Err(format!(
+            "linear(): bias size {} doesn't match output features {}",
+            bias.shape[0], out_features
+        ));
+    }
+
+    // Matrix multiplication: input @ weight + bias
+    let mut result_data = vec![0.0; batch * out_features];
+    for i in 0..batch {
+        for j in 0..out_features {
+            let mut sum = 0.0;
+            for k in 0..in_features {
+                sum += input_data[i * in_features + k] * weight.data[k * out_features + j];
+            }
+            result_data[i * out_features + j] = sum + bias.data[j];
+        }
+    }
+
+    // Return shape matches input: 1D input -> 1D output
+    let result_shape = if input.shape.len() == 1 {
+        vec![out_features]
+    } else {
+        vec![batch, out_features]
+    };
+
+    let requires_grad = input.requires_grad || weight.requires_grad || bias.requires_grad;
+
+    let mut result = Tensor::new(result_data, result_shape);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![0.0; result.data.len()]);
+    }
+    result.op = Op::Linear(input.id, weight.id, bias.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+/// ReLU activation: max(0, x)
+pub fn relu(graph: &mut ComputationGraph, input: &Tensor) -> Result<Tensor, String> {
+    let data: Vec<f64> = input.data.iter().map(|&x| x.max(0.0)).collect();
+    let requires_grad = input.requires_grad;
+
+    let mut result = Tensor::new(data, input.shape.clone());
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![0.0; result.data.len()]);
+    }
+    result.op = Op::ReLU(input.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+/// Sigmoid activation: 1 / (1 + exp(-x))
+pub fn sigmoid(graph: &mut ComputationGraph, input: &Tensor) -> Result<Tensor, String> {
+    let data: Vec<f64> = input.data.iter().map(|&x| 1.0 / (1.0 + (-x).exp())).collect();
+    let requires_grad = input.requires_grad;
+
+    let mut result = Tensor::new(data, input.shape.clone());
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![0.0; result.data.len()]);
+    }
+    result.op = Op::Sigmoid(input.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+/// Mean Squared Error loss: mean((pred - target)^2)
+pub fn mse_loss(graph: &mut ComputationGraph, pred: &Tensor, target: &Tensor) -> Result<Tensor, String> {
+    if pred.shape != target.shape {
+        return Err(format!(
+            "mse_loss(): shape mismatch - pred: {:?}, target: {:?}",
+            pred.shape, target.shape
+        ));
+    }
+
+    let mse: f64 = pred
+        .data
+        .iter()
+        .zip(target.data.iter())
+        .map(|(&p, &t)| {
+            let diff = p - t;
+            diff * diff
+        })
+        .sum::<f64>()
+        / pred.data.len() as f64;
+
+    let requires_grad = pred.requires_grad;
+
+    let mut result = Tensor::scalar(mse);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![1.0]); // Gradient of loss is 1.0
+    }
+    result.op = Op::MSELoss(pred.id, target.id);
 
     graph.add_node(result.clone());
     Ok(result)

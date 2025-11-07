@@ -86,6 +86,7 @@ pub enum DiscretizationMethod {
 }
 
 /// S4 Layer: Structured State Space Model
+#[derive(Debug, Clone)]
 pub struct S4Layer {
     /// Configuration
     pub config: SSMConfig,

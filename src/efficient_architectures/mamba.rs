@@ -77,6 +77,7 @@ pub struct SelectiveParams {
 }
 
 /// Mamba block: Selective SSM + Gating
+#[derive(Debug, Clone)]
 pub struct MambaBlock {
     pub config: MambaConfig,
     /// Fixed state matrix A (HiPPO initialized)
