@@ -139,6 +139,7 @@ impl Image {
 }
 
 /// CLIP-like encoder for vision and language
+#[derive(Debug, Clone)]
 pub struct CLIPEncoder {
     /// Embedding dimension
     pub embedding_dim: usize,
@@ -228,6 +229,7 @@ impl Default for CLIPEncoder {
 }
 
 /// Visual Question Answering system
+#[derive(Debug, Clone)]
 pub struct VQASystem {
     /// CLIP encoder for embeddings
     pub encoder: CLIPEncoder,
@@ -329,6 +331,7 @@ impl VQAAnswer {
 }
 
 /// Cross-modal retrieval
+#[derive(Debug, Clone)]
 pub struct CrossModalRetrieval {
     /// CLIP encoder
     pub encoder: CLIPEncoder,

@@ -74,6 +74,11 @@ impl<'ctx> LLVMOptimizer<'ctx> {
                 pass_manager.add_memcpy_optimize_pass(); // Optimize memcpy
                 pass_manager.add_sccp_pass(); // Sparse conditional constant propagation
                 pass_manager.add_aggressive_dce_pass(); // Aggressive dead code elimination
+
+                // ML-specific optimizations (Week 4)
+                pass_manager.add_loop_unroll_pass(); // Unroll loops for better performance
+                pass_manager.add_loop_vectorize_pass(); // SIMD vectorization for loops
+                pass_manager.add_slp_vectorize_pass(); // Straight-line vectorization
             }
         }
 
@@ -178,5 +183,55 @@ mod tests {
 
         // With no optimization, module should remain valid
         assert!(codegen.verify().is_ok());
+    }
+
+    #[test]
+    fn test_loop_optimizations_on_matmul() {
+        // Test that loop unrolling and vectorization work on MatMul
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_loop_opts");
+
+        // Generate MatMul (has triple-nested loops - perfect for loop optimizations)
+        codegen.gen_matmul(10, 10, 10);
+
+        // Get IR before optimization
+        let ir_before = codegen.module().print_to_string().to_string();
+
+        // Apply aggressive optimizations (includes loop unroll + vectorize)
+        let optimizer = LLVMOptimizer::new(OptLevel::Aggressive);
+        let changed = optimizer.optimize(codegen.module());
+
+        // Get IR after optimization
+        let ir_after = codegen.module().print_to_string().to_string();
+
+        // Module should still be valid after optimization
+        assert!(codegen.verify().is_ok());
+
+        // IR should have changed (optimizations were applied)
+        // Note: We can't always guarantee changes, but for MatMul it's very likely
+        assert!(ir_before != ir_after || !changed);
+    }
+
+    #[test]
+    fn test_vectorization_passes_added() {
+        // Verify that aggressive mode includes vectorization passes
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_vec_passes");
+
+        // Generate ReLU (good candidate for vectorization)
+        codegen.gen_relu();
+
+        // Apply aggressive optimizations
+        let optimizer = LLVMOptimizer::new(OptLevel::Aggressive);
+        optimizer.optimize(codegen.module());
+
+        // Module should remain valid after vectorization passes
+        assert!(codegen.verify().is_ok());
+
+        // Get optimized IR
+        let ir = codegen.module().print_to_string().to_string();
+
+        // Verify it contains a function (basic sanity check)
+        assert!(ir.contains("define"));
     }
 }

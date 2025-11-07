@@ -61,6 +61,7 @@ impl MemoryItem {
 }
 
 /// Short-term/Working memory with limited capacity
+#[derive(Debug, Clone)]
 pub struct ShortTermMemory {
     /// Buffer with capacity limit
     pub buffer: VecDeque<MemoryItem>,
@@ -133,6 +134,7 @@ impl ShortTermMemory {
             .collect()
     }
 }
+#[derive(Debug, Clone)]
 
 /// Long-term memory with unlimited capacity
 pub struct LongTermMemory {
@@ -208,6 +210,7 @@ impl Default for LongTermMemory {
         Self::new()
     }
 }
+#[derive(Debug, Clone)]
 
 /// Complete working memory system
 pub struct WorkingMemorySystem {

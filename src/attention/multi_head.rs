@@ -14,6 +14,7 @@ use crate::attention::scaled_attention::ScaledDotProductAttention;
 ///
 /// Performs attention in parallel across multiple representation subspaces.
 /// This is the core building block of Transformer models.
+#[derive(Debug, Clone)]
 pub struct MultiHeadAttention {
     /// Number of attention heads
     num_heads: usize,

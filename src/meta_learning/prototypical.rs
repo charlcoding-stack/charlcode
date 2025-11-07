@@ -136,6 +136,7 @@ impl Episode {
 }
 
 /// Prototypical Network classifier
+#[derive(Debug, Clone)]
 pub struct PrototypicalNetwork {
     /// Distance metric to use
     pub metric: DistanceMetric,

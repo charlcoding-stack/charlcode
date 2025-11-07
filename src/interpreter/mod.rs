@@ -28,6 +28,69 @@ pub enum Value {
     BatchNormLayer(Box<crate::nn::gpu_layers::BatchNorm>), // BatchNorm for training stability (v0.2.0)
     LayerNormLayer(Box<crate::nn::gpu_layers::LayerNorm>), // LayerNorm for Transformers (v0.2.0)
     DropoutLayer(Box<crate::nn::gpu_layers::Dropout>), // Dropout for regularization (v0.2.0)
+    SGDOptimizer(Box<crate::optim::SGD>), // SGD optimizer (Week 5-6)
+    AdamOptimizer(Box<crate::optim::Adam>), // Adam optimizer (Week 5-6)
+    RMSpropOptimizer(Box<crate::optim::RMSprop>), // RMSprop optimizer (Week 5-6)
+    LinformerLayer(Box<crate::efficient_architectures::Linformer>), // Linformer: O(n) attention (Week 7-8)
+    PerformerLayer(Box<crate::efficient_architectures::Performer>), // Performer: FAVOR+ attention (Week 7-8)
+    FNetLayer(Box<crate::efficient_architectures::FNet>), // FNet: Fourier mixing (Week 7-8)
+    RWKVLayer(Box<crate::efficient_architectures::RWKV>), // RWKV: Receptance Weighted KV (Week 7-8)
+    MambaLayer(Box<crate::efficient_architectures::MambaBlock>), // Mamba: Selective SSM (Week 7-8)
+    S4Layer(Box<crate::efficient_architectures::S4Layer>), // S4: Structured State Spaces (Week 7-8)
+    MoELayer(Box<crate::efficient_architectures::MoELayer>), // MoE: Mixture of Experts (Week 7-8)
+    QuantizedTensor(Box<crate::quantization::QuantizedTensor>), // Quantized tensor (Week 7-8 Part 2)
+    ChainOfThought(Box<crate::reasoning::ChainOfThought>), // Chain-of-Thought reasoning (Week 7-8 Part 3)
+    FusionOptimizer(Box<crate::fusion::FusionOptimizer>), // Operator fusion optimizer (Week 15-16)
+    FusionStats(Box<crate::fusion::optimizer::FusionStats>), // Fusion statistics (Week 15-16)
+    // Week 17-19: Multimodal AI
+    CLIPEncoder(Box<crate::multimodal::vision_language::CLIPEncoder>), // CLIP encoder for vision-language
+    Image(Box<crate::multimodal::vision_language::Image>), // Image representation
+    MultimodalEmbedding(Box<crate::multimodal::vision_language::MultimodalEmbedding>), // Multimodal embedding
+    VQASystem(Box<crate::multimodal::vision_language::VQASystem>), // Visual Question Answering system
+    VQAAnswer(Box<crate::multimodal::vision_language::VQAAnswer>), // VQA answer with confidence
+    CrossModalRetrieval(Box<crate::multimodal::vision_language::CrossModalRetrieval>), // Cross-modal retrieval
+    SceneObject(Box<crate::multimodal::scene_understanding::SceneObject>), // Scene object
+    SceneGraph(Box<crate::multimodal::scene_understanding::SceneGraph>), // Scene graph
+    SceneGraphGenerator(Box<crate::multimodal::scene_understanding::SceneGraphGenerator>), // Scene graph generator
+    TemporalEvent(Box<crate::multimodal::scene_understanding::TemporalEvent>), // Temporal event
+    MultimodalCoT(Box<crate::multimodal::cross_modal_reasoning::MultimodalCoT>), // Multimodal Chain-of-Thought
+    VisualGrounding(Box<crate::multimodal::cross_modal_reasoning::VisualGrounding>), // Visual grounding
+    MultimodalReasoner(Box<crate::multimodal::cross_modal_reasoning::MultimodalReasoner>), // Multimodal reasoner
+    // Week 20-21: Meta-Learning
+    MetaTask(Box<crate::meta_learning::maml::MetaTask>), // Meta-learning task
+    ModelParams(Box<crate::meta_learning::maml::ModelParams>), // Model parameters
+    MAML(Box<crate::meta_learning::maml::MAML>), // MAML meta-learner
+    Episode(Box<crate::meta_learning::prototypical::Episode>), // Few-shot episode
+    PrototypicalNetwork(Box<crate::meta_learning::prototypical::PrototypicalNetwork>), // Prototypical network
+    // Week 22-24: Knowledge Graphs & GNN
+    KGEntity(Box<crate::knowledge_graph::Entity>), // Knowledge graph entity
+    KGTriple(Box<crate::knowledge_graph::Triple>), // Knowledge graph triple (fact)
+    KnowledgeGraph(Box<crate::knowledge_graph::KnowledgeGraph>), // Knowledge graph
+    GraphStats(Box<crate::knowledge_graph::GraphStats>), // Graph statistics
+    GraphNeuralNetwork(Box<crate::knowledge_graph::GraphNeuralNetwork>), // Graph neural network
+    NodeEmbeddings(Box<std::collections::HashMap<crate::knowledge_graph::EntityId, Vec<f64>>>), // Node embeddings
+    // Week 25-26: Advanced Reasoning
+    ReasoningStep(Box<crate::reasoning::ReasoningStep>), // Single reasoning step
+    TreeOfThoughts(Box<crate::reasoning::TreeOfThoughts>), // Tree-of-Thoughts reasoner
+    ThoughtNode(Box<crate::reasoning::ThoughtNode>), // Thought node in tree
+    MemoryItem(Box<crate::reasoning::MemoryItem>), // Memory item
+    ShortTermMemory(Box<crate::reasoning::ShortTermMemory>), // Short-term memory
+    LongTermMemory(Box<crate::reasoning::LongTermMemory>), // Long-term memory
+    WorkingMemorySystem(Box<crate::reasoning::WorkingMemorySystem>), // Complete memory system
+    // Week 29-30: Symbolic AI
+    SymbolicRule(Box<crate::symbolic::Rule>), // Symbolic rule
+    RuleEngine(Box<crate::symbolic::RuleEngine>), // Rule engine
+    FOLTerm(Box<crate::symbolic::Term>), // First-order logic term
+    FOLFormula(Box<crate::symbolic::Formula>), // FOL formula
+    FOLSolver(Box<crate::symbolic::FOLSolver>), // FOL solver
+    FuzzyValue(Box<crate::symbolic::FuzzyValue>), // Fuzzy logic value
+    Concept(Box<crate::symbolic::Concept>), // Concept in concept learning
+    ConceptGraph(Box<crate::symbolic::ConceptGraph>), // Concept graph
+    // Linear Attention variants
+    Linformer(Box<crate::efficient_architectures::linear_attention::Linformer>),
+    Performer(Box<crate::efficient_architectures::linear_attention::Performer>),
+    FNet(Box<crate::efficient_architectures::linear_attention::FNet>),
+    RWKV(Box<crate::efficient_architectures::linear_attention::RWKV>),
     Function {
         parameters: Vec<Parameter>,
         body: Vec<Statement>,
@@ -88,6 +151,63 @@ impl Value {
             Value::BatchNormLayer(_) => "batchnorm_layer",
             Value::LayerNormLayer(_) => "layernorm_layer",
             Value::DropoutLayer(_) => "dropout_layer",
+            Value::SGDOptimizer(_) => "sgd_optimizer",
+            Value::AdamOptimizer(_) => "adam_optimizer",
+            Value::RMSpropOptimizer(_) => "rmsprop_optimizer",
+            Value::LinformerLayer(_) => "linformer_layer",
+            Value::PerformerLayer(_) => "performer_layer",
+            Value::FNetLayer(_) => "fnet_layer",
+            Value::RWKVLayer(_) => "rwkv_layer",
+            Value::MambaLayer(_) => "mamba_layer",
+            Value::S4Layer(_) => "s4_layer",
+            Value::MoELayer(_) => "moe_layer",
+            Value::QuantizedTensor(_) => "quantized_tensor",
+            Value::ChainOfThought(_) => "chain_of_thought",
+            Value::FusionOptimizer(_) => "fusion_optimizer",
+            Value::FusionStats(_) => "fusion_stats",
+            Value::CLIPEncoder(_) => "clip_encoder",
+            Value::Image(_) => "image",
+            Value::MultimodalEmbedding(_) => "multimodal_embedding",
+            Value::VQASystem(_) => "vqa_system",
+            Value::VQAAnswer(_) => "vqa_answer",
+            Value::CrossModalRetrieval(_) => "cross_modal_retrieval",
+            Value::SceneObject(_) => "scene_object",
+            Value::SceneGraph(_) => "scene_graph",
+            Value::SceneGraphGenerator(_) => "scene_graph_generator",
+            Value::TemporalEvent(_) => "temporal_event",
+            Value::MultimodalCoT(_) => "multimodal_cot",
+            Value::VisualGrounding(_) => "visual_grounding",
+            Value::MultimodalReasoner(_) => "multimodal_reasoner",
+            Value::MetaTask(_) => "meta_task",
+            Value::ModelParams(_) => "model_params",
+            Value::MAML(_) => "maml",
+            Value::Episode(_) => "episode",
+            Value::PrototypicalNetwork(_) => "prototypical_network",
+            Value::KGEntity(_) => "kg_entity",
+            Value::KGTriple(_) => "kg_triple",
+            Value::KnowledgeGraph(_) => "knowledge_graph",
+            Value::GraphStats(_) => "graph_stats",
+            Value::GraphNeuralNetwork(_) => "graph_neural_network",
+            Value::NodeEmbeddings(_) => "node_embeddings",
+            Value::ReasoningStep(_) => "reasoning_step",
+            Value::TreeOfThoughts(_) => "tree_of_thoughts",
+            Value::ThoughtNode(_) => "thought_node",
+            Value::MemoryItem(_) => "memory_item",
+            Value::ShortTermMemory(_) => "short_term_memory",
+            Value::LongTermMemory(_) => "long_term_memory",
+            Value::WorkingMemorySystem(_) => "working_memory_system",
+            Value::SymbolicRule(_) => "symbolic_rule",
+            Value::RuleEngine(_) => "rule_engine",
+            Value::FOLTerm(_) => "fol_term",
+            Value::FOLFormula(_) => "fol_formula",
+            Value::FOLSolver(_) => "fol_solver",
+            Value::FuzzyValue(_) => "fuzzy_value",
+            Value::Concept(_) => "concept",
+            Value::ConceptGraph(_) => "concept_graph",
+            Value::Linformer(_) => "linformer",
+            Value::Performer(_) => "performer",
+            Value::FNet(_) => "fnet",
+            Value::RWKV(_) => "rwkv",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -240,6 +360,40 @@ impl Interpreter {
         builtins.insert("tensor_zero_grad".to_string(), tensor_builtins::builtin_tensor_zero_grad as BuiltinFn);
         builtins.insert("tensor_grad".to_string(), tensor_builtins::builtin_tensor_grad as BuiltinFn);
         builtins.insert("tensor_set_grad".to_string(), tensor_builtins::builtin_tensor_set_grad as BuiltinFn);
+        builtins.insert("tensor_with_grad".to_string(), tensor_builtins::builtin_tensor_with_grad as BuiltinFn);
+        builtins.insert("tensor_backward".to_string(), tensor_builtins::builtin_tensor_backward as BuiltinFn);
+        builtins.insert("tensor_item".to_string(), tensor_builtins::builtin_tensor_item as BuiltinFn);
+
+        // Training loop helpers
+        builtins.insert("tensor_get_data".to_string(), tensor_builtins::builtin_tensor_get_data as BuiltinFn);
+        builtins.insert("tensor_update_inplace".to_string(), tensor_builtins::builtin_tensor_update_inplace as BuiltinFn);
+        builtins.insert("tensor_from_data".to_string(), tensor_builtins::builtin_tensor_from_data as BuiltinFn);
+        builtins.insert("reset_graph".to_string(), tensor_builtins::builtin_reset_graph as BuiltinFn);
+
+        // Math utilities for optimizers
+        builtins.insert("tensor_sqrt".to_string(), tensor_builtins::builtin_tensor_sqrt as BuiltinFn);
+        builtins.insert("tensor_zeros_like".to_string(), tensor_builtins::builtin_tensor_zeros_like as BuiltinFn);
+        builtins.insert("pow".to_string(), tensor_builtins::builtin_pow as BuiltinFn);
+        builtins.insert("sqrt".to_string(), tensor_builtins::builtin_sqrt as BuiltinFn);
+        builtins.insert("abs".to_string(), tensor_builtins::builtin_abs as BuiltinFn);
+        builtins.insert("min".to_string(), tensor_builtins::builtin_min as BuiltinFn);
+        builtins.insert("max".to_string(), tensor_builtins::builtin_max as BuiltinFn);
+
+        // Attention mechanisms (Week 1-2: Backend Exposure Roadmap)
+        builtins.insert("positional_encoding".to_string(), tensor_builtins::builtin_positional_encoding as BuiltinFn);
+        builtins.insert("attention_mask_causal".to_string(), tensor_builtins::builtin_attention_mask_causal as BuiltinFn);
+        builtins.insert("attention_scaled".to_string(), tensor_builtins::builtin_attention_scaled as BuiltinFn);
+        builtins.insert("attention_self".to_string(), tensor_builtins::builtin_attention_self as BuiltinFn);
+        builtins.insert("attention_multi_head".to_string(), tensor_builtins::builtin_attention_multi_head as BuiltinFn);
+        // Aliases for more descriptive names
+        builtins.insert("attention_scaled_dot_product".to_string(), tensor_builtins::builtin_attention_scaled as BuiltinFn);
+        builtins.insert("mha_forward".to_string(), tensor_builtins::builtin_attention_multi_head as BuiltinFn);
+
+        // CNNs / Computer Vision (Week 3-4: Backend Exposure Roadmap)
+        builtins.insert("nn_conv2d".to_string(), tensor_builtins::builtin_nn_conv2d as BuiltinFn);
+        builtins.insert("nn_maxpool2d".to_string(), tensor_builtins::builtin_nn_maxpool2d as BuiltinFn);
+        builtins.insert("nn_avgpool2d".to_string(), tensor_builtins::builtin_nn_avgpool2d as BuiltinFn);
+        builtins.insert("nn_batchnorm".to_string(), tensor_builtins::builtin_nn_batchnorm as BuiltinFn);
 
         // Neural network layers and activations
         builtins.insert("nn_linear".to_string(), tensor_builtins::builtin_nn_linear as BuiltinFn);
@@ -251,6 +405,173 @@ impl Interpreter {
         // Loss functions
         builtins.insert("loss_mse".to_string(), tensor_builtins::builtin_loss_mse as BuiltinFn);
         builtins.insert("loss_cross_entropy".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+        // Aliases for NN-style naming
+        builtins.insert("nn_mse_loss".to_string(), tensor_builtins::builtin_loss_mse as BuiltinFn);
+        builtins.insert("nn_cross_entropy_loss".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+
+        // Optimizers & Schedulers (Week 5-6: Backend Exposure Roadmap)
+        builtins.insert("sgd_create".to_string(), tensor_builtins::builtin_sgd_create as BuiltinFn);
+        builtins.insert("sgd_step".to_string(), tensor_builtins::builtin_sgd_step as BuiltinFn);
+        builtins.insert("adam_create".to_string(), tensor_builtins::builtin_adam_create as BuiltinFn);
+        builtins.insert("adam_step".to_string(), tensor_builtins::builtin_adam_step as BuiltinFn);
+        builtins.insert("rmsprop_create".to_string(), tensor_builtins::builtin_rmsprop_create as BuiltinFn);
+        builtins.insert("rmsprop_step".to_string(), tensor_builtins::builtin_rmsprop_step as BuiltinFn);
+        builtins.insert("step_lr".to_string(), tensor_builtins::builtin_step_lr as BuiltinFn);
+        builtins.insert("exponential_lr".to_string(), tensor_builtins::builtin_exponential_lr as BuiltinFn);
+        builtins.insert("cosine_annealing_lr".to_string(), tensor_builtins::builtin_cosine_annealing_lr as BuiltinFn);
+
+        // Efficient Architectures (Week 7-8 Part 1: Linear Attention, SSMs, MoE)
+        // Linear Attention variants
+        builtins.insert("linformer_create".to_string(), tensor_builtins::builtin_linformer_create as BuiltinFn);
+        builtins.insert("linformer_forward".to_string(), tensor_builtins::builtin_linformer_forward as BuiltinFn);
+        builtins.insert("performer_create".to_string(), tensor_builtins::builtin_performer_create as BuiltinFn);
+        builtins.insert("performer_forward".to_string(), tensor_builtins::builtin_performer_forward as BuiltinFn);
+        builtins.insert("fnet_create".to_string(), tensor_builtins::builtin_fnet_create as BuiltinFn);
+        builtins.insert("fnet_forward".to_string(), tensor_builtins::builtin_fnet_forward as BuiltinFn);
+        builtins.insert("rwkv_create".to_string(), tensor_builtins::builtin_rwkv_create as BuiltinFn);
+        builtins.insert("rwkv_forward".to_string(), tensor_builtins::builtin_rwkv_forward as BuiltinFn);
+        // State Space Models
+        builtins.insert("mamba_create".to_string(), tensor_builtins::builtin_mamba_create as BuiltinFn);
+        builtins.insert("mamba_forward".to_string(), tensor_builtins::builtin_mamba_forward as BuiltinFn);
+        builtins.insert("s4_create".to_string(), tensor_builtins::builtin_s4_create as BuiltinFn);
+        builtins.insert("s4_forward".to_string(), tensor_builtins::builtin_s4_forward as BuiltinFn);
+        // Mixture of Experts
+        builtins.insert("moe_create".to_string(), tensor_builtins::builtin_moe_create as BuiltinFn);
+        builtins.insert("moe_forward".to_string(), tensor_builtins::builtin_moe_forward as BuiltinFn);
+
+        // Quantization (Week 7-8 Part 2: Model Compression)
+        builtins.insert("quantize_tensor_int8".to_string(), tensor_builtins::builtin_quantize_tensor_int8 as BuiltinFn);
+        builtins.insert("quantize_tensor_int4".to_string(), tensor_builtins::builtin_quantize_tensor_int4 as BuiltinFn);
+        builtins.insert("dequantize_tensor".to_string(), tensor_builtins::builtin_dequantize_tensor as BuiltinFn);
+        builtins.insert("quantized_tensor_info".to_string(), tensor_builtins::builtin_quantized_tensor_info as BuiltinFn);
+        builtins.insert("quantize_model_weights".to_string(), tensor_builtins::builtin_quantize_model_weights as BuiltinFn);
+
+        // Advanced Reasoning (Week 7-8 Part 3: Chain-of-Thought)
+        builtins.insert("cot_create".to_string(), tensor_builtins::builtin_cot_create as BuiltinFn);
+        builtins.insert("cot_add_step".to_string(), tensor_builtins::builtin_cot_add_step as BuiltinFn);
+        builtins.insert("cot_add_step_conf".to_string(), tensor_builtins::builtin_cot_add_step_conf as BuiltinFn);
+        builtins.insert("cot_with_answer".to_string(), tensor_builtins::builtin_cot_with_answer as BuiltinFn);
+        builtins.insert("cot_compute_confidence".to_string(), tensor_builtins::builtin_cot_compute_confidence as BuiltinFn);
+        builtins.insert("cot_get_info".to_string(), tensor_builtins::builtin_cot_get_info as BuiltinFn);
+        builtins.insert("cot_get_step".to_string(), tensor_builtins::builtin_cot_get_step as BuiltinFn);
+
+        // Operator Fusion (Week 15-16)
+        builtins.insert("fusion_create".to_string(), tensor_builtins::builtin_fusion_create as BuiltinFn);
+        builtins.insert("fusion_analyze".to_string(), tensor_builtins::builtin_fusion_analyze as BuiltinFn);
+        builtins.insert("fusion_get_stats".to_string(), tensor_builtins::builtin_fusion_get_stats as BuiltinFn);
+        builtins.insert("fusion_enable".to_string(), tensor_builtins::builtin_fusion_enable as BuiltinFn);
+        builtins.insert("fusion_set_strategy".to_string(), tensor_builtins::builtin_fusion_set_strategy as BuiltinFn);
+
+        // Multimodal AI (Week 17-19) - Vision-Language
+        builtins.insert("clip_encoder_create".to_string(), tensor_builtins::builtin_clip_encoder_create as BuiltinFn);
+        builtins.insert("clip_encode_image".to_string(), tensor_builtins::builtin_clip_encode_image as BuiltinFn);
+        builtins.insert("clip_encode_text".to_string(), tensor_builtins::builtin_clip_encode_text as BuiltinFn);
+        builtins.insert("embedding_cosine_similarity".to_string(), tensor_builtins::builtin_embedding_cosine_similarity as BuiltinFn);
+        builtins.insert("image_create".to_string(), tensor_builtins::builtin_image_create as BuiltinFn);
+        builtins.insert("image_with_caption".to_string(), tensor_builtins::builtin_image_with_caption as BuiltinFn);
+        builtins.insert("vqa_create".to_string(), tensor_builtins::builtin_vqa_create as BuiltinFn);
+        builtins.insert("vqa_add_qa".to_string(), tensor_builtins::builtin_vqa_add_qa as BuiltinFn);
+        builtins.insert("vqa_answer".to_string(), tensor_builtins::builtin_vqa_answer as BuiltinFn);
+        builtins.insert("cross_modal_create".to_string(), tensor_builtins::builtin_cross_modal_create as BuiltinFn);
+
+        // Multimodal AI - Scene Understanding
+        builtins.insert("scene_object_create".to_string(), tensor_builtins::builtin_scene_object_create as BuiltinFn);
+        builtins.insert("scene_object_with_attribute".to_string(), tensor_builtins::builtin_scene_object_with_attribute as BuiltinFn);
+        builtins.insert("scene_graph_create".to_string(), tensor_builtins::builtin_scene_graph_create as BuiltinFn);
+        builtins.insert("scene_graph_add_object".to_string(), tensor_builtins::builtin_scene_graph_add_object as BuiltinFn);
+        builtins.insert("scene_graph_add_relation".to_string(), tensor_builtins::builtin_scene_graph_add_relation as BuiltinFn);
+        builtins.insert("scene_graph_get_relations".to_string(), tensor_builtins::builtin_scene_graph_get_relations as BuiltinFn);
+        builtins.insert("scene_graph_to_description".to_string(), tensor_builtins::builtin_scene_graph_to_description as BuiltinFn);
+        builtins.insert("scene_graph_generator_create".to_string(), tensor_builtins::builtin_scene_graph_generator_create as BuiltinFn);
+        builtins.insert("scene_graph_generate".to_string(), tensor_builtins::builtin_scene_graph_generate as BuiltinFn);
+        builtins.insert("temporal_event_create".to_string(), tensor_builtins::builtin_temporal_event_create as BuiltinFn);
+        builtins.insert("temporal_event_with_object".to_string(), tensor_builtins::builtin_temporal_event_with_object as BuiltinFn);
+        builtins.insert("temporal_event_relation".to_string(), tensor_builtins::builtin_temporal_event_relation as BuiltinFn);
+
+        // Multimodal AI - Cross-Modal Reasoning
+        builtins.insert("visual_grounding_create".to_string(), tensor_builtins::builtin_visual_grounding_create as BuiltinFn);
+        builtins.insert("visual_grounding_ground_phrase".to_string(), tensor_builtins::builtin_visual_grounding_ground_phrase as BuiltinFn);
+        builtins.insert("multimodal_reasoner_create".to_string(), tensor_builtins::builtin_multimodal_reasoner_create as BuiltinFn);
+        builtins.insert("multimodal_reasoner_reason".to_string(), tensor_builtins::builtin_multimodal_reasoner_reason as BuiltinFn);
+        builtins.insert("multimodal_cot_get_info".to_string(), tensor_builtins::builtin_multimodal_cot_get_info as BuiltinFn);
+        builtins.insert("multimodal_cot_get_step".to_string(), tensor_builtins::builtin_multimodal_cot_get_step as BuiltinFn);
+
+        // Meta-Learning (Week 20-21) - MAML
+        builtins.insert("maml_create".to_string(), tensor_builtins::builtin_maml_create as BuiltinFn);
+        builtins.insert("meta_task_create".to_string(), tensor_builtins::builtin_meta_task_create as BuiltinFn);
+        builtins.insert("meta_task_add_support".to_string(), tensor_builtins::builtin_meta_task_add_support as BuiltinFn);
+        builtins.insert("meta_task_add_query".to_string(), tensor_builtins::builtin_meta_task_add_query as BuiltinFn);
+        builtins.insert("model_params_create".to_string(), tensor_builtins::builtin_model_params_create as BuiltinFn);
+        builtins.insert("maml_get_info".to_string(), tensor_builtins::builtin_maml_get_info as BuiltinFn);
+
+        // Meta-Learning - Prototypical Networks
+        builtins.insert("episode_create".to_string(), tensor_builtins::builtin_episode_create as BuiltinFn);
+        builtins.insert("episode_add_support".to_string(), tensor_builtins::builtin_episode_add_support as BuiltinFn);
+        builtins.insert("episode_add_query".to_string(), tensor_builtins::builtin_episode_add_query as BuiltinFn);
+        builtins.insert("episode_validate".to_string(), tensor_builtins::builtin_episode_validate as BuiltinFn);
+        builtins.insert("prototypical_network_create".to_string(), tensor_builtins::builtin_prototypical_network_create as BuiltinFn);
+        builtins.insert("distance_compute".to_string(), tensor_builtins::builtin_distance_compute as BuiltinFn);
+        builtins.insert("episode_get_info".to_string(), tensor_builtins::builtin_episode_get_info as BuiltinFn);
+
+        // Knowledge Graphs & GNN (Week 22-24)
+        builtins.insert("kg_create".to_string(), tensor_builtins::builtin_kg_create as BuiltinFn);
+        builtins.insert("kg_add_entity".to_string(), tensor_builtins::builtin_kg_add_entity as BuiltinFn);
+        builtins.insert("kg_add_triple".to_string(), tensor_builtins::builtin_kg_add_triple as BuiltinFn);
+        builtins.insert("kg_add_triple_conf".to_string(), tensor_builtins::builtin_kg_add_triple_conf as BuiltinFn);
+        builtins.insert("kg_query".to_string(), tensor_builtins::builtin_kg_query as BuiltinFn);
+        builtins.insert("kg_get_entity".to_string(), tensor_builtins::builtin_kg_get_entity as BuiltinFn);
+        builtins.insert("kg_find_by_name".to_string(), tensor_builtins::builtin_kg_find_by_name as BuiltinFn);
+        builtins.insert("kg_find_by_type".to_string(), tensor_builtins::builtin_kg_find_by_type as BuiltinFn);
+        builtins.insert("kg_get_related".to_string(), tensor_builtins::builtin_kg_get_related as BuiltinFn);
+        builtins.insert("kg_find_paths".to_string(), tensor_builtins::builtin_kg_find_paths as BuiltinFn);
+        builtins.insert("kg_get_stats".to_string(), tensor_builtins::builtin_kg_get_stats as BuiltinFn);
+        builtins.insert("entity_get_id".to_string(), tensor_builtins::builtin_entity_get_id as BuiltinFn);
+        builtins.insert("entity_get_type".to_string(), tensor_builtins::builtin_entity_get_type as BuiltinFn);
+        builtins.insert("entity_get_name".to_string(), tensor_builtins::builtin_entity_get_name as BuiltinFn);
+        builtins.insert("triple_get_subject".to_string(), tensor_builtins::builtin_triple_get_subject as BuiltinFn);
+        builtins.insert("triple_get_predicate".to_string(), tensor_builtins::builtin_triple_get_predicate as BuiltinFn);
+        builtins.insert("triple_get_object".to_string(), tensor_builtins::builtin_triple_get_object as BuiltinFn);
+        builtins.insert("gnn_create".to_string(), tensor_builtins::builtin_gnn_create as BuiltinFn);
+        builtins.insert("gnn_init_embeddings".to_string(), tensor_builtins::builtin_gnn_init_embeddings as BuiltinFn);
+        builtins.insert("gnn_forward".to_string(), tensor_builtins::builtin_gnn_forward as BuiltinFn);
+        builtins.insert("gnn_forward_multilayer".to_string(), tensor_builtins::builtin_gnn_forward_multilayer as BuiltinFn);
+
+        // Symbolic AI (Week 29-30)
+        builtins.insert("rule_create".to_string(), tensor_builtins::builtin_rule_create as BuiltinFn);
+        builtins.insert("rule_engine_create".to_string(), tensor_builtins::builtin_rule_engine_create as BuiltinFn);
+        builtins.insert("rule_engine_add_rule".to_string(), tensor_builtins::builtin_rule_engine_add_rule as BuiltinFn);
+        builtins.insert("rule_engine_count".to_string(), tensor_builtins::builtin_rule_engine_count as BuiltinFn);
+        builtins.insert("fol_var".to_string(), tensor_builtins::builtin_fol_var as BuiltinFn);
+        builtins.insert("fol_const".to_string(), tensor_builtins::builtin_fol_const as BuiltinFn);
+        builtins.insert("fol_func".to_string(), tensor_builtins::builtin_fol_func as BuiltinFn);
+        builtins.insert("fol_solver_create".to_string(), tensor_builtins::builtin_fol_solver_create as BuiltinFn);
+        builtins.insert("fol_unify".to_string(), tensor_builtins::builtin_fol_unify as BuiltinFn);
+        builtins.insert("fuzzy_create".to_string(), tensor_builtins::builtin_fuzzy_create as BuiltinFn);
+        builtins.insert("fuzzy_and".to_string(), tensor_builtins::builtin_fuzzy_and as BuiltinFn);
+        builtins.insert("fuzzy_or".to_string(), tensor_builtins::builtin_fuzzy_or as BuiltinFn);
+        builtins.insert("fuzzy_not".to_string(), tensor_builtins::builtin_fuzzy_not as BuiltinFn);
+        builtins.insert("fuzzy_get_value".to_string(), tensor_builtins::builtin_fuzzy_get_value as BuiltinFn);
+        builtins.insert("concept_create".to_string(), tensor_builtins::builtin_concept_create as BuiltinFn);
+        builtins.insert("concept_graph_create".to_string(), tensor_builtins::builtin_concept_graph_create as BuiltinFn);
+        builtins.insert("concept_graph_add".to_string(), tensor_builtins::builtin_concept_graph_add as BuiltinFn);
+        builtins.insert("concept_graph_count".to_string(), tensor_builtins::builtin_concept_graph_count as BuiltinFn);
+        builtins.insert("concept_similarity".to_string(), tensor_builtins::builtin_concept_similarity as BuiltinFn);
+
+        // Advanced Reasoning: Tree-of-Thoughts & Working Memory
+        builtins.insert("tot_create".to_string(), tensor_builtins::builtin_tot_create as BuiltinFn);
+        builtins.insert("tot_add_thought".to_string(), tensor_builtins::builtin_tot_add_thought as BuiltinFn);
+        builtins.insert("tot_mark_solution".to_string(), tensor_builtins::builtin_tot_mark_solution as BuiltinFn);
+        builtins.insert("tot_stats".to_string(), tensor_builtins::builtin_tot_stats as BuiltinFn);
+        builtins.insert("memory_item_create".to_string(), tensor_builtins::builtin_memory_item_create as BuiltinFn);
+        builtins.insert("stm_create".to_string(), tensor_builtins::builtin_stm_create as BuiltinFn);
+        builtins.insert("stm_add".to_string(), tensor_builtins::builtin_stm_add as BuiltinFn);
+        builtins.insert("stm_len".to_string(), tensor_builtins::builtin_stm_len as BuiltinFn);
+        builtins.insert("ltm_create".to_string(), tensor_builtins::builtin_ltm_create as BuiltinFn);
+        builtins.insert("ltm_store".to_string(), tensor_builtins::builtin_ltm_store as BuiltinFn);
+        builtins.insert("ltm_size".to_string(), tensor_builtins::builtin_ltm_size as BuiltinFn);
+        builtins.insert("working_memory_create".to_string(), tensor_builtins::builtin_working_memory_create as BuiltinFn);
+        builtins.insert("working_memory_remember".to_string(), tensor_builtins::builtin_working_memory_remember as BuiltinFn);
+        builtins.insert("working_memory_consolidate".to_string(), tensor_builtins::builtin_working_memory_consolidate as BuiltinFn);
 
         // Optimizers
         builtins.insert("optim_sgd_step".to_string(), tensor_builtins::builtin_optim_sgd_step as BuiltinFn);

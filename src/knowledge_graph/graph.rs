@@ -15,6 +15,7 @@ use super::triple::{Entity, EntityId, EntityType, RelationType, Triple};
 use std::collections::{HashMap, HashSet};
 
 /// Knowledge Graph - stores entities and their relationships
+#[derive(Debug, Clone)]
 pub struct KnowledgeGraph {
     /// All entities in the graph
     entities: HashMap<EntityId, Entity>,

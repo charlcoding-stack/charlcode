@@ -114,6 +114,7 @@ pub enum LoadBalancingLoss {
 }
 
 /// Router: Decides which experts to use for each input
+#[derive(Debug, Clone)]
 pub struct Router {
     pub d_model: usize,
     pub num_experts: usize,
@@ -248,6 +249,7 @@ impl Router {
 }
 
 /// Mixture of Experts layer
+#[derive(Debug, Clone)]
 pub struct MoELayer {
     pub d_model: usize,
     pub num_experts: usize,

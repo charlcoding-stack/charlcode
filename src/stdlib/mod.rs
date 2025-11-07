@@ -265,6 +265,228 @@ fn format_value(value: &Value) -> String {
                 layer.p, layer.training
             )
         }
+        Value::SGDOptimizer(opt) => {
+            format!(
+                "SGD(lr={}, momentum={}, weight_decay={})",
+                opt.lr, opt.momentum, opt.weight_decay
+            )
+        }
+        Value::AdamOptimizer(opt) => {
+            format!(
+                "Adam(lr={}, beta1={}, beta2={}, eps={})",
+                opt.lr, opt.beta1, opt.beta2, opt.epsilon
+            )
+        }
+        Value::RMSpropOptimizer(opt) => {
+            format!(
+                "RMSprop(lr={}, alpha={}, eps={})",
+                opt.lr, opt.alpha, opt.epsilon
+            )
+        }
+        Value::LinformerLayer(layer) => {
+            format!(
+                "Linformer(d_model={}, heads={}, k={})",
+                layer.d_model, layer.num_heads, layer.k
+            )
+        }
+        Value::PerformerLayer(layer) => {
+            format!(
+                "Performer(d_model={}, features={})",
+                layer.d_model, layer.num_features
+            )
+        }
+        Value::FNetLayer(layer) => {
+            format!(
+                "FNet(d_model={})",
+                layer.d_model
+            )
+        }
+        Value::RWKVLayer(layer) => {
+            format!(
+                "RWKV(d_model={})",
+                layer.d_model
+            )
+        }
+        Value::MambaLayer(layer) => {
+            format!(
+                "Mamba(d_model={}, d_state={})",
+                layer.config.d_model, layer.config.d_state
+            )
+        }
+        Value::S4Layer(layer) => {
+            format!(
+                "S4(state={}, hidden={})",
+                layer.config.state_size, layer.config.hidden_size
+            )
+        }
+        Value::MoELayer(layer) => {
+            format!(
+                "MoE(experts={}, top_k={})",
+                layer.num_experts, layer.top_k
+            )
+        }
+        Value::QuantizedTensor(qtensor) => {
+            format!(
+                "QuantizedTensor({:?}, {:?}x reduction)",
+                qtensor.shape, qtensor.params.quant_type.reduction_factor()
+            )
+        }
+        Value::ChainOfThought(cot) => {
+            format!(
+                "ChainOfThought({} steps, answer: {})",
+                cot.num_steps(),
+                if cot.final_answer.len() > 30 {
+                    format!("{}...", &cot.final_answer[..30])
+                } else {
+                    cot.final_answer.clone()
+                }
+            )
+        }
+        Value::FusionOptimizer(_) => {
+            format!("FusionOptimizer")
+        }
+        Value::FusionStats(stats) => {
+            format!(
+                "FusionStats(opportunities={}, applied={}, memory_saved={})",
+                stats.opportunities_found, stats.fusions_applied, stats.total_memory_saved
+            )
+        }
+        Value::CLIPEncoder(encoder) => {
+            format!("CLIPEncoder(dim={}, temp={})", encoder.embedding_dim, encoder.temperature)
+        }
+        Value::Image(img) => {
+            format!("Image(id={}, {}x{}, {} pixels)",
+                img.id, img.dimensions.0, img.dimensions.1, img.pixels.len())
+        }
+        Value::MultimodalEmbedding(emb) => {
+            format!("MultimodalEmbedding({:?}, dim={})", emb.modality, emb.dim())
+        }
+        Value::VQASystem(_) => {
+            format!("VQASystem")
+        }
+        Value::VQAAnswer(answer) => {
+            format!("VQAAnswer(answer={}, conf={:.2})", answer.answer, answer.confidence)
+        }
+        Value::CrossModalRetrieval(ret) => {
+            format!("CrossModalRetrieval(top_k={})", ret.top_k)
+        }
+        Value::SceneObject(obj) => {
+            format!("SceneObject(id={}, class={}, conf={:.2})", obj.id, obj.class, obj.confidence)
+        }
+        Value::SceneGraph(graph) => {
+            format!("SceneGraph(objects={}, relations={})", graph.objects.len(), graph.relations.len())
+        }
+        Value::SceneGraphGenerator(_) => {
+            format!("SceneGraphGenerator")
+        }
+        Value::TemporalEvent(event) => {
+            format!("TemporalEvent(id={}, {:.1}-{:.1})", event.id, event.start_time, event.end_time)
+        }
+        Value::MultimodalCoT(cot) => {
+            format!("MultimodalCoT(question={}, answer={}, steps={})",
+                cot.question, cot.answer, cot.steps.len())
+        }
+        Value::VisualGrounding(_) => {
+            format!("VisualGrounding")
+        }
+        Value::MultimodalReasoner(_) => {
+            format!("MultimodalReasoner")
+        }
+        Value::MetaTask(task) => {
+            format!("MetaTask(id={}, support={}, query={})",
+                task.task_id, task.num_support(), task.num_query())
+        }
+        Value::ModelParams(params) => {
+            format!("ModelParams({} params)", params.num_params())
+        }
+        Value::MAML(maml) => {
+            format!("MAML(inner_lr={}, outer_lr={}, steps={})",
+                maml.inner_lr, maml.outer_lr, maml.inner_steps)
+        }
+        Value::Episode(ep) => {
+            format!("Episode({}-way {}-shot, support={}, query={})",
+                ep.n_way, ep.k_shot, ep.support_set.len(), ep.query_set.len())
+        }
+        Value::PrototypicalNetwork(net) => {
+            format!("PrototypicalNetwork(dim={}, metric={:?})",
+                net.embedding_dim, net.metric)
+        }
+        Value::KGEntity(entity) => {
+            format!("Entity(id={}, type={}, name={})",
+                entity.id, entity.entity_type, entity.name)
+        }
+        Value::KGTriple(triple) => {
+            if let Some(conf) = triple.confidence {
+                format!("Triple({}, {}, {}, conf={:.2})",
+                    triple.subject, triple.predicate, triple.object, conf)
+            } else {
+                format!("Triple({}, {}, {})",
+                    triple.subject, triple.predicate, triple.object)
+            }
+        }
+        Value::KnowledgeGraph(kg) => {
+            format!("KnowledgeGraph(entities={}, triples={})",
+                kg.num_entities(), kg.num_triples())
+        }
+        Value::GraphStats(stats) => {
+            format!("GraphStats(entities={}, triples={}, relations={})",
+                stats.num_entities, stats.num_triples, stats.num_relations)
+        }
+        Value::GraphNeuralNetwork(gnn) => {
+            format!("GNN(embedding_dim={})", gnn.embedding_dim())
+        }
+        Value::NodeEmbeddings(embeddings) => {
+            format!("NodeEmbeddings(nodes={})", embeddings.len())
+        }
+        Value::ReasoningStep(step) => {
+            format!("ReasoningStep({})", step.step_number)
+        }
+        Value::TreeOfThoughts(tot) => {
+            format!("TreeOfThoughts(nodes={}, strategy={:?})", tot.nodes.len(), tot.strategy)
+        }
+        Value::ThoughtNode(node) => {
+            format!("ThoughtNode(id={}, depth={})", node.id, node.depth)
+        }
+        Value::MemoryItem(item) => {
+            format!("MemoryItem(id={}, type={:?})", item.id, item.memory_type)
+        }
+        Value::ShortTermMemory(stm) => {
+            format!("ShortTermMemory(capacity={}, used={})", stm.capacity, stm.buffer.len())
+        }
+        Value::LongTermMemory(_ltm) => {
+            format!("LongTermMemory")
+        }
+        Value::WorkingMemorySystem(_wm) => {
+            format!("WorkingMemorySystem")
+        }
+        Value::SymbolicRule(rule) => {
+            format!("Rule({})", rule.name)
+        }
+        Value::RuleEngine(_engine) => {
+            format!("RuleEngine")
+        }
+        Value::FOLTerm(term) => {
+            format!("FOLTerm({})", term)
+        }
+        Value::FOLFormula(_formula) => {
+            format!("FOLFormula")
+        }
+        Value::FOLSolver(_solver) => {
+            format!("FOLSolver")
+        }
+        Value::FuzzyValue(_fuzzy) => {
+            format!("FuzzyValue")
+        }
+        Value::Concept(_concept) => {
+            format!("Concept")
+        }
+        Value::ConceptGraph(_graph) => {
+            format!("ConceptGraph")
+        }
+        Value::Linformer(_) => format!("Linformer"),
+        Value::Performer(_) => format!("Performer"),
+        Value::FNet(_) => format!("FNet"),
+        Value::RWKV(_) => format!("RWKV"),
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

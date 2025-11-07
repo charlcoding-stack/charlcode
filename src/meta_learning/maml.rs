@@ -126,6 +126,7 @@ impl ModelParams {
 }
 
 /// MAML meta-learner
+#[derive(Debug, Clone)]
 pub struct MAML {
     /// Meta-parameters (θ in the paper)
     pub meta_params: ModelParams,

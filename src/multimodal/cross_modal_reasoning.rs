@@ -142,6 +142,7 @@ impl MultimodalCoT {
 }
 
 /// Visual grounding: link text to visual elements
+#[derive(Debug, Clone)]
 pub struct VisualGrounding {
     /// CLIP encoder for similarity
     pub encoder: CLIPEncoder,
@@ -196,6 +197,7 @@ impl VisualGrounding {
 }
 
 /// Multimodal reasoner
+#[derive(Debug, Clone)]
 pub struct MultimodalReasoner {
     /// Visual grounding
     pub grounding: VisualGrounding,

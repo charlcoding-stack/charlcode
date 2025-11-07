@@ -100,6 +100,19 @@ impl<'ctx> CompiledGraph<'ctx> {
                     Op::Neg(input) | Op::Pow(input, _) | Op::Sum(input) => {
                         explore_operations(graph, *input, needs_add, needs_mul, needs_matmul);
                     }
+                    // Neural network ops (Week 5-6+)
+                    Op::Linear(input, weight, bias) => {
+                        explore_operations(graph, *input, needs_add, needs_mul, needs_matmul);
+                        explore_operations(graph, *weight, needs_add, needs_mul, needs_matmul);
+                        explore_operations(graph, *bias, needs_add, needs_mul, needs_matmul);
+                    }
+                    Op::ReLU(input) | Op::Sigmoid(input) | Op::Tanh(input) | Op::Softmax(input) => {
+                        explore_operations(graph, *input, needs_add, needs_mul, needs_matmul);
+                    }
+                    Op::MSELoss(pred, target) => {
+                        explore_operations(graph, *pred, needs_add, needs_mul, needs_matmul);
+                        explore_operations(graph, *target, needs_add, needs_mul, needs_matmul);
+                    }
                     Op::Leaf => {}
                 }
             }
@@ -503,5 +516,82 @@ mod tests {
         assert!(ir.contains("relu"));
         assert!(ir.contains("sigmoid"));
         assert!(ir.contains("tanh"));
+    }
+
+    #[test]
+    fn test_graph_compilation_without_jit() {
+        // Test that we can compile a graph and generate IR without needing JIT execution
+        use crate::autograd::Op;
+
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "test_graph");
+
+        // Create a simple graph: a + b
+        let mut graph = ComputationGraph::new();
+        let a = Tensor::new(vec![1.0, 2.0], vec![2]);
+        let b = Tensor::new(vec![3.0, 4.0], vec![2]);
+
+        let a_id = graph.add_node(a);
+        let b_id = graph.add_node(b);
+
+        let add_node = Tensor {
+            id: Tensor::new(vec![0.0], vec![1]).id,
+            data: vec![4.0, 6.0],
+            shape: vec![2],
+            grad: None,
+            requires_grad: false,
+            op: Op::Add(a_id, b_id),
+        };
+        let add_id = graph.add_node(add_node);
+
+        // Generate functions for this graph
+        codegen.gen_element_wise_add();
+        codegen.gen_relu();
+
+        // Verify module
+        assert!(codegen.verify().is_ok());
+
+        // Check IR contains expected functions
+        let ir = codegen.module().print_to_string().to_string();
+        assert!(ir.contains("tensor_add"));
+        assert!(ir.contains("relu"));
+        assert!(ir.contains("define void"));
+    }
+
+    #[test]
+    fn test_complex_graph_ir_generation() {
+        // Test IR generation for a more complex graph: y = ReLU(x @ W + b)
+        use crate::autograd::Op;
+
+        let context = Context::create();
+        let codegen = LLVMCodegen::new(&context, "mlp_layer");
+
+        // Simulate MLP layer structure
+        let mut graph = ComputationGraph::new();
+
+        // x: [batch=2, in=3]
+        let x = Tensor::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        // W: [in=3, out=4]
+        let w = Tensor::new(vec![0.1; 12], vec![3, 4]);
+        // b: [out=4]
+        let b = Tensor::new(vec![0.5; 4], vec![4]);
+
+        let x_id = graph.add_node(x);
+        let w_id = graph.add_node(w);
+        let b_id = graph.add_node(b);
+
+        // Generate all required operations
+        codegen.gen_matmul(2, 4, 3); // x @ W
+        codegen.gen_element_wise_add(); // + b
+        codegen.gen_relu(); // ReLU
+
+        // Verify
+        assert!(codegen.verify().is_ok());
+
+        // Check IR
+        let ir = codegen.module().print_to_string().to_string();
+        assert!(ir.contains("matmul"));
+        assert!(ir.contains("tensor_add"));
+        assert!(ir.contains("relu"));
     }
 }

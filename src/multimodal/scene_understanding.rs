@@ -263,6 +263,7 @@ impl Default for SceneGraph {
 }
 
 /// Scene graph generator
+#[derive(Debug, Clone)]
 pub struct SceneGraphGenerator {
     /// Minimum confidence for object detection
     pub min_object_confidence: f32,
