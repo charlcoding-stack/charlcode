@@ -1,44 +1,44 @@
-# 🧠 AGI Journey - Proyecto Completo
+# 🧠 AGI Journey - Complete Project
 
-Este directorio contiene el proyecto completo del **AGI Journey**: documentación, código fuente y todos los recursos para integrar en el website.
+This directory contains the complete **AGI Journey** project: documentation, source code, and all resources for website integration.
 
 ---
 
-## 📁 Contenido del Proyecto
+## 📁 Project Contents
 
-### 📖 Documentación (4 archivos)
+### 📖 Documentation (4 files)
 
 #### 1. **AGI_JOURNEY.md** (32 KB)
-- Documentación técnica completa
-- Explicación detallada de los 8 niveles
-- Código comentado y análisis
-- Comparación vs GPT-4
-- **Usar para**: Blog posts, papers, documentación técnica
+- Complete technical documentation
+- Detailed explanation of all 8 levels
+- Commented code and analysis
+- Comparison vs GPT-4
+- **Use for**: Blog posts, papers, technical documentation
 
 #### 2. **README_AGI.md** (4.2 KB)
-- Overview rápido del proyecto
-- Tabla de resultados
+- Quick project overview
+- Results table
 - Quick start guide
-- **Usar para**: Landing page, GitHub README
+- **Use for**: Landing page, GitHub README
 
 #### 3. **AGI_STATS.md** (11 KB)
-- Estadísticas en formato JSON
-- Datos para gráficos
-- Snippets para web
-- **Usar para**: Integración web, dashboards, visualizaciones
+- Statistics in JSON format
+- Data for charts
+- Web snippets
+- **Use for**: Web integration, dashboards, visualizations
 
 #### 4. **AGI_INDEX.md** (8.2 KB)
-- Índice master de toda la documentación
-- Roadmap de integración web
-- Guía de uso por caso
-- **Usar para**: Referencia, planificación
+- Master index of all documentation
+- Web integration roadmap
+- Use guide by case
+- **Use for**: Reference, planning
 
 ---
 
-### 💻 Código Fuente (8 archivos .ch)
+### 💻 Source Code (8 .ch files)
 
-| # | Archivo | Nivel | Params | Acc | Capacidad |
-|---|---------|-------|--------|-----|-----------|
+| # | File | Level | Params | Acc | Capability |
+|---|------|-------|--------|-----|-----------|
 | 1 | test_MINIMAL_REASONER.ch | Level 1 | 4 | 100% | Simple reasoning |
 | 2 | test_COMPOSITIONAL_REASONER.ch | Level 2 | 13 | 100% | Composition |
 | 3 | test_ABSTRACT_REASONER.ch | Level 3 | 11 | 100% | Abstraction |
@@ -46,150 +46,146 @@ Este directorio contiene el proyecto completo del **AGI Journey**: documentació
 | 5 | test_TRANSFER_LEARNER.ch | Level 5 | 100 | 75% | Transfer learning |
 | 6 | test_CAUSAL_REASONER.ch | Level 6 | 200 | 100% | Causal reasoning |
 | 7 | test_PLANNING_REASONER.ch | Level 7 | 300 | 100% | Planning |
-| 8 | test_SELF_REFLECTION_AGI.ch | Level 8 | 500 | 100% | **AGI básico** ✅ |
+| 8 | test_SELF_REFLECTION_AGI.ch | Level 8 | 500 | 100% | **Basic AGI** ✅ |
 
 ---
 
 ## 🚀 Quick Start
 
-### Ejecutar un nivel:
+### Run a single level:
 ```bash
-# Desde el directorio raíz de charlcode
-./target/release/charl run AGI_PROJECT/test_MINIMAL_REASONER.ch
-./target/release/charl run AGI_PROJECT/test_SELF_REFLECTION_AGI.ch
+# From charlcode root directory
+./target/release/charl run AGI-TEST-PROJECT/test_MINIMAL_REASONER.ch
+./target/release/charl run AGI-TEST-PROJECT/test_SELF_REFLECTION_AGI.ch
 ```
 
-### Ejecutar todos los niveles:
+### Run all levels:
 ```bash
-cd AGI_PROJECT
-for file in test_*.ch; do
-    echo "Ejecutando $file..."
-    ../target/release/charl run "$file"
-    echo ""
-done
+cd AGI-TEST-PROJECT
+./run_all_levels.sh
 ```
 
 ---
 
-## 📊 Resultados Principales
+## 📊 Main Results
 
-- ✅ **8 niveles completados** hacia AGI básico
-- ✅ **100% test accuracy** en 7 de 8 niveles
-- ✅ **500 parámetros** para AGI vs 175 billones de GPT-4
-- ✅ **350 millones x más eficiente** que GPT-4
-- ✅ **Self-reflection** funcional
-- ✅ **Causal reasoning** con contrafactuales
+- ✅ **8 levels completed** towards basic AGI
+- ✅ **100% test accuracy** on 7 out of 8 levels
+- ✅ **500 parameters** for AGI vs 175 billion in GPT-4
+- ✅ **350 million x more efficient** than GPT-4
+- ✅ **Self-reflection** functional
+- ✅ **Causal reasoning** with counterfactuals
 - ✅ **Transfer learning** cross-domain
 
 ---
 
-## 🌐 Integración en Website
+## 🌐 Website Integration
 
-### Fase 1: Landing Page
-**Archivos necesarios**: `README_AGI.md`, `AGI_STATS.md`
+### Phase 1: Landing Page
+**Required files**: `README_AGI.md`, `AGI_STATS.md`
 
-Contenido:
-- Hero section con stats principales
-- Overview del paradigma Karpathy
-- Tabla de 8 niveles
+Content:
+- Hero section with main stats
+- Overview of Karpathy paradigm
+- 8 levels table
 - CTAs
 
-### Fase 2: Levels Showcase
-**Archivos necesarios**: `AGI_STATS.md` (levels JSON)
+### Phase 2: Levels Showcase
+**Required files**: `AGI_STATS.md` (levels JSON)
 
-Contenido:
-- Galería de 8 niveles
-- Cards interactivas
-- Gráficos de progresión
+Content:
+- Gallery of 8 levels
+- Interactive cards
+- Progression charts
 
-### Fase 3: Technical Deep Dive
-**Archivos necesarios**: `AGI_JOURNEY.md`
+### Phase 3: Technical Deep Dive
+**Required files**: `AGI_JOURNEY.md`
 
-Contenido:
-- Arquitectura detallada por nivel
-- Código explicado
-- Análisis técnico
+Content:
+- Detailed architecture by level
+- Explained code
+- Technical analysis
 
-### Fase 4: Docs Portal
-**Archivos necesarios**: `AGI_INDEX.md` + todos los archivos
+### Phase 4: Docs Portal
+**Required files**: `AGI_INDEX.md` + all files
 
-Contenido:
-- Índice navegable
+Content:
+- Navigable index
 - Downloads
-- Referencias
+- References
 
-Ver **AGI_INDEX.md** para roadmap completo.
-
----
-
-## 📈 Stats Destacados
-
-```
-350,000,000x    Más eficiente que GPT-4 (parámetros)
-100%            Test accuracy (7 de 8 niveles)
-500             Parámetros totales (Level 8)
-8               Niveles hacia AGI
-130,000x        Más eficiente en energía
-```
+See **AGI_INDEX.md** for complete roadmap.
 
 ---
 
-## 🎯 Capacidades Validadas
+## 📈 Highlighted Stats
 
-- [x] Razonamiento simple
-- [x] Razonamiento compositional
-- [x] Abstracción de patrones
-- [x] Meta-cognición
+```
+350,000,000x    More efficient than GPT-4 (parameters)
+100%            Test accuracy (7 out of 8 levels)
+500             Total parameters (Level 8)
+8               Levels towards AGI
+130,000x        More energy efficient
+```
+
+---
+
+## 🎯 Validated Capabilities
+
+- [x] Simple reasoning
+- [x] Compositional reasoning
+- [x] Pattern abstraction
+- [x] Meta-cognition
 - [x] Transfer learning
-- [x] Razonamiento causal
-- [x] Planning goal-directed
+- [x] Causal reasoning
+- [x] Goal-directed planning
 - [x] Self-reflection
-- [x] Auto-corrección
+- [x] Self-correction
 - [x] Meta-learning
 
-**✅ AGI básico funcional alcanzado**
+**✅ Functional basic AGI achieved**
 
 ---
 
-## 📚 Empezar a Leer
+## 📚 Where to Start
 
-1. **Para overview rápido**: Lee `README_AGI.md`
-2. **Para entender el proyecto**: Lee `AGI_JOURNEY.md`
-3. **Para integrar en web**: Lee `AGI_STATS.md` y `AGI_INDEX.md`
-4. **Para ver código**: Explora archivos `.ch`
-
----
-
-## 🔗 Links Útiles
-
-- 📖 [Documentación Completa](./AGI_JOURNEY.md)
-- 📊 [Estadísticas](./AGI_STATS.md)
-- 🗂️ [Índice](./AGI_INDEX.md)
-- 💻 Código fuente: 8 archivos `.ch` en este directorio
+1. **For quick overview**: Read `README_AGI.md`
+2. **To understand the project**: Read `AGI_JOURNEY.md`
+3. **For web integration**: Read `AGI_STATS.md` and `AGI_INDEX.md`
+4. **To see code**: Explore `.ch` files
 
 ---
 
-## 📝 Notas
+## 🔗 Useful Links
 
-- Todos los archivos están probados y funcionando
-- Documentación lista para publicación
-- Código ejecutable en Charl
-- JSON estructurado para web
+- 📖 [Complete Documentation](./AGI_JOURNEY.md)
+- 📊 [Statistics](./AGI_STATS.md)
+- 🗂️ [Index](./AGI_INDEX.md)
+- 💻 Source code: 8 `.ch` files in this directory
 
 ---
 
-## 📄 Licencia
+## 📝 Notes
 
-MIT License - Todos los archivos en este proyecto.
+- All files are tested and working
+- Documentation ready for publication
+- Code executable in Charl
+- JSON structured for web
+
+---
+
+## 📄 License
+
+MIT License - All files in this project.
 
 ---
 
 <div align="center">
 
-**🧠 AGI Journey - Proyecto Completo**
+**🧠 AGI Journey - Complete Project**
 
-*Del Paradigma Karpathy al AGI en 8 Niveles*
+*From Karpathy's Paradigm to AGI in 8 Levels*
 
-**Arquitectura > Escala** ✅
+**Architecture > Scale** ✅
 
 </div>

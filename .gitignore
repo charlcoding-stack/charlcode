@@ -103,12 +103,19 @@ PROGRESO_*.md
 MetaReal.md
 karapathy.md
 
+# But allow AGI-TEST-PROJECT documentation
+!AGI-TEST-PROJECT/AGI_INDEX.md
+!AGI-TEST-PROJECT/AGI_JOURNEY.md
+!AGI-TEST-PROJECT/AGI_STATS.md
+!AGI-TEST-PROJECT/README_AGI.md
+
 # AGI Project II (internal development, not for public repo)
 AGI_PROJECT_II/
 
-# Test files (development only)
+# Test files (development only - but allow AGI-TEST-PROJECT tests)
 test_*.ch
 *_debug.ch
+!AGI-TEST-PROJECT/test_*.ch
 
 # Release binaries (upload to GitHub Releases instead)
 releases/*.tar.gz
