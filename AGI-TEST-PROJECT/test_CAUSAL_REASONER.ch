@@ -1,53 +1,53 @@
-// 🔬 PROYECTO: CAUSAL REASONER - NIVEL 6
+// 🔬 PROJECT: CAUSAL REASONER - LEVEL 6
 //
-// Razonamiento Causal - Entender causa → efecto:
-// - Identificar relaciones causales
-// - Predecir efectos de causas
-// - Razonamiento contrafactual: "¿Qué pasaría si...?"
-// - Intervenciones: Cambiar causas, predecir nuevos efectos
-// - ~200 parámetros
+// Causal Reasoning - Understand cause → effect:
+// - Identify causal relationships
+// - Predict effects from causes
+// - Counterfactual reasoning: "What if...?"
+// - Interventions: Change causes, predict new effects
+// - ~200 parameters
 //
-// AVANCE: De correlación → Causalidad
+// ADVANCE: From correlation → Causality
 //
-// Problema Causal:
-//   Observación: Llueve → Calle mojada
-//   Causal: Lluvia CAUSA que calle esté mojada
-//   Contrafactual: Si NO lloviera → Calle seca
-//   Intervención: Riego artificial → Calle mojada (diferente causa)
+// Causal Problem:
+//   Observation: Rain → Wet street
+//   Causal: Rain CAUSES street to be wet
+//   Counterfactual: If it didn't rain → Dry street
+//   Intervention: Artificial watering → Wet street (different cause)
 //
-// Demuestra: Razonamiento causal básico hacia AGI
+// Demonstrates: Basic causal reasoning towards AGI
 
 print("======================================================================")
-print("  CAUSAL REASONER - NIVEL 6 HACIA AGI")
-print("  'De correlación a causalidad'")
+print("  CAUSAL REASONER - LEVEL 6 TOWARDS AGI")
+print("  'From correlation to causality'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: ARQUITECTURA CAUSAL REASONER
+// STEP 1: CAUSAL REASONER ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Causal Reasoner...")
+print("STEP 1: Causal Reasoner Architecture...")
 
-// Causal Model con ~200 parámetros:
-// - Observation Encoder: Codifica observaciones
+// Causal Model with ~200 parameters:
+// - Observation Encoder: Encode observations
 //   w_obs (40 params)
-// - Causal Graph: Representa relaciones causa-efecto
+// - Causal Graph: Represent cause-effect relationships
 //   w_causal (60 params)
-// - Intervention Module: Simula intervenciones
+// - Intervention Module: Simulate interventions
 //   w_interv (40 params)
-// - Counterfactual Reasoner: "¿Qué pasaría si...?"
+// - Counterfactual Reasoner: "What if...?"
 //   w_counter (40 params)
-// - Effect Predictor: Predice efectos
+// - Effect Predictor: Predict effects
 //   w_pred (20 params)
-// Total: ~200 parámetros
+// Total: ~200 parameters
 
-// Weights simplificados
+// Simplified weights
 let w_obs = 1.0         // Observation encoder
 let w_causal = 1.0      // Causal relationships
 let w_interv = 1.0      // Intervention module
 let w_counter = 1.0     // Counterfactual reasoning
 let w_pred = 1.0        // Effect predictor
 
-print("  Arquitectura Causal:")
+print("  Causal Architecture:")
 print("    OBSERVATION:")
 print("      Observe events → Encode")
 print("    CAUSAL GRAPH:")
@@ -56,108 +56,108 @@ print("    REASONING:")
 print("      Predict: Given cause, what effect?")
 print("      Intervene: Change cause, predict new effect")
 print("      Counterfactual: What if cause was different?")
-print("    Parámetros: ~200")
-print("  ✅ Causal reasoner inicializado\n")
+print("    Parameters: ~200")
+print("  ✅ Causal reasoner initialized\n")
 
 // ============================================================================
-// PASO 2: DATASET CAUSAL
+// STEP 2: CAUSAL DATASET
 // ============================================================================
-print("PASO 2: Dataset causal con relaciones causa-efecto...")
+print("STEP 2: Causal dataset with cause-effect relationships...")
 
-// Relaciones causales codificadas:
+// Encoded causal relationships:
 // Variables: 0=false, 1=true
-// Formato: [causa1, causa2, efecto]
+// Format: [cause1, cause2, effect]
 //
-// Modelo causal simple:
-//   Lluvia (C1) → Calle mojada (E)
-//   Riego (C2) → Calle mojada (E)
-//   Calle mojada (E) → Resbaloso (E2)
+// Simple causal model:
+//   Rain (C1) → Wet street (E)
+//   Watering (C2) → Wet street (E)
+//   Wet street (E) → Slippery (E2)
 
 let train_causal = [
-    // [lluvia, riego, calle_mojada]
-    [1, 0, 1],    // Llueve, no riego → mojada
-    [0, 1, 1],    // No llueve, riego → mojada
-    [1, 1, 1],    // Llueve Y riego → mojada
-    [0, 0, 0],    // No llueve, no riego → seca
+    // [rain, watering, wet_street]
+    [1, 0, 1],    // Rain, no watering → wet
+    [0, 1, 1],    // No rain, watering → wet
+    [1, 1, 1],    // Rain AND watering → wet
+    [0, 0, 0],    // No rain, no watering → dry
 
-    // [temperatura, lluvia, paraguas_usado]
-    [1, 1, 1],    // Calor, llueve → usa paraguas
-    [1, 0, 0],    // Calor, no llueve → no usa
-    [0, 1, 1],    // Frío, llueve → usa paraguas
-    [0, 0, 0],    // Frío, no llueve → no usa
+    // [temperature, rain, umbrella_used]
+    [1, 1, 1],    // Hot, raining → uses umbrella
+    [1, 0, 0],    // Hot, not raining → doesn't use
+    [0, 1, 1],    // Cold, raining → uses umbrella
+    [0, 0, 0],    // Cold, not raining → doesn't use
 
-    // [estudiar, dormir_bien, aprobar]
-    [1, 1, 1],    // Estudia, duerme bien → aprueba
-    [1, 0, 1],    // Estudia, duerme mal → aprueba
-    [0, 1, 0],    // No estudia, duerme bien → no aprueba
-    [0, 0, 0],    // No estudia, duerme mal → no aprueba
+    // [study, sleep_well, pass]
+    [1, 1, 1],    // Studies, sleeps well → passes
+    [1, 0, 1],    // Studies, sleeps badly → passes
+    [0, 1, 0],    // Doesn't study, sleeps well → doesn't pass
+    [0, 0, 0],    // Doesn't study, sleeps badly → doesn't pass
 
-    // [ejercicio, dieta, peso_bajo]
-    [1, 1, 1],    // Ejercicio, buena dieta → peso bajo
-    [1, 0, 0],    // Ejercicio, mala dieta → peso normal
-    [0, 1, 0],    // No ejercicio, buena dieta → peso normal
-    [0, 0, 0]     // No ejercicio, mala dieta → peso alto
+    // [exercise, diet, low_weight]
+    [1, 1, 1],    // Exercise, good diet → low weight
+    [1, 0, 0],    // Exercise, bad diet → normal weight
+    [0, 1, 0],    // No exercise, good diet → normal weight
+    [0, 0, 0]     // No exercise, bad diet → high weight
 ]
 
 let n_train = 16
 
-// Test set: Intervenciones y contrafactuales
+// Test set: Interventions and counterfactuals
 let test_causal = [
-    // Observación nueva
-    [1, 1, 1],    // Llueve + riego → mojada
+    // New observation
+    [1, 1, 1],    // Rain + watering → wet
 
-    // Intervención: Forzar "no lluvia"
-    [0, 1, 1],    // Intervenimos: no lluvia, pero riego → ¿mojada?
+    // Intervention: Force "no rain"
+    [0, 1, 1],    // Intervene: no rain, but watering → wet?
 
-    // Contrafactual: Si hubiera estudiado
-    [1, 1, 1],    // Estudia + duerme → aprueba
+    // Counterfactual: If had studied
+    [1, 1, 1],    // Studies + sleeps → passes
 
-    // Nueva combinación
-    [1, 0, 1]     // Ejercicio, mala dieta → ?
+    // New combination
+    [1, 0, 1]     // Exercise, bad diet → ?
 ]
 
 let test_answers = [1, 1, 1, 0]
 
-print("  Dataset Causal:")
-print("    Relaciones causa-efecto:")
-print("      1. Lluvia/Riego → Calle mojada")
-print("      2. Lluvia → Usar paraguas")
-print("      3. Estudiar → Aprobar (causa necesaria)")
-print("      4. Ejercicio+Dieta → Peso bajo")
-print("    Train: " + str(n_train) + " observaciones causales")
-print("  Test: 4 problemas (intervenciones + contrafactuales)")
-print("  Desafío: Identificar causas REALES, no correlaciones")
-print("  ✅ Dataset causal generado\n")
+print("  Causal Dataset:")
+print("    Cause-effect relationships:")
+print("      1. Rain/Watering → Wet street")
+print("      2. Rain → Use umbrella")
+print("      3. Study → Pass (necessary cause)")
+print("      4. Exercise+Diet → Low weight")
+print("    Train: " + str(n_train) + " causal observations")
+print("  Test: 4 problems (interventions + counterfactuals)")
+print("  Challenge: Identify REAL causes, not correlations")
+print("  ✅ Causal dataset generated\n")
 
 // ============================================================================
-// PASO 3: CAUSAL REASONING ENGINE
+// STEP 3: CAUSAL REASONING ENGINE
 // ============================================================================
-print("PASO 3: Implementando Causal Reasoning...")
+print("STEP 3: Implementing Causal Reasoning...")
 
 print("\n  Causal Reasoning Process:")
 print("  Step 1: OBSERVE")
-print("    Llueve=true, CalleMojada=true")
+print("    Rain=true, WetStreet=true")
 print("")
 print("  Step 2: IDENTIFY CAUSALITY")
-print("    ¿Lluvia CAUSA calle mojada?")
-print("    Criterio: Temporal, covariación, mecanismo")
+print("    Does Rain CAUSE wet street?")
+print("    Criteria: Temporal, covariation, mechanism")
 print("")
 print("  Step 3: PREDICT EFFECTS")
-print("    Si llueve → Calle mojada")
+print("    If rains → Wet street")
 print("")
 print("  Step 4: INTERVENTION (do-calculus)")
-print("    do(Lluvia=false) → ¿Calle mojada?")
-print("    Respuesta: Depende de otras causas (riego)")
+print("    do(Rain=false) → Wet street?")
+print("    Answer: Depends on other causes (watering)")
 print("")
 print("  Step 5: COUNTERFACTUAL")
-print("    Observo: No estudié, no aprobé")
-print("    ¿Qué si hubiera estudiado? → Aprobaría")
-print("  ✅ Causal reasoning engine listo\n")
+print("    Observe: Didn't study, didn't pass")
+print("    What if had studied? → Would pass")
+print("  ✅ Causal reasoning engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR CAUSAL REASONER
+// STEP 4: TRAIN CAUSAL REASONER
 // ============================================================================
-print("PASO 4: Entrenando Causal Reasoner...")
+print("STEP 4: Training Causal Reasoner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -165,7 +165,7 @@ let print_every = 20
 
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
-print("  - Task: Aprender relaciones causales\n")
+print("  - Task: Learn causal relationships\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -184,12 +184,12 @@ while epoch < epochs {
 
         // CAUSAL REASONING FORWARD
         // Model: Effect = f(Causes)
-        // Para simplificar: OR logic (al menos una causa activa)
-        // En modelo real: Structural Causal Model (SCM)
+        // Simplified: OR logic (at least one cause active)
+        // In real model: Structural Causal Model (SCM)
 
         let pred_effect = 0.0
 
-        // Grupo 1: Calle mojada (lluvia OR riego)
+        // Group 1: Wet street (rain OR watering)
         if i < 4 {
             if cause1 == 1 {
                 pred_effect = 1.0
@@ -201,7 +201,7 @@ while epoch < epochs {
                 }
             }
         } else {
-            // Grupo 2: Paraguas (lluvia AND [cualquier temperatura])
+            // Group 2: Umbrella (rain AND [any temperature])
             if i < 8 {
                 if cause2 == 1 {
                     pred_effect = 1.0
@@ -209,7 +209,7 @@ while epoch < epochs {
                     pred_effect = 0.0
                 }
             } else {
-                // Grupo 3: Aprobar (estudiar es causa necesaria)
+                // Group 3: Pass (study is necessary cause)
                 if i < 12 {
                     if cause1 == 1 {
                         pred_effect = 1.0
@@ -217,7 +217,7 @@ while epoch < epochs {
                         pred_effect = 0.0
                     }
                 } else {
-                    // Grupo 4: Peso bajo (ejercicio AND dieta)
+                    // Group 4: Low weight (exercise AND diet)
                     if cause1 == 1 {
                         if cause2 == 1 {
                             pred_effect = 1.0
@@ -261,14 +261,14 @@ while epoch < epochs {
 }
 
 print("----------------------------------------------------------------------")
-print("✅ Training completado!\n")
+print("✅ Training completed!\n")
 
 // ============================================================================
-// PASO 5: EVALUAR RAZONAMIENTO CAUSAL
+// STEP 5: EVALUATE CAUSAL REASONING
 // ============================================================================
-print("PASO 5: Evaluando razonamiento causal...")
+print("STEP 5: Evaluating causal reasoning...")
 
-print("\n  Test Set (Intervenciones + Contrafactuales):")
+print("\n  Test Set (Interventions + Counterfactuals):")
 let test_correct = 0
 let i = 0
 
@@ -278,12 +278,12 @@ while i < 4 {
     let cause2 = sample[1]
     let true_effect = test_answers[i]
 
-    let test_type = "Observación"
+    let test_type = "Observation"
     if i == 1 {
-        test_type = "Intervención"
+        test_type = "Intervention"
     } else {
         if i == 2 {
-            test_type = "Contrafactual"
+            test_type = "Counterfactual"
         }
     }
 
@@ -291,7 +291,7 @@ while i < 4 {
     let pred_effect = 0.0
 
     if i == 0 {
-        // Calle mojada: lluvia OR riego
+        // Wet street: rain OR watering
         if cause1 == 1 {
             pred_effect = 1.0
         } else {
@@ -303,8 +303,8 @@ while i < 4 {
         }
     } else {
         if i == 1 {
-            // INTERVENCIÓN: do(lluvia=0), riego=1
-            // Aún así mojada porque riego es causa independiente
+            // INTERVENTION: do(rain=0), watering=1
+            // Still wet because watering is independent cause
             if cause2 == 1 {
                 pred_effect = 1.0
             } else {
@@ -312,14 +312,14 @@ while i < 4 {
             }
         } else {
             if i == 2 {
-                // CONTRAFACTUAL: Estudiar → Aprobar
+                // COUNTERFACTUAL: Study → Pass
                 if cause1 == 1 {
                     pred_effect = 1.0
                 } else {
                     pred_effect = 0.0
                 }
             } else {
-                // Peso bajo: ejercicio AND dieta
+                // Low weight: exercise AND diet
                 if cause1 == 1 {
                     if cause2 == 1 {
                         pred_effect = 1.0
@@ -344,10 +344,10 @@ while i < 4 {
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO - Razonamiento causal exitoso")
+        print("    ✅ CORRECT - Causal reasoning successful")
         test_correct = test_correct + 1
     } else {
-        print("    ❌ Incorrecto")
+        print("    ❌ Incorrect")
     }
 
     i = i + 1
@@ -356,64 +356,64 @@ while i < 4 {
 let test_accuracy = (test_correct * 100) / 4
 
 print("\n  Test Accuracy: " + str(test_accuracy) + "% (" + str(test_correct) + "/4)")
-print("  ✅ Razonamiento causal evaluado\n")
+print("  ✅ Causal reasoning evaluated\n")
 
 // ============================================================================
-// PASO 6: ANÁLISIS CAUSAL
+// STEP 6: CAUSAL ANALYSIS
 // ============================================================================
-print("PASO 6: Análisis de razonamiento causal...")
+print("STEP 6: Causal reasoning analysis...")
 
-print("\n  Capacidades Causales:")
-print("    ✅ Identificar causas vs correlaciones")
-print("    ✅ Predecir efectos de causas")
-print("    ✅ Razonamiento de intervención (do-calculus)")
-print("    ✅ Razonamiento contrafactual")
+print("\n  Causal Capabilities:")
+print("    ✅ Identify causes vs correlations")
+print("    ✅ Predict effects from causes")
+print("    ✅ Intervention reasoning (do-calculus)")
+print("    ✅ Counterfactual reasoning")
 
-print("\n  Vs Correlación:")
-print("    Correlación: A ocurre con B")
-print("    Causalidad: A CAUSA B")
-print("    Diferencia: Intervenir en A cambia B")
+print("\n  Vs Correlation:")
+print("    Correlation: A occurs with B")
+print("    Causality: A CAUSES B")
+print("    Difference: Intervening on A changes B")
 
-print("\n  Ejemplo Causal:")
-print("    OBSERVE: Llueve → Calle mojada")
-print("    IDENTIFY: Lluvia es CAUSA (mecanismo plausible)")
-print("    INTERVENE: do(Lluvia=false) → ¿Mojada?")
-print("      Depende de otras causas (riego)")
-print("    COUNTERFACTUAL: Si no lloviera, ¿mojada?")
-print("      Solo si hubiera riego")
-print("    ✅ Razonamiento causal completo")
+print("\n  Causal Example:")
+print("    OBSERVE: Rain → Wet street")
+print("    IDENTIFY: Rain is CAUSE (plausible mechanism)")
+print("    INTERVENE: do(Rain=false) → Wet?")
+print("      Depends on other causes (watering)")
+print("    COUNTERFACTUAL: If it didn't rain, wet?")
+print("      Only if there was watering")
+print("    ✅ Complete causal reasoning")
 
 // ============================================================================
-// RESUMEN FINAL
+// FINAL SUMMARY
 // ============================================================================
 print("\n======================================================================")
-print("  RESUMEN - CAUSAL REASONER (NIVEL 6)")
+print("  SUMMARY - CAUSAL REASONER (LEVEL 6)")
 print("======================================================================")
-print("✅ Parámetros: ~200")
-print("✅ Causalidad: Causa → Efecto")
-print("✅ Intervenciones: do-calculus")
-print("✅ Contrafactuales: ¿Qué pasaría si...?")
+print("✅ Parameters: ~200")
+print("✅ Causality: Cause → Effect")
+print("✅ Interventions: do-calculus")
+print("✅ Counterfactuals: What if...?")
 print("✅ Train Accuracy: ~" + str(accuracy) + "%")
 print("✅ Test Accuracy: " + str(test_accuracy) + "%")
-print("\n  PROGRESO HACIA AGI:")
-print("  1. ✅ Level 1: Operación simple")
-print("  2. ✅ Level 2: Composición")
-print("  3. ✅ Level 3: Abstracción")
-print("  4. ✅ Level 4: Meta-razonamiento")
+print("\n  PROGRESS TOWARDS AGI:")
+print("  1. ✅ Level 1: Simple operation")
+print("  2. ✅ Level 2: Composition")
+print("  3. ✅ Level 3: Abstraction")
+print("  4. ✅ Level 4: Meta-reasoning")
 print("  5. ✅ Level 5: Transfer Learning")
-print("  6. ✅ Level 6: Causal Reasoning → HECHO")
+print("  6. ✅ Level 6: Causal Reasoning → DONE")
 print("  7. ⏭️  Level 7: Planning & Goals")
 print("  8. ⏭️  Level 8: Self-Reflection (AGI)")
-print("\n  SALTO CAUSAL:")
-print("  - De correlación → Causalidad")
-print("  - De observar → Intervenir")
-print("  - De hechos → Contrafactuales")
-print("  - De pasivo → Activo")
-print("\n  PRINCIPIOS AGI:")
-print("  - Causal Understanding: No solo patterns, sino WHY")
-print("  - Intervention: Cambiar causas, predecir efectos")
-print("  - Counterfactual: Razonar sobre alternativas")
-print("  - Mechanism: Entender cómo funciona")
-print("\n🎉 CAUSAL REASONING FUNCIONA - NIVEL 6 COMPLETADO!")
-print("  '75% del camino hacia AGI (Level 8)'")
+print("\n  CAUSAL LEAP:")
+print("  - From correlation → Causality")
+print("  - From observe → Intervene")
+print("  - From facts → Counterfactuals")
+print("  - From passive → Active")
+print("\n  AGI PRINCIPLES:")
+print("  - Causal Understanding: Not just patterns, but WHY")
+print("  - Intervention: Change causes, predict effects")
+print("  - Counterfactual: Reason about alternatives")
+print("  - Mechanism: Understand how it works")
+print("\n🎉 CAUSAL REASONING WORKS - LEVEL 6 COMPLETED!")
+print("  '75% of the way to AGI (Level 8)'")
 print("======================================================================\n")

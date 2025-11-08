@@ -1,6 +1,6 @@
 [package]
 name = "charl"
-version = "0.2.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Charl Team"]
 description = "A revolutionary programming language for AI and Deep Learning with GPU-accelerated neural network layers"

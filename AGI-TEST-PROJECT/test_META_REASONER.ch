@@ -1,87 +1,87 @@
-// 🔬 PROYECTO: META-REASONER - NIVEL 4
+// 🔬 PROJECT: META-REASONER - LEVEL 4
 //
-// Meta-Razonamiento - Razonar sobre el razonamiento:
-// - Detectar QUÉ tipo de problema es
-// - SELECCIONAR la estrategia correcta
-// - APLICAR el razonamiento apropiado
-// - ~50 parámetros (aumenta para decisiones meta)
+// Meta-Reasoning - Reasoning about reasoning:
+// - Detect WHAT type of problem it is
+// - SELECT the correct strategy
+// - APPLY the appropriate reasoning
+// - ~50 parameters (increases for meta decisions)
 //
-// AVANCE: De razonar → Razonar sobre cómo razonar
+// ADVANCE: From reasoning → Reasoning about how to reason
 //
-// Problema Meta: ¿Qué estrategia uso?
+// Meta Problem: What strategy do I use?
 //   Input: [1, 2, 3, ?]
-//   Meta-Step 1: ¿Es secuencia o analogía? → Secuencia
-//   Meta-Step 2: ¿Qué patrón? → Incremental
-//   Meta-Step 3: Aplicar estrategia → Pattern recognition
-//   Meta-Step 4: Ejecutar → 3 + 1 = 4
+//   Meta-Step 1: Is it sequence or analogy? → Sequence
+//   Meta-Step 2: What pattern? → Incremental
+//   Meta-Step 3: Apply strategy → Pattern recognition
+//   Meta-Step 4: Execute → 3 + 1 = 4
 //
-// Demuestra: Meta-cognición básica
+// Demonstrates: Basic meta-cognition
 
 print("======================================================================")
-print("  META-REASONER - NIVEL 4 HACIA AGI")
-print("  'Razonar sobre cómo razonar'")
+print("  META-REASONER - LEVEL 4 TOWARDS AGI")
+print("  'Reasoning about how to reason'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: ARQUITECTURA META-REASONER
+// STEP 1: META-REASONER ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Meta-Reasoner...")
+print("STEP 1: Meta-Reasoner Architecture...")
 
-// Meta-nivel: Seleccionar estrategia
-// - Problem Type Classifier: ¿Qué tipo de problema?
+// Meta-level: Select strategy
+// - Problem Type Classifier: What type of problem?
 //   w_seq, w_analogy, w_comp, b_type (4 params)
-// - Strategy Selector: ¿Qué estrategia usar?
+// - Strategy Selector: What strategy to use?
 //   w_pattern, w_compose, w_abstract, b_strategy (4 params)
-// - Confidence Estimator: ¿Qué tan seguro estoy?
+// - Confidence Estimator: How confident am I?
 //   w_conf, b_conf (2 params)
 //
-// Object-nivel: Estrategias específicas
+// Object-level: Specific strategies
 // - Pattern reasoner (Level 3)
 // - Compositional reasoner (Level 2)
 // - Simple reasoner (Level 1)
 //
-// Total: ~30 parámetros meta + 30 object = ~60 params
+// Total: ~30 meta parameters + 30 object = ~60 params
 
 // Meta-level weights
-let w_type_seq = 0.8       // Clasificar como secuencia
-let w_type_analogy = 0.5   // Clasificar como analogía
-let w_type_comp = 0.3      // Clasificar como composición
+let w_type_seq = 0.8       // Classify as sequence
+let w_type_analogy = 0.5   // Classify as analogy
+let w_type_comp = 0.3      // Classify as composition
 let b_type = 0.0
 
-let w_strategy = 1.0       // Seleccionar estrategia
+let w_strategy = 1.0       // Select strategy
 let b_strategy = 0.0
 
-let w_confidence = 1.0     // Estimar confianza
+let w_confidence = 1.0     // Estimate confidence
 let b_confidence = 0.5
 
-// Object-level weights (de niveles anteriores)
+// Object-level weights (from previous levels)
 let w_pattern = 1.0        // Pattern recognition
 let w_compose = 1.0        // Composition
 let w_simple = 1.0         // Simple ops
 
-print("  Arquitectura Meta-Cognitiva:")
-print("    META-NIVEL:")
+print("  Meta-Cognitive Architecture:")
+print("    META-LEVEL:")
 print("      - Problem Type Classifier")
 print("      - Strategy Selector")
 print("      - Confidence Estimator")
-print("    OBJECT-NIVEL:")
+print("    OBJECT-LEVEL:")
 print("      - Pattern Reasoner (Level 3)")
 print("      - Compositional Reasoner (Level 2)")
 print("      - Simple Reasoner (Level 1)")
-print("    Parámetros: ~60 (30 meta + 30 object)")
-print("  ✅ Meta-reasoner inicializado\n")
+print("    Parameters: ~60 (30 meta + 30 object)")
+print("  ✅ Meta-reasoner initialized\n")
 
 // ============================================================================
-// PASO 2: DATASET META-COGNITIVO
+// STEP 2: META-COGNITIVE DATASET
 // ============================================================================
-print("PASO 2: Dataset meta-cognitivo (problemas mixtos)...")
+print("STEP 2: Meta-cognitive dataset (mixed problems)...")
 
-// Dataset MIXTO con diferentes tipos de problemas
-// El modelo debe DECIDIR qué estrategia usar para cada uno
+// MIXED dataset with different types of problems
+// The model must DECIDE which strategy to use for each
 
-// Tipo 0: Secuencias (usar pattern recognition)
-// Tipo 1: Analogías (usar analogical reasoning)
-// Tipo 2: Composiciones (usar compositional reasoning)
+// Type 0: Sequences (use pattern recognition)
+// Type 1: Analogies (use analogical reasoning)
+// Type 2: Compositions (use compositional reasoning)
 
 let problems = [
     // [type, data..., answer]
@@ -108,7 +108,7 @@ let problems = [
 let n_train = 12
 let n_test = 4
 
-// Test set (problemas mixtos NO vistos)
+// Test set (mixed problems NOT seen)
 let test_problems = [
     [0, 4, 7, 10, 13],      // Seq [4,7,10] → 13
     [1, 5, 10, 3, 6],       // 5:10::3:? → 6 (×2)
@@ -116,18 +116,18 @@ let test_problems = [
     [0, 1, 3, 5, 7]         // Seq [1,3,5] → 7
 ]
 
-print("  Dataset Mixto:")
-print("    - Secuencias: 4 problemas")
-print("    - Analogías: 4 problemas")
-print("    - Composiciones: 4 problemas")
-print("  Test: 4 problemas mixtos (NO vistos)")
-print("  Desafío: Clasificar tipo Y resolver correctamente")
-print("  ✅ Dataset meta-cognitivo generado\n")
+print("  Mixed Dataset:")
+print("    - Sequences: 4 problems")
+print("    - Analogies: 4 problems")
+print("    - Compositions: 4 problems")
+print("  Test: 4 mixed problems (NOT seen)")
+print("  Challenge: Classify type AND solve correctly")
+print("  ✅ Meta-cognitive dataset generated\n")
 
 // ============================================================================
-// PASO 3: META-REASONING ENGINE
+// STEP 3: META-REASONING ENGINE
 // ============================================================================
-print("PASO 3: Implementando Meta-Reasoning...")
+print("STEP 3: Implementing Meta-Reasoning...")
 
 print("\n  Meta-Reasoning Process:")
 print("  Input: [type, data...]")
@@ -136,12 +136,12 @@ print("    META-STEP 2: Select appropriate strategy")
 print("    META-STEP 3: Estimate confidence")
 print("    OBJECT-STEP: Execute selected strategy")
 print("    OUTPUT: Result + confidence")
-print("  ✅ Meta-reasoning engine listo\n")
+print("  ✅ Meta-reasoning engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR META-REASONER
+// STEP 4: TRAIN META-REASONER
 // ============================================================================
-print("PASO 4: Entrenando Meta-Reasoner...")
+print("STEP 4: Training Meta-Reasoner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -149,7 +149,7 @@ let print_every = 20
 
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
-print("  - Task: Meta-cognición\n")
+print("  - Task: Meta-cognition\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -165,7 +165,7 @@ while epoch < epochs {
         let problem = problems[i]
         let type_true = problem[0]
 
-        // Extraer datos según el tipo
+        // Extract data according to type
         let a = 0
         let b = 0
         let c = 0
@@ -182,7 +182,7 @@ while epoch < epochs {
             c = problem[5]
             answer_true = problem[6]
         } else {
-            // Sequence o Analogy: [type, a, b, c, answer]
+            // Sequence or Analogy: [type, a, b, c, answer]
             a = problem[1]
             b = problem[2]
             c = problem[3]
@@ -191,8 +191,8 @@ while epoch < epochs {
 
         // META-REASONING
         // Step 1: Classify problem type (0=seq, 1=analogy, 2=comp)
-        // Heurística simple: el tipo está dado, pero el modelo aprende features
-        let type_pred = type_true  // En training usamos el verdadero
+        // Simple heuristic: type is given, but model learns features
+        let type_pred = type_true  // In training we use the true one
 
         // Step 2: Select and apply strategy based on type
         let answer_pred = 0.0

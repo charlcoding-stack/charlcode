@@ -1,31 +1,31 @@
-# 📦 AGI Journey - Manifest del Proyecto
+# 📦 AGI Journey - Project Manifest
 
-**Fecha de creación**: 2025-11-07
-**Versión**: 1.0
-**Estado**: ✅ Completado y verificado
-
----
-
-## 📁 Inventario Completo
-
-### 📖 Documentación Principal (5 archivos)
-
-| Archivo | Tamaño | Propósito | Estado |
-|---------|--------|-----------|--------|
-| **README.md** | 4.7 KB | Guía principal del proyecto | ✅ |
-| **AGI_JOURNEY.md** | 32 KB | Documentación técnica completa | ✅ |
-| **README_AGI.md** | 4.2 KB | Overview rápido | ✅ |
-| **AGI_STATS.md** | 11 KB | Estadísticas y datos JSON | ✅ |
-| **AGI_INDEX.md** | 8.2 KB | Índice y guía de uso | ✅ |
-
-**Total documentación**: 60.1 KB
+**Creation Date**: 2025-11-07
+**Version**: 1.0
+**Status**: ✅ Completed and verified
 
 ---
 
-### 💻 Código Fuente - 8 Niveles (8 archivos .ch)
+## 📁 Complete Inventory
 
-| Nivel | Archivo | Tamaño | Params | Train Acc | Test Acc | Estado |
-|-------|---------|--------|--------|-----------|----------|--------|
+### 📖 Main Documentation (5 files)
+
+| File | Size | Purpose | Status |
+|------|------|---------|--------|
+| **README.md** | 4.7 KB | Main project guide | ✅ |
+| **AGI_JOURNEY.md** | 32 KB | Complete technical documentation | ✅ |
+| **README_AGI.md** | 4.2 KB | Quick overview | ✅ |
+| **AGI_STATS.md** | 11 KB | Statistics and JSON data | ✅ |
+| **AGI_INDEX.md** | 8.2 KB | Index and usage guide | ✅ |
+
+**Total documentation**: 60.1 KB
+
+---
+
+### 💻 Source Code - 8 Levels (8 .ch files)
+
+| Level | File | Size | Params | Train Acc | Test Acc | Status |
+|-------|------|------|--------|-----------|----------|--------|
 | **1** | test_MINIMAL_REASONER.ch | 9.8 KB | 4 | 100% | 100% | ✅ |
 | **2** | test_COMPOSITIONAL_REASONER.ch | 12 KB | 13 | 100% | 100% | ✅ |
 | **3** | test_ABSTRACT_REASONER.ch | 15 KB | 11 | 93% | 100% | ✅ |
@@ -35,45 +35,45 @@
 | **7** | test_PLANNING_REASONER.ch | 15 KB | 300 | 87% | 100% | ✅ |
 | **8** | test_SELF_REFLECTION_AGI.ch | 18 KB | 500 | 90% | 100% | ✅ |
 
-**Total código fuente**: 117.8 KB
-**Total niveles**: 8
-**Niveles con 100% test accuracy**: 7/8
+**Total source code**: 117.8 KB
+**Total levels**: 8
+**Levels with 100% test accuracy**: 7/8
 
 ---
 
-### 🛠️ Scripts y Utilidades (1 archivo)
+### 🛠️ Scripts and Utilities (1 file)
 
-| Archivo | Tamaño | Propósito | Estado |
-|---------|--------|-----------|--------|
-| **run_all_levels.sh** | ~1.5 KB | Script para ejecutar todos los niveles | ✅ |
-
----
-
-## 📊 Estadísticas del Proyecto
-
-### Líneas de Código
-- **Nivel 1**: ~299 líneas
-- **Nivel 2**: ~351 líneas
-- **Nivel 3**: ~430 líneas
-- **Nivel 4**: ~467 líneas
-- **Nivel 5**: ~520 líneas
-- **Nivel 6**: ~490 líneas
-- **Nivel 7**: ~450 líneas
-- **Nivel 8**: ~580 líneas
-
-**Total estimado**: ~3,587 líneas de código Charl
-
-### Documentación
-- **Total palabras**: ~15,000 palabras
-- **Total caracteres**: ~100,000 caracteres
-- **Secciones principales**: 50+
-- **Ejemplos de código**: 30+
+| File | Size | Purpose | Status |
+|------|------|---------|--------|
+| **run_all_levels.sh** | ~1.5 KB | Script to run all levels | ✅ |
 
 ---
 
-## 🎯 Resultados Validados
+## 📊 Project Statistics
 
-### Accuracy por Nivel
+### Lines of Code
+- **Level 1**: ~299 lines
+- **Level 2**: ~351 lines
+- **Level 3**: ~430 lines
+- **Level 4**: ~467 lines
+- **Level 5**: ~520 lines
+- **Level 6**: ~490 lines
+- **Level 7**: ~450 lines
+- **Level 8**: ~580 lines
+
+**Estimated total**: ~3,587 lines of Charl code
+
+### Documentation
+- **Total words**: ~15,000 words
+- **Total characters**: ~100,000 characters
+- **Main sections**: 50+
+- **Code examples**: 30+
+
+---
+
+## 🎯 Validated Results
+
+### Accuracy by Level
 ```
 Level 1: 100% ✅
 Level 2: 100% ✅
@@ -84,10 +84,10 @@ Level 6: 100% ✅
 Level 7: 100% ✅
 Level 8: 100% ✅
 
-Promedio: 96.875%
+Average: 96.875%
 ```
 
-### Parámetros por Nivel
+### Parameters by Level
 ```
 Level 1:   4 params
 Level 2:  13 params
@@ -96,24 +96,24 @@ Level 4:  60 params
 Level 5: 100 params
 Level 6: 200 params
 Level 7: 300 params
-Level 8: 500 params (AGI básico)
+Level 8: 500 params (basic AGI)
 
 Total: 1,188 params
 ```
 
-### Eficiencia vs GPT-4
+### Efficiency vs GPT-4
 ```
 GPT-4:       175,000,000,000 params
 Charl L8:               500 params
-Ratio:      350,000,000 x más eficiente
+Ratio:      350,000,000 x more efficient
 ```
 
 ---
 
-## ✅ Capacidades Validadas
+## ✅ Validated Capabilities
 
-| # | Capacidad | Nivel | Validado |
-|---|-----------|-------|----------|
+| # | Capability | Level | Validated |
+|---|------------|-------|-----------|
 | 1 | Simple Reasoning | 1 | ✅ |
 | 2 | Compositional Reasoning | 2 | ✅ |
 | 3 | Pattern Abstraction | 3 | ✅ |
@@ -125,24 +125,24 @@ Ratio:      350,000,000 x más eficiente
 | 9 | Self-Correction | 8 | ✅ |
 | 10 | Meta-Learning | 8 | ✅ |
 
-**Total capacidades**: 10/10 ✅
+**Total capabilities**: 10/10 ✅
 
 ---
 
-## 🗂️ Estructura de Archivos
+## 🗂️ File Structure
 
 ```
 AGI_PROJECT/
 │
-├── 📖 Documentación
-│   ├── README.md                    (Guía principal)
-│   ├── AGI_JOURNEY.md              (Docs completa)
+├── 📖 Documentation
+│   ├── README.md                    (Main guide)
+│   ├── AGI_JOURNEY.md              (Complete docs)
 │   ├── README_AGI.md               (Overview)
-│   ├── AGI_STATS.md                (Estadísticas)
-│   ├── AGI_INDEX.md                (Índice)
-│   └── MANIFEST.md                 (Este archivo)
+│   ├── AGI_STATS.md                (Statistics)
+│   ├── AGI_INDEX.md                (Index)
+│   └── MANIFEST.md                 (This file)
 │
-├── 💻 Código Fuente
+├── 💻 Source Code
 │   ├── test_MINIMAL_REASONER.ch         (Level 1)
 │   ├── test_COMPOSITIONAL_REASONER.ch   (Level 2)
 │   ├── test_ABSTRACT_REASONER.ch        (Level 3)
@@ -153,110 +153,110 @@ AGI_PROJECT/
 │   └── test_SELF_REFLECTION_AGI.ch      (Level 8)
 │
 └── 🛠️ Scripts
-    └── run_all_levels.sh            (Ejecutar todos)
+    └── run_all_levels.sh            (Run all)
 ```
 
 ---
 
-## 🚀 Cómo Usar Este Proyecto
+## 🚀 How to Use This Project
 
-### 1. Leer la Documentación
+### 1. Read the Documentation
 ```bash
-# Empezar aquí
+# Start here
 cat README.md
 
-# Para detalles técnicos
+# For technical details
 cat AGI_JOURNEY.md
 
-# Para integración web
+# For web integration
 cat AGI_STATS.md
 cat AGI_INDEX.md
 ```
 
-### 2. Ejecutar los Niveles
+### 2. Run the Levels
 ```bash
-# Ejecutar un nivel específico
+# Run a specific level
 ../target/release/charl run test_MINIMAL_REASONER.ch
 
-# Ejecutar todos los niveles
+# Run all levels
 ./run_all_levels.sh
 ```
 
-### 3. Integrar en Website
-Ver `AGI_INDEX.md` para roadmap completo de integración.
+### 3. Integrate into Website
+See `AGI_INDEX.md` for complete integration roadmap.
 
 ---
 
 ## 📝 Changelog
 
-### Versión 1.0 (2025-11-07)
-- ✅ Creación inicial del proyecto
-- ✅ 8 niveles implementados y verificados
-- ✅ Documentación completa
-- ✅ Scripts de ejecución
-- ✅ AGI básico funcional alcanzado
+### Version 1.0 (2025-11-07)
+- ✅ Initial project creation
+- ✅ 8 levels implemented and verified
+- ✅ Complete documentation
+- ✅ Execution scripts
+- ✅ Basic functional AGI achieved
 
 ---
 
-## 🎓 Logros Principales
+## 🎓 Main Achievements
 
-### Técnicos
-- ✅ AGI básico con 500 parámetros
-- ✅ 100% test accuracy en 7/8 niveles
-- ✅ Self-reflection funcional
-- ✅ Causal reasoning con contrafactuales
-- ✅ Transfer learning cross-domain
+### Technical
+- ✅ Basic AGI with 500 parameters
+- ✅ 100% test accuracy on 7/8 levels
+- ✅ Functional self-reflection
+- ✅ Causal reasoning with counterfactuals
+- ✅ Cross-domain transfer learning
 
-### Paradigma Karpathy
-- ✅ Validado: Arquitectura > Tamaño
-- ✅ 350M x más eficiente que GPT-4
-- ✅ Razonamiento explícito (no emergente)
+### Karpathy Paradigm
+- ✅ Validated: Architecture > Size
+- ✅ 350M x more efficient than GPT-4
+- ✅ Explicit reasoning (not emergent)
 - ✅ 100% interpretable
 
-### Para Charl
-- ✅ Demuestra capacidad ML/DL
-- ✅ Backend completo (LSTM, GRU, layers)
-- ✅ Sintaxis expresiva para algoritmos
-- ✅ Performance adecuado
+### For Charl
+- ✅ Demonstrates ML/DL capability
+- ✅ Complete backend (LSTM, GRU, layers)
+- ✅ Expressive syntax for algorithms
+- ✅ Adequate performance
 
 ---
 
-## 📦 Tamaño Total del Proyecto
+## 📦 Total Project Size
 
 ```
-Documentación:     60.1 KB
-Código fuente:    117.8 KB
+Documentation:     60.1 KB
+Source code:      117.8 KB
 Scripts:            1.5 KB
 ─────────────────────────
 Total:            179.4 KB
 ```
 
-**Muy ligero y portable** ✅
+**Very lightweight and portable** ✅
 
 ---
 
-## 🔗 Links y Referencias
+## 🔗 Links and References
 
-### Dentro del Proyecto
-- [Documentación Principal](./README.md)
-- [Documentación Completa](./AGI_JOURNEY.md)
-- [Estadísticas](./AGI_STATS.md)
-- [Índice](./AGI_INDEX.md)
+### Within the Project
+- [Main Documentation](./README.md)
+- [Complete Documentation](./AGI_JOURNEY.md)
+- [Statistics](./AGI_STATS.md)
+- [Index](./AGI_INDEX.md)
 
-### Externos
+### External
 - [Charl Website](https://charl.ai) (placeholder)
-- [Paradigma Karpathy](https://karpathy.github.io)
-- [GitHub](https://github.com/tu-usuario/charl) (placeholder)
+- [Karpathy Paradigm](https://karpathy.github.io)
+- [GitHub](https://github.com/your-user/charl) (placeholder)
 
 ---
 
-## ✅ Verificación de Integridad
+## ✅ Integrity Verification
 
 ```bash
-# Verificar que todos los archivos existen
+# Verify all files exist
 ls -1 AGI_PROJECT/
 
-# Debería mostrar:
+# Should show:
 # AGI_INDEX.md
 # AGI_JOURNEY.md
 # AGI_STATS.md
@@ -273,34 +273,34 @@ ls -1 AGI_PROJECT/
 # test_SELF_REFLECTION_AGI.ch
 # test_TRANSFER_LEARNER.ch
 
-# Total: 15 archivos
+# Total: 15 files
 ```
 
-**Estado**: ✅ Todos los archivos presentes
+**Status**: ✅ All files present
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-MIT License - Todos los archivos en este proyecto.
+MIT License - All files in this project.
 
 ---
 
-## 🙏 Créditos
+## 🙏 Credits
 
-**Desarrollador**: Proyecto Charl
-**Inspiración**: Andrej Karpathy (paradigma de modelos pequeños)
-**Fecha**: 2025-11-07
-**Versión**: 1.0
+**Developer**: Charl Project
+**Inspiration**: Andrej Karpathy (small models paradigm)
+**Date**: 2025-11-07
+**Version**: 1.0
 
 ---
 
 <div align="center">
 
-**📦 AGI Journey - Proyecto Completo y Verificado**
+**📦 AGI Journey - Complete and Verified Project**
 
-*15 archivos | 179.4 KB | 8 niveles | AGI básico alcanzado*
+*15 files | 179.4 KB | 8 levels | Basic AGI achieved*
 
-✅ **Todo listo para producción**
+✅ **Ready for production**
 
 </div>

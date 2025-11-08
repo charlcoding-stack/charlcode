@@ -1,54 +1,54 @@
-// 🔬 PROYECTO: PLANNING REASONER - NIVEL 7
+// 🔬 PROJECT: PLANNING REASONER - LEVEL 7
 //
-// Planning & Goal Reasoning - Planificar para alcanzar objetivos:
-// - Establecer goals (estados deseados)
-// - Planificar secuencias de acciones
-// - Backward reasoning: Del goal al presente
-// - Forward reasoning: Del presente al goal
-// - Optimizar planes (shortest path)
-// - ~300 parámetros
+// Planning & Goal Reasoning - Plan to achieve objectives:
+// - Establish goals (desired states)
+// - Plan action sequences
+// - Backward reasoning: From goal to present
+// - Forward reasoning: From present to goal
+// - Optimize plans (shortest path)
+// - ~300 parameters
 //
-// AVANCE: De reaccionar → Planificar proactivamente
+// ADVANCE: From reacting → Planning proactively
 //
-// Problema Planning:
-//   Estado inicial: En casa
-//   Goal: Estar en trabajo
-//   Acciones disponibles: [caminar, tomar_bus, manejar]
-//   Plan: caminar_a_parada → tomar_bus → llegar_trabajo
+// Planning Problem:
+//   Initial state: At home
+//   Goal: Be at work
+//   Available actions: [walk, take_bus, drive]
+//   Plan: walk_to_stop → take_bus → arrive_work
 //
-// Demuestra: Goal-directed reasoning hacia AGI
+// Demonstrates: Goal-directed reasoning towards AGI
 
 print("======================================================================")
-print("  PLANNING REASONER - NIVEL 7 HACIA AGI")
-print("  'De reaccionar a planificar'")
+print("  PLANNING REASONER - LEVEL 7 TOWARDS AGI")
+print("  'From reacting to planning'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: ARQUITECTURA PLANNING REASONER
+// STEP 1: PLANNING REASONER ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Planning Reasoner...")
+print("STEP 1: Planning Reasoner Architecture...")
 
-// Planning Model con ~300 parámetros:
-// - State Encoder: Codifica estados del mundo
+// Planning Model with ~300 parameters:
+// - State Encoder: Encode world states
 //   w_state (60 params)
-// - Goal Encoder: Codifica objetivos
+// - Goal Encoder: Encode objectives
 //   w_goal (60 params)
-// - Action Model: Representa acciones disponibles
+// - Action Model: Represent available actions
 //   w_action (60 params)
-// - Forward Planner: Del presente al futuro
+// - Forward Planner: From present to future
 //   w_forward (60 params)
-// - Backward Planner: Del goal al presente
+// - Backward Planner: From goal to present
 //   w_backward (60 params)
-// Total: ~300 parámetros
+// Total: ~300 parameters
 
-// Weights simplificados
+// Simplified weights
 let w_state = 1.0       // State representation
 let w_goal = 1.0        // Goal representation
 let w_action = 1.0      // Action effects
 let w_forward = 1.0     // Forward planning
 let w_backward = 1.0    // Backward planning
 
-print("  Arquitectura Planning:")
+print("  Planning Architecture:")
 print("    STATE REPRESENTATION:")
 print("      Current state → Encode")
 print("    GOAL SPECIFICATION:")
@@ -59,20 +59,20 @@ print("    PLANNING:")
 print("      Forward: State → Actions → Goal")
 print("      Backward: Goal → Required states → Actions")
 print("      Optimize: Shortest/best plan")
-print("    Parámetros: ~300")
-print("  ✅ Planning reasoner inicializado\n")
+print("    Parameters: ~300")
+print("  ✅ Planning reasoner initialized\n")
 
 // ============================================================================
-// PASO 2: DATASET DE PLANNING
+// STEP 2: PLANNING DATASET
 // ============================================================================
-print("PASO 2: Dataset de problemas de planning...")
+print("STEP 2: Planning problems dataset...")
 
-// Mundo simplificado: Grid 1D (posiciones 0-9)
-// Acciones: move_left (-1), move_right (+1), jump (+2)
-// Goal: Llegar a posición target
-// Costo: move=1, jump=2
+// Simplified world: 1D Grid (positions 0-9)
+// Actions: move_left (-1), move_right (+1), jump (+2)
+// Goal: Reach target position
+// Cost: move=1, jump=2
 
-// Formato: [start, goal, plan_length, actions...]
+// Format: [start, goal, plan_length, actions...]
 // actions: 0=left, 1=right, 2=jump_right
 
 let train_plans = [
@@ -104,7 +104,7 @@ let train_plans = [
 
 let n_train = 8
 
-// Test set: Nuevos problemas de planning
+// Test set: New planning problems
 let test_plans = [
     // Optimal path
     [0, 6, 3, 2, 2, 2, -1],           // start=0, goal=6: [jump x3]
@@ -121,31 +121,31 @@ let test_plans = [
 
 let test_plans_len = [3, 3, 5, 1]
 
-print("  Dataset de Planning:")
-print("    Mundo: Grid 1D (posiciones 0-9)")
-print("    Acciones:")
-print("      - move_left: pos - 1 (costo 1)")
-print("      - move_right: pos + 1 (costo 1)")
-print("      - jump_right: pos + 2 (costo 2)")
-print("    Train: " + str(n_train) + " problemas de planning")
-print("  Test: 4 problemas nuevos")
-print("  Desafío: Encontrar plan óptimo para alcanzar goal")
-print("  ✅ Dataset de planning generado\n")
+print("  Planning Dataset:")
+print("    World: 1D Grid (positions 0-9)")
+print("    Actions:")
+print("      - move_left: pos - 1 (cost 1)")
+print("      - move_right: pos + 1 (cost 1)")
+print("      - jump_right: pos + 2 (cost 2)")
+print("    Train: " + str(n_train) + " planning problems")
+print("  Test: 4 new problems")
+print("  Challenge: Find optimal plan to reach goal")
+print("  ✅ Planning dataset generated\n")
 
 // ============================================================================
-// PASO 3: PLANNING ENGINE
+// STEP 3: PLANNING ENGINE
 // ============================================================================
-print("PASO 3: Implementando Planning Engine...")
+print("STEP 3: Implementing Planning Engine...")
 
 print("\n  Planning Process:")
-print("  GOAL: Llegar de posición 0 a posición 5")
+print("  GOAL: Go from position 0 to position 5")
 print("")
 print("  BACKWARD PLANNING:")
 print("    Goal: pos=5")
-print("    Subgoal 1: ¿Cómo llegar a 5?")
-print("      Opción A: pos=4 + right")
-print("      Opción B: pos=3 + jump")
-print("    Subgoal 2: ¿Cómo llegar a 3?")
+print("    Subgoal 1: How to reach 5?")
+print("      Option A: pos=4 + right")
+print("      Option B: pos=3 + jump")
+print("    Subgoal 2: How to reach 3?")
 print("      pos=1 + jump")
 print("    Plan: [jump from 0→2, jump from 2→4, right from 4→5]")
 print("")
@@ -159,12 +159,12 @@ print("  OPTIMIZATION:")
 print("    Plan A: [right, right, right, right, right] (cost 5)")
 print("    Plan B: [jump, jump, right] (cost 5)")
 print("    Both optimal!")
-print("  ✅ Planning engine listo\n")
+print("  ✅ Planning engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR PLANNING REASONER
+// STEP 4: TRAIN PLANNING REASONER
 // ============================================================================
-print("PASO 4: Entrenando Planning Reasoner...")
+print("STEP 4: Training Planning Reasoner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -172,7 +172,7 @@ let print_every = 20
 
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
-print("  - Task: Aprender a planificar\n")
+print("  - Task: Learn to plan\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -190,7 +190,7 @@ while epoch < epochs {
         let true_plan_len = plan[2]
 
         // PLANNING FORWARD PASS
-        // Greedy planning: Siempre elegir acción que acerca más al goal
+        // Greedy planning: Always choose action that gets closer to goal
         let current_pos = start
         let predicted_len = 0
         let max_steps = 10
@@ -229,12 +229,12 @@ while epoch < epochs {
             }
         }
 
-        // Loss: Diferencia en plan length
+        // Loss: Difference in plan length
         let error = predicted_len - true_plan_len
         let loss = error * error
         total_loss = total_loss + loss
 
-        // Accuracy: Plan length correcta?
+        // Accuracy: Plan length correct?
         let error_abs = error
         if error_abs < 0.0 {
             error_abs = 0.0 - error_abs
@@ -259,14 +259,14 @@ while epoch < epochs {
 }
 
 print("----------------------------------------------------------------------")
-print("✅ Training completado!\n")
+print("✅ Training completed!\n")
 
 // ============================================================================
-// PASO 5: EVALUAR PLANNING
+// STEP 5: EVALUATE PLANNING
 // ============================================================================
-print("PASO 5: Evaluando planning en problemas nuevos...")
+print("STEP 5: Evaluating planning on new problems...")
 
-print("\n  Test Set (Problemas de planning nuevos):")
+print("\n  Test Set (New planning problems):")
 let test_correct = 0
 let i = 0
 
@@ -342,13 +342,13 @@ while i < 4 {
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO - Plan óptimo encontrado")
+        print("    ✅ CORRECT - Optimal plan found")
         test_correct = test_correct + 1
     } else {
         if predicted_len <= true_plan_len + 1 {
-            print("    ⚠️  Subóptimo pero válido")
+            print("    ⚠️  Suboptimal but valid")
         } else {
-            print("    ❌ Plan ineficiente")
+            print("    ❌ Inefficient plan")
         }
     }
 
@@ -358,27 +358,27 @@ while i < 4 {
 let test_accuracy = (test_correct * 100) / 4
 
 print("\n  Test Accuracy: " + str(test_accuracy) + "% (" + str(test_correct) + "/4)")
-print("  ✅ Planning evaluado\n")
+print("  ✅ Planning evaluated\n")
 
 // ============================================================================
-// PASO 6: ANÁLISIS DE PLANNING
+// STEP 6: PLANNING ANALYSIS
 // ============================================================================
-print("PASO 6: Análisis de planning...")
+print("STEP 6: Planning analysis...")
 
-print("\n  Capacidades de Planning:")
+print("\n  Planning Capabilities:")
 print("    ✅ Goal-directed reasoning")
 print("    ✅ Action sequencing")
-print("    ✅ Forward planning (presente → futuro)")
+print("    ✅ Forward planning (present → future)")
 print("    ✅ Plan optimization (greedy)")
 
-print("\n  Proceso de Planning:")
-print("    1. STATE: ¿Dónde estoy?")
-print("    2. GOAL: ¿Dónde quiero estar?")
-print("    3. ACTIONS: ¿Qué puedo hacer?")
-print("    4. PLAN: ¿Qué secuencia de acciones?")
-print("    5. OPTIMIZE: ¿Cuál es el mejor plan?")
+print("\n  Planning Process:")
+print("    1. STATE: Where am I?")
+print("    2. GOAL: Where do I want to be?")
+print("    3. ACTIONS: What can I do?")
+print("    4. PLAN: What sequence of actions?")
+print("    5. OPTIMIZE: What's the best plan?")
 
-print("\n  Ejemplo de Planning:")
+print("\n  Planning Example:")
 print("    START: pos=0")
 print("    GOAL: pos=5")
 print("    ACTIONS: {left, right, jump}")
@@ -387,35 +387,35 @@ print("    EXECUTION: 0→2→4→5 ✅")
 print("    COST: 3 steps")
 
 // ============================================================================
-// RESUMEN FINAL
+// FINAL SUMMARY
 // ============================================================================
 print("\n======================================================================")
-print("  RESUMEN - PLANNING REASONER (NIVEL 7)")
+print("  SUMMARY - PLANNING REASONER (LEVEL 7)")
 print("======================================================================")
-print("✅ Parámetros: ~300")
+print("✅ Parameters: ~300")
 print("✅ Planning: Goal-directed")
-print("✅ Acciones: Secuencias optimizadas")
+print("✅ Actions: Optimized sequences")
 print("✅ Train Accuracy: ~" + str(accuracy) + "%")
 print("✅ Test Accuracy: " + str(test_accuracy) + "%")
-print("\n  PROGRESO HACIA AGI:")
-print("  1. ✅ Level 1: Operación simple")
-print("  2. ✅ Level 2: Composición")
-print("  3. ✅ Level 3: Abstracción")
-print("  4. ✅ Level 4: Meta-razonamiento")
+print("\n  PROGRESS TOWARDS AGI:")
+print("  1. ✅ Level 1: Simple operation")
+print("  2. ✅ Level 2: Composition")
+print("  3. ✅ Level 3: Abstraction")
+print("  4. ✅ Level 4: Meta-reasoning")
 print("  5. ✅ Level 5: Transfer Learning")
 print("  6. ✅ Level 6: Causal Reasoning")
-print("  7. ✅ Level 7: Planning & Goals → HECHO")
+print("  7. ✅ Level 7: Planning & Goals → DONE")
 print("  8. ⏭️  Level 8: Self-Reflection (AGI)")
-print("\n  SALTO DE PLANNING:")
-print("  - De reaccionar → Planificar")
-print("  - De presente → Futuro")
-print("  - De pasivo → Proactivo")
-print("  - De acciones → Secuencias")
-print("\n  PRINCIPIOS AGI:")
-print("  - Goal-directed: Actuar con propósito")
-print("  - Planning: Anticipar y secuenciar")
-print("  - Optimization: Buscar mejores soluciones")
-print("  - Proactive: No solo responder, sino planear")
-print("\n🎉 PLANNING FUNCIONA - NIVEL 7 COMPLETADO!")
-print("  '87.5% del camino hacia AGI (Level 8)'")
+print("\n  PLANNING LEAP:")
+print("  - From reacting → Planning")
+print("  - From present → Future")
+print("  - From passive → Proactive")
+print("  - From actions → Sequences")
+print("\n  AGI PRINCIPLES:")
+print("  - Goal-directed: Act with purpose")
+print("  - Planning: Anticipate and sequence")
+print("  - Optimization: Seek better solutions")
+print("  - Proactive: Not just respond, but plan")
+print("\n🎉 PLANNING WORKS - LEVEL 7 COMPLETED!")
+print("  '87.5% of the way to AGI (Level 8)'")
 print("======================================================================\n")

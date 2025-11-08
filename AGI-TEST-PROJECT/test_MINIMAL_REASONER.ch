@@ -1,64 +1,64 @@
-// 🔬 PROYECTO: MINIMAL REASONING MODEL - PARADIGMA KARPATHY
+// 🔬 PROJECT: MINIMAL REASONING MODEL - KARPATHY PARADIGM
 //
-// Demostración de que un modelo TINY puede RAZONAR:
-// - ~100 parámetros (vs millones de GPT-4)
-// - Aprende PROCESO, no memoriza respuestas
-// - Chain-of-Thought interno
-// - Generaliza a problemas no vistos
+// Demonstration that a TINY model can REASON:
+// - ~100 parameters (vs millions in GPT-4)
+// - Learns PROCESS, doesn't memorize answers
+// - Internal Chain-of-Thought
+// - Generalizes to unseen problems
 //
-// PRINCIPIO KARPATHY: 1,000x MENOS parámetros, MÁS razonamiento
+// KARPATHY PRINCIPLE: 1,000x FEWER parameters, MORE reasoning
 //
-// Problema: Sumar números descomponiéndolos
-// Ejemplo: 5 + 3 = ?
+// Problem: Add numbers by decomposing them
+// Example: 5 + 3 = ?
 //   Step 1: Start with 5
 //   Step 2: Add 1 → 6
 //   Step 3: Add 1 → 7
 //   Step 4: Add 1 → 8
 //   Answer: 8
 //
-// El modelo aprende la LÓGICA de sumar, no memoriza "5+3=8"
+// The model learns the LOGIC of addition, doesn't memorize "5+3=8"
 
 print("======================================================================")
-print("  MINIMAL REASONING MODEL - PARADIGMA KARPATHY")
-print("  '1,000x menos parámetros, más razonamiento'")
+print("  MINIMAL REASONING MODEL - KARPATHY PARADIGM")
+print("  '1,000x fewer parameters, more reasoning'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: DEFINIR ARQUITECTURA MINIMAL
+// STEP 1: DEFINE MINIMAL ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Minimal Reasoner...")
+print("STEP 1: Minimal Reasoner Architecture...")
 
-// Reasoning Model con ~100 parámetros:
-// - Input: número objetivo a alcanzar (encoded)
-// - Reasoning: Generar secuencia de +1 steps
-// - Output: resultado final
+// Reasoning Model with ~100 parameters:
+// - Input: target number to reach (encoded)
+// - Reasoning: Generate sequence of +1 steps
+// - Output: final result
 
-// Parámetros del modelo:
-// w1: peso para decidir "cuántos pasos necesito" (1 param)
-// w2: peso para ejecutar cada paso (1 param)
+// Model parameters:
+// w1: weight to decide "how many steps needed" (1 param)
+// w2: weight to execute each step (1 param)
 // b1, b2: bias (2 params)
-// Total: 4 parámetros base
+// Total: 4 base parameters
 
-let w1 = 0.8   // Planificación: estimar pasos (más cerca de 1.0)
-let w2 = 1.0   // Ejecución: hacer incremento
-let b1 = 0.1   // Pequeño bias inicial
+let w1 = 0.8   // Planning: estimate steps (closer to 1.0)
+let w2 = 1.0   // Execution: perform increment
+let b1 = 0.1   // Small initial bias
 let b2 = 0.0
 
-print("  Arquitectura:")
+print("  Architecture:")
 print("    - Input: (start, target)")
-print("    - Reasoning: Generar steps hasta alcanzar target")
-print("    - Process: Repetir +1 hasta target")
-print("    - Output: resultado")
-print("  Parámetros: 4 (w1, w2, b1, b2)")
-print("  ✅ Modelo inicializado\n")
+print("    - Reasoning: Generate steps until reaching target")
+print("    - Process: Repeat +1 until target")
+print("    - Output: result")
+print("  Parameters: 4 (w1, w2, b1, b2)")
+print("  ✅ Model initialized\n")
 
 // ============================================================================
-// PASO 2: GENERAR DATASET DE RAZONAMIENTO
+// STEP 2: GENERATE REASONING DATASET
 // ============================================================================
-print("PASO 2: Dataset de problemas de razonamiento...")
+print("STEP 2: Reasoning problems dataset...")
 
-// Problemas: (start, target) → razonar cuántos +1 necesito
-// Ejemplo: (5, 8) → necesito 3 pasos de +1
+// Problems: (start, target) → reason how many +1 needed
+// Example: (5, 8) → need 3 steps of +1
 let train_problems = [
     // start, target, answer
     [0, 3],   // 0+3=3
@@ -76,7 +76,7 @@ let train_problems = [
 let train_answers = [3, 5, 3, 3, 4, 5, 6, 5, 7, 5]
 
 let test_problems = [
-    // Problemas NO vistos en training
+    // Problems NOT seen in training
     [1, 5],   // 1+4=5
     [2, 7],   // 2+5=7
     [0, 6],   // 0+6=6
@@ -88,28 +88,28 @@ let test_answers = [4, 5, 6, 6]
 let n_train = 10
 let n_test = 4
 
-print("  - Train: " + str(n_train) + " problemas")
-print("  - Test: " + str(n_test) + " problemas (NO vistos)")
-print("  - Task: Aprender a contar pasos de +1")
-print("  ✅ Dataset generado\n")
+print("  - Train: " + str(n_train) + " problems")
+print("  - Test: " + str(n_test) + " problems (NOT seen)")
+print("  - Task: Learn to count +1 steps")
+print("  ✅ Dataset generated\n")
 
 // ============================================================================
-// PASO 3: REASONING FORWARD PASS
+// STEP 3: REASONING FORWARD PASS
 // ============================================================================
-print("PASO 3: Implementando Reasoning Engine...")
+print("STEP 3: Implementing Reasoning Engine...")
 
 print("\n  Reasoning Process:")
 print("  1. Input: (start=2, target=5)")
-print("  2. Plan: Estimar steps = target - start")
+print("  2. Plan: Estimate steps = target - start")
 print("  3. Execute: current = start")
-print("  4. Repeat: current = current + 1 (hasta target)")
+print("  4. Repeat: current = current + 1 (until target)")
 print("  5. Output: current")
-print("  ✅ Reasoning engine listo\n")
+print("  ✅ Reasoning engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR CON REASONING
+// STEP 4: TRAIN WITH REASONING
 // ============================================================================
-print("PASO 4: Entrenando Minimal Reasoner...")
+print("STEP 4: Training Minimal Reasoner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -118,7 +118,7 @@ let print_every = 20
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
 print("  - Optimizer: SGD")
-print("  - Loss: MSE sobre número de steps\n")
+print("  - Loss: MSE over number of steps\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -138,15 +138,15 @@ while epoch < epochs {
         let true_steps = train_answers[i]
 
         // REASONING FORWARD PASS
-        // 1. Plan: Estimar cuántos pasos necesito
+        // 1. Plan: Estimate how many steps needed
         let diff = target - start
         let estimated_steps = w1 * diff + b1
 
-        // 2. Execute: Simular razonamiento
-        // (En modelo real, generaría tokens step-by-step)
+        // 2. Execute: Simulate reasoning
+        // (In real model, would generate tokens step-by-step)
         let pred_steps = estimated_steps
 
-        // Loss: ¿Estimé bien los pasos?
+        // Loss: Did I estimate steps correctly?
         let error = pred_steps - true_steps
         let loss = error * error
         total_loss = total_loss + loss
@@ -158,12 +158,12 @@ while epoch < epochs {
         sum_grad_w1 = sum_grad_w1 + grad_w1
         sum_grad_b1 = sum_grad_b1 + grad_b1
 
-        // Accuracy (redondear predicción)
+        // Accuracy (round prediction)
         let pred_rounded = pred_steps
         if pred_rounded < 0.0 {
             pred_rounded = 0.0
         }
-        // Redondear a entero más cercano
+        // Round to nearest integer
         let pred_int = pred_rounded + 0.5
         if pred_int == true_steps {
             correct = correct + 1
@@ -193,14 +193,14 @@ while epoch < epochs {
 }
 
 print("----------------------------------------------------------------------")
-print("✅ Training completado!\n")
+print("✅ Training completed!\n")
 
 // ============================================================================
-// PASO 5: EVALUAR GENERALIZACIÓN
+// STEP 5: EVALUATE GENERALIZATION
 // ============================================================================
-print("PASO 5: Evaluando generalización en problemas NO vistos...")
+print("STEP 5: Evaluating generalization on UNSEEN problems...")
 
-print("\n  Test Set (problemas nuevos):")
+print("\n  Test Set (new problems):")
 let test_correct = 0
 let test_i = 0
 
@@ -220,17 +220,17 @@ while test_i < n_test {
     print("    True steps: " + str(true_steps))
     print("    Predicted: " + str(pred_steps))
 
-    // Verificar si es correcto (con tolerancia)
+    // Check if correct (with tolerance)
     let error_abs = pred_steps - true_steps
     if error_abs < 0.0 {
         error_abs = 0.0 - error_abs
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO")
+        print("    ✅ CORRECT")
         test_correct = test_correct + 1
     } else {
-        print("    ❌ Incorrecto")
+        print("    ❌ Incorrect")
     }
 
     test_i = test_i + 1
@@ -239,33 +239,33 @@ while test_i < n_test {
 let test_accuracy = (test_correct * 100) / n_test
 
 print("\n  Test Accuracy: " + str(test_accuracy) + "% (" + str(test_correct) + "/" + str(n_test) + ")")
-print("  ✅ Generalización evaluada\n")
+print("  ✅ Generalization evaluated\n")
 
 // ============================================================================
-// PASO 6: ANÁLISIS DE RAZONAMIENTO
+// STEP 6: REASONING ANALYSIS
 // ============================================================================
-print("PASO 6: Análisis del proceso de razonamiento...")
+print("STEP 6: Reasoning process analysis...")
 
-print("\n  Parámetros aprendidos:")
-print("    w1 = " + str(w1) + " (debería ser ~1.0 para perfecto)")
-print("    b1 = " + str(b1) + " (debería ser ~0.0)")
+print("\n  Learned parameters:")
+print("    w1 = " + str(w1) + " (should be ~1.0 for perfect)")
+print("    b1 = " + str(b1) + " (should be ~0.0)")
 
-print("\n  Interpretación:")
+print("\n  Interpretation:")
 if w1 > 0.9 {
     if w1 < 1.1 {
-        print("    ✅ w1 ≈ 1.0: Modelo aprendió que steps = target - start")
-        print("    ✅ RAZONAMIENTO CORRECTO: No memorizó, aprendió la LÓGICA")
+        print("    ✅ w1 ≈ 1.0: Model learned that steps = target - start")
+        print("    ✅ CORRECT REASONING: Didn't memorize, learned the LOGIC")
     } else {
-        print("    ⚠️  w1 > 1.1: Sobreestima pasos")
+        print("    ⚠️  w1 > 1.1: Overestimates steps")
     }
 } else {
-    print("    ⚠️  w1 < 0.9: Subestima pasos")
+    print("    ⚠️  w1 < 0.9: Underestimates steps")
 }
 
-// Ejemplo de razonamiento step-by-step
-print("\n  Ejemplo de Reasoning Chain:")
+// Step-by-step reasoning example
+print("\n  Reasoning Chain Example:")
 print("  Input: (2, 5)")
-print("    Step 1: Estimar steps = w1*(5-2) + b1 = " + str(w1 * 3.0 + b1))
+print("    Step 1: Estimate steps = w1*(5-2) + b1 = " + str(w1 * 3.0 + b1))
 print("    Step 2: Execute reasoning:")
 print("      current = 2")
 print("      current = 2 + 1 = 3")
@@ -274,25 +274,25 @@ print("      current = 4 + 1 = 5")
 print("    Step 3: Output = 5 ✅")
 
 // ============================================================================
-// RESUMEN FINAL
+// FINAL SUMMARY
 // ============================================================================
 print("\n======================================================================")
-print("  RESUMEN - MINIMAL REASONER (PARADIGMA KARPATHY)")
+print("  SUMMARY - MINIMAL REASONER (KARPATHY PARADIGM)")
 print("======================================================================")
-print("✅ Parámetros: 4 (vs ~175 BILLONES de GPT-4)")
-print("✅ Ratio: ~43 BILLONES de veces más pequeño")
+print("✅ Parameters: 4 (vs ~175 BILLION in GPT-4)")
+print("✅ Ratio: ~43 BILLION times smaller")
 print("✅ Train Accuracy: ~" + str(accuracy) + "%")
 print("✅ Test Accuracy: " + str(test_accuracy) + "%")
-print("✅ Generalización: Resuelve problemas NO vistos")
-print("✅ Razonamiento: Aprendió LÓGICA, no memorizó respuestas")
-print("\n  PRINCIPIOS DEMOSTRADOS:")
-print("  1. ✅ Menos parámetros → MÁS eficiencia")
-print("  2. ✅ Razonamiento > Memorización")
-print("  3. ✅ Arquitectura correcta > Tamaño")
-print("  4. ✅ Generalización sin overfitting")
-print("\n  CAMINO A AGI:")
-print("  - Modelos pequeños que RAZONAN")
-print("  - Menos recursos, más inteligencia")
-print("  - Aprender procesos, no respuestas")
-print("\n🎉 MINIMAL REASONING MODEL - PARADIGMA KARPATHY FUNCIONA!")
+print("✅ Generalization: Solves UNSEEN problems")
+print("✅ Reasoning: Learned LOGIC, didn't memorize answers")
+print("\n  DEMONSTRATED PRINCIPLES:")
+print("  1. ✅ Fewer parameters → MORE efficiency")
+print("  2. ✅ Reasoning > Memorization")
+print("  3. ✅ Correct architecture > Size")
+print("  4. ✅ Generalization without overfitting")
+print("\n  PATH TO AGI:")
+print("  - Small models that REASON")
+print("  - Fewer resources, more intelligence")
+print("  - Learn processes, not answers")
+print("\n🎉 MINIMAL REASONING MODEL - KARPATHY PARADIGM WORKS!")
 print("======================================================================\n")
