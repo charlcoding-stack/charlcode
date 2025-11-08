@@ -106,9 +106,9 @@ pub struct Adam {
     pub beta2: f64,
     pub epsilon: f64,
     pub weight_decay: f64,
-    m: HashMap<usize, Vec<f64>>, // First moment
-    v: HashMap<usize, Vec<f64>>, // Second moment
-    t: usize,                    // Time step
+    pub m: HashMap<usize, Vec<f64>>, // First moment
+    pub v: HashMap<usize, Vec<f64>>, // Second moment
+    pub t: usize,                    // Time step
 }
 
 impl Adam {

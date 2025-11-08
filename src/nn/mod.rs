@@ -454,6 +454,234 @@ impl Loss {
     }
 }
 
+// LSTM Layer
+#[derive(Debug, Clone)]
+pub struct LSTM {
+    pub input_size: usize,
+    pub hidden_size: usize,
+    // Gates: input, forget, output, cell
+    pub w_ii: Tensor, // input gate - input weights
+    pub w_hi: Tensor, // input gate - hidden weights
+    pub b_i: Tensor,  // input gate bias
+    pub w_if: Tensor, // forget gate - input weights
+    pub w_hf: Tensor, // forget gate - hidden weights
+    pub b_f: Tensor,  // forget gate bias
+    pub w_ig: Tensor, // cell gate - input weights
+    pub w_hg: Tensor, // cell gate - hidden weights
+    pub b_g: Tensor,  // cell gate bias
+    pub w_io: Tensor, // output gate - input weights
+    pub w_ho: Tensor, // output gate - hidden weights
+    pub b_o: Tensor,  // output gate bias
+}
+
+impl LSTM {
+    pub fn new(input_size: usize, hidden_size: usize, initializer: Initializer) -> Self {
+        // Initialize all gate weights
+        let w_ii = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hi = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_i = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        let w_if = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hf = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_f = Tensor::with_grad(vec![1.0; hidden_size], vec![hidden_size]); // forget bias = 1.0
+
+        let w_ig = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hg = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_g = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        let w_io = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_ho = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_o = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        LSTM {
+            input_size,
+            hidden_size,
+            w_ii, w_hi, b_i,
+            w_if, w_hf, b_f,
+            w_ig, w_hg, b_g,
+            w_io, w_ho, b_o,
+        }
+    }
+
+    pub fn step(&self, x: &[f64], h_prev: &[f64], c_prev: &[f64]) -> (Vec<f64>, Vec<f64>) {
+        // LSTM forward step
+        // i_t = sigmoid(W_ii @ x_t + W_hi @ h_{t-1} + b_i)
+        // f_t = sigmoid(W_if @ x_t + W_hf @ h_{t-1} + b_f)
+        // g_t = tanh(W_ig @ x_t + W_hg @ h_{t-1} + b_g)
+        // o_t = sigmoid(W_io @ x_t + W_ho @ h_{t-1} + b_o)
+        // c_t = f_t * c_{t-1} + i_t * g_t
+        // h_t = o_t * tanh(c_t)
+
+        let sigmoid = |x: f64| 1.0 / (1.0 + (-x).exp());
+        let tanh = |x: f64| x.tanh();
+
+        // Input gate
+        let mut i_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_i.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_ii.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_hi.data[k * self.hidden_size + j];
+            }
+            i_t[j] = sigmoid(sum);
+        }
+
+        // Forget gate
+        let mut f_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_f.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_if.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_hf.data[k * self.hidden_size + j];
+            }
+            f_t[j] = sigmoid(sum);
+        }
+
+        // Cell gate
+        let mut g_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_g.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_ig.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_hg.data[k * self.hidden_size + j];
+            }
+            g_t[j] = tanh(sum);
+        }
+
+        // Output gate
+        let mut o_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_o.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_io.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_ho.data[k * self.hidden_size + j];
+            }
+            o_t[j] = sigmoid(sum);
+        }
+
+        // New cell state
+        let mut c_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            c_t[j] = f_t[j] * c_prev[j] + i_t[j] * g_t[j];
+        }
+
+        // New hidden state
+        let mut h_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            h_t[j] = o_t[j] * tanh(c_t[j]);
+        }
+
+        (h_t, c_t)
+    }
+}
+
+// GRU Layer
+#[derive(Debug, Clone)]
+pub struct GRU {
+    pub input_size: usize,
+    pub hidden_size: usize,
+    // Gates: reset, update, new
+    pub w_ir: Tensor, // reset gate - input weights
+    pub w_hr: Tensor, // reset gate - hidden weights
+    pub b_r: Tensor,  // reset gate bias
+    pub w_iz: Tensor, // update gate - input weights
+    pub w_hz: Tensor, // update gate - hidden weights
+    pub b_z: Tensor,  // update gate bias
+    pub w_in: Tensor, // new gate - input weights
+    pub w_hn: Tensor, // new gate - hidden weights
+    pub b_n: Tensor,  // new gate bias
+}
+
+impl GRU {
+    pub fn new(input_size: usize, hidden_size: usize, initializer: Initializer) -> Self {
+        let w_ir = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hr = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_r = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        let w_iz = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hz = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_z = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        let w_in = Tensor::with_grad(initializer.initialize(&[input_size, hidden_size]), vec![input_size, hidden_size]);
+        let w_hn = Tensor::with_grad(initializer.initialize(&[hidden_size, hidden_size]), vec![hidden_size, hidden_size]);
+        let b_n = Tensor::with_grad(vec![0.0; hidden_size], vec![hidden_size]);
+
+        GRU {
+            input_size,
+            hidden_size,
+            w_ir, w_hr, b_r,
+            w_iz, w_hz, b_z,
+            w_in, w_hn, b_n,
+        }
+    }
+
+    pub fn step(&self, x: &[f64], h_prev: &[f64]) -> Vec<f64> {
+        // GRU forward step
+        // r_t = sigmoid(W_ir @ x_t + W_hr @ h_{t-1} + b_r)
+        // z_t = sigmoid(W_iz @ x_t + W_hz @ h_{t-1} + b_z)
+        // n_t = tanh(W_in @ x_t + r_t * (W_hn @ h_{t-1}) + b_n)
+        // h_t = (1 - z_t) * n_t + z_t * h_{t-1}
+
+        let sigmoid = |x: f64| 1.0 / (1.0 + (-x).exp());
+        let tanh = |x: f64| x.tanh();
+
+        // Reset gate
+        let mut r_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_r.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_ir.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_hr.data[k * self.hidden_size + j];
+            }
+            r_t[j] = sigmoid(sum);
+        }
+
+        // Update gate
+        let mut z_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_z.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_iz.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += h_prev[k] * self.w_hz.data[k * self.hidden_size + j];
+            }
+            z_t[j] = sigmoid(sum);
+        }
+
+        // New gate (with reset applied to hidden)
+        let mut n_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            let mut sum = self.b_n.data[j];
+            for k in 0..self.input_size {
+                sum += x[k] * self.w_in.data[k * self.hidden_size + j];
+            }
+            for k in 0..self.hidden_size {
+                sum += (r_t[k] * h_prev[k]) * self.w_hn.data[k * self.hidden_size + j];
+            }
+            n_t[j] = tanh(sum);
+        }
+
+        // New hidden state
+        let mut h_t = vec![0.0; self.hidden_size];
+        for j in 0..self.hidden_size {
+            h_t[j] = (1.0 - z_t[j]) * n_t[j] + z_t[j] * h_prev[j];
+        }
+
+        h_t
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -88,6 +88,9 @@ impl InferredType {
             TypeAnnotation::Array(element_type) => {
                 InferredType::Array(Box::new(InferredType::from_ast(element_type)))
             }
+            TypeAnnotation::ArraySized { element_type, size: _ } => {
+                InferredType::Array(Box::new(InferredType::from_ast(element_type)))
+            } // Size is for compile-time checking, inferred type is Array
             TypeAnnotation::Tensor { shape, .. } => InferredType::Tensor(Some(shape.clone())),
             TypeAnnotation::Tuple(element_types) => InferredType::Tuple(
                 element_types
@@ -503,17 +506,32 @@ impl TypeInference {
                 // Infer value type
                 let value_type = self.infer_expression(&assign_stmt.value)?;
 
-                // Check if variable exists and types match
-                if let Some(var_type) = self.env.get(&assign_stmt.name).cloned() {
-                    self.unify(
-                        &var_type,
-                        &value_type,
-                        &format!("assignment to {}", assign_stmt.name),
-                    )?;
-                } else {
-                    // Variable doesn't exist - will be caught at runtime
-                    // For now, just add to environment
-                    self.env.insert(assign_stmt.name.clone(), value_type);
+                // Infer target type
+                match &assign_stmt.target {
+                    Expression::Identifier(name) => {
+                        // Simple assignment: check if variable exists and types match
+                        if let Some(var_type) = self.env.get(name).cloned() {
+                            self.unify(
+                                &var_type,
+                                &value_type,
+                                &format!("assignment to {}", name),
+                            )?;
+                        } else {
+                            // Variable doesn't exist - will be caught at runtime
+                            // For now, just add to environment
+                            self.env.insert(name.clone(), value_type);
+                        }
+                    }
+                    Expression::Index { object, index } => {
+                        // Indexed assignment: infer types of object and index
+                        self.infer_expression(object)?;
+                        self.infer_expression(index)?;
+                        // Type checking for indexed assignment is done at runtime
+                    }
+                    _ => {
+                        // Invalid assignment target - just skip for now
+                        // Will be caught at runtime
+                    }
                 }
 
                 Ok(())
@@ -614,6 +632,9 @@ impl TypeInference {
 
                 Ok(())
             }
+
+            Statement::Break => Ok(()),
+            Statement::Continue => Ok(()),
         }
     }
 

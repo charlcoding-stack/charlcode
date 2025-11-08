@@ -487,6 +487,8 @@ fn format_value(value: &Value) -> String {
         Value::Performer(_) => format!("Performer"),
         Value::FNet(_) => format!("FNet"),
         Value::RWKV(_) => format!("RWKV"),
+        Value::LSTM(lstm) => format!("LSTM(input_size={}, hidden_size={})", lstm.input_size, lstm.hidden_size),
+        Value::GRU(gru) => format!("GRU(input_size={}, hidden_size={})", gru.input_size, gru.hidden_size),
         Value::Function { .. } => "<function>".to_string(),
         Value::Tuple(elements) => {
             let formatted: Vec<String> = elements.iter().map(|v| format_value(v)).collect();

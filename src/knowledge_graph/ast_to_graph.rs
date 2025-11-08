@@ -92,6 +92,12 @@ impl AstToGraphConverter {
                     self.process_statement(stmt);
                 }
             }
+            Statement::Break => {
+                // Control flow statement, no expressions to process
+            }
+            Statement::Continue => {
+                // Control flow statement, no expressions to process
+            }
         }
     }
 
@@ -243,6 +249,11 @@ impl AstToGraphConverter {
                 }
             }
 
+            Expression::ArrayRepeat { value, count } => {
+                self.process_expression(value);
+                self.process_expression(count);
+            }
+
             // Literals don't need processing
             Expression::Identifier(_)
             | Expression::IntegerLiteral(_)
@@ -364,6 +375,11 @@ impl AstToGraphConverter {
                 for expr in exprs {
                     self.extract_expression_dependencies(expr, dependent_id, relation.clone());
                 }
+            }
+
+            Expression::ArrayRepeat { value, count } => {
+                self.extract_expression_dependencies(value, dependent_id, relation.clone());
+                self.extract_expression_dependencies(count, dependent_id, relation);
             }
 
             // Literals don't have dependencies

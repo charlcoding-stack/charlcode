@@ -28,6 +28,8 @@ pub enum Value {
     BatchNormLayer(Box<crate::nn::gpu_layers::BatchNorm>), // BatchNorm for training stability (v0.2.0)
     LayerNormLayer(Box<crate::nn::gpu_layers::LayerNorm>), // LayerNorm for Transformers (v0.2.0)
     DropoutLayer(Box<crate::nn::gpu_layers::Dropout>), // Dropout for regularization (v0.2.0)
+    LSTM(Box<crate::nn::LSTM>), // LSTM recurrent layer
+    GRU(Box<crate::nn::GRU>), // GRU recurrent layer
     SGDOptimizer(Box<crate::optim::SGD>), // SGD optimizer (Week 5-6)
     AdamOptimizer(Box<crate::optim::Adam>), // Adam optimizer (Week 5-6)
     RMSpropOptimizer(Box<crate::optim::RMSprop>), // RMSprop optimizer (Week 5-6)
@@ -208,6 +210,8 @@ impl Value {
             Value::Performer(_) => "performer",
             Value::FNet(_) => "fnet",
             Value::RWKV(_) => "rwkv",
+            Value::LSTM(_) => "lstm",
+            Value::GRU(_) => "gru",
             Value::Function { .. } => "function",
             Value::Tuple(_) => "tuple",
             Value::Null => "null",
@@ -305,6 +309,8 @@ impl Environment {
 pub struct Interpreter {
     env: Environment,
     return_value: Option<Value>,
+    break_loop: bool,     // Flag for break statement
+    continue_loop: bool,  // Flag for continue statement
     graph: ComputationGraph,
     builtins: HashMap<String, BuiltinFn>,
 }
@@ -333,6 +339,7 @@ impl Interpreter {
         // Basic tensor operations
         builtins.insert("tensor".to_string(), tensor_builtins::builtin_tensor as BuiltinFn);
         builtins.insert("tensor_shape".to_string(), tensor_builtins::builtin_tensor_shape as BuiltinFn);
+        builtins.insert("tensor_size".to_string(), tensor_builtins::builtin_tensor_size as BuiltinFn);
         builtins.insert("tensor_print".to_string(), tensor_builtins::builtin_tensor_print as BuiltinFn);
 
         // Arithmetic operations
@@ -345,15 +352,22 @@ impl Interpreter {
         // Reduction operations
         builtins.insert("tensor_sum".to_string(), tensor_builtins::builtin_tensor_sum as BuiltinFn);
         builtins.insert("tensor_mean".to_string(), tensor_builtins::builtin_tensor_mean as BuiltinFn);
+        builtins.insert("tensor_max".to_string(), tensor_builtins::builtin_tensor_max as BuiltinFn);
+        builtins.insert("tensor_min".to_string(), tensor_builtins::builtin_tensor_min as BuiltinFn);
+        builtins.insert("tensor_abs".to_string(), tensor_builtins::builtin_tensor_abs as BuiltinFn);
 
         // Shape operations
         builtins.insert("tensor_reshape".to_string(), tensor_builtins::builtin_tensor_reshape as BuiltinFn);
         builtins.insert("tensor_transpose".to_string(), tensor_builtins::builtin_tensor_transpose as BuiltinFn);
 
         // Tensor creation
+        builtins.insert("tensor_from_array".to_string(), tensor_builtins::builtin_tensor_from_array as BuiltinFn);
         builtins.insert("tensor_zeros".to_string(), tensor_builtins::builtin_tensor_zeros as BuiltinFn);
         builtins.insert("tensor_ones".to_string(), tensor_builtins::builtin_tensor_ones as BuiltinFn);
         builtins.insert("tensor_randn".to_string(), tensor_builtins::builtin_tensor_randn as BuiltinFn);
+        builtins.insert("tensor_rand".to_string(), tensor_builtins::builtin_tensor_rand as BuiltinFn);
+        builtins.insert("tensor_eye".to_string(), tensor_builtins::builtin_tensor_eye as BuiltinFn);
+        builtins.insert("tensor_full".to_string(), tensor_builtins::builtin_tensor_full as BuiltinFn);
 
         // Autograd operations
         builtins.insert("tensor_requires_grad".to_string(), tensor_builtins::builtin_tensor_requires_grad as BuiltinFn);
@@ -375,7 +389,15 @@ impl Interpreter {
         builtins.insert("tensor_zeros_like".to_string(), tensor_builtins::builtin_tensor_zeros_like as BuiltinFn);
         builtins.insert("pow".to_string(), tensor_builtins::builtin_pow as BuiltinFn);
         builtins.insert("sqrt".to_string(), tensor_builtins::builtin_sqrt as BuiltinFn);
+        builtins.insert("exp".to_string(), tensor_builtins::builtin_exp as BuiltinFn);
+        builtins.insert("log".to_string(), tensor_builtins::builtin_log as BuiltinFn);
         builtins.insert("abs".to_string(), tensor_builtins::builtin_abs as BuiltinFn);
+        builtins.insert("sin".to_string(), tensor_builtins::builtin_sin as BuiltinFn);
+        builtins.insert("cos".to_string(), tensor_builtins::builtin_cos as BuiltinFn);
+        builtins.insert("tan".to_string(), tensor_builtins::builtin_tan as BuiltinFn);
+        builtins.insert("tensor_sin".to_string(), tensor_builtins::builtin_tensor_sin as BuiltinFn);
+        builtins.insert("tensor_cos".to_string(), tensor_builtins::builtin_tensor_cos as BuiltinFn);
+        builtins.insert("tensor_from_scalar".to_string(), tensor_builtins::builtin_tensor_from_scalar as BuiltinFn);
         builtins.insert("min".to_string(), tensor_builtins::builtin_min as BuiltinFn);
         builtins.insert("max".to_string(), tensor_builtins::builtin_max as BuiltinFn);
 
@@ -396,11 +418,18 @@ impl Interpreter {
         builtins.insert("nn_batchnorm".to_string(), tensor_builtins::builtin_nn_batchnorm as BuiltinFn);
 
         // Neural network layers and activations
+        builtins.insert("nn_linear_create".to_string(), tensor_builtins::builtin_nn_linear_create as BuiltinFn);
+        builtins.insert("nn_linear_forward".to_string(), tensor_builtins::builtin_nn_linear_forward as BuiltinFn);
         builtins.insert("nn_linear".to_string(), tensor_builtins::builtin_nn_linear as BuiltinFn);
+        builtins.insert("nn_embedding".to_string(), tensor_builtins::builtin_nn_embedding as BuiltinFn);
+        builtins.insert("tensor_concat".to_string(), tensor_builtins::builtin_tensor_concat as BuiltinFn);
         builtins.insert("nn_relu".to_string(), tensor_builtins::builtin_nn_relu as BuiltinFn);
         builtins.insert("nn_sigmoid".to_string(), tensor_builtins::builtin_nn_sigmoid as BuiltinFn);
         builtins.insert("nn_tanh".to_string(), tensor_builtins::builtin_nn_tanh as BuiltinFn);
         builtins.insert("nn_softmax".to_string(), tensor_builtins::builtin_nn_softmax as BuiltinFn);
+        builtins.insert("nn_gelu".to_string(), tensor_builtins::builtin_nn_gelu as BuiltinFn);
+        builtins.insert("nn_leaky_relu".to_string(), tensor_builtins::builtin_nn_leaky_relu as BuiltinFn);
+        builtins.insert("nn_elu".to_string(), tensor_builtins::builtin_nn_elu as BuiltinFn);
 
         // Loss functions
         builtins.insert("loss_mse".to_string(), tensor_builtins::builtin_loss_mse as BuiltinFn);
@@ -408,6 +437,9 @@ impl Interpreter {
         // Aliases for NN-style naming
         builtins.insert("nn_mse_loss".to_string(), tensor_builtins::builtin_loss_mse as BuiltinFn);
         builtins.insert("nn_cross_entropy_loss".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+        builtins.insert("nn_cross_entropy".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+        builtins.insert("nn_binary_cross_entropy".to_string(), tensor_builtins::builtin_loss_cross_entropy as BuiltinFn);
+        builtins.insert("nn_cross_entropy_logits".to_string(), tensor_builtins::builtin_nn_cross_entropy_logits as BuiltinFn);
 
         // Optimizers & Schedulers (Week 5-6: Backend Exposure Roadmap)
         builtins.insert("sgd_create".to_string(), tensor_builtins::builtin_sgd_create as BuiltinFn);
@@ -435,6 +467,11 @@ impl Interpreter {
         builtins.insert("mamba_forward".to_string(), tensor_builtins::builtin_mamba_forward as BuiltinFn);
         builtins.insert("s4_create".to_string(), tensor_builtins::builtin_s4_create as BuiltinFn);
         builtins.insert("s4_forward".to_string(), tensor_builtins::builtin_s4_forward as BuiltinFn);
+        // Recurrent Neural Networks
+        builtins.insert("lstm_create".to_string(), tensor_builtins::builtin_lstm_create as BuiltinFn);
+        builtins.insert("lstm_forward".to_string(), tensor_builtins::builtin_lstm_forward as BuiltinFn);
+        builtins.insert("gru_create".to_string(), tensor_builtins::builtin_gru_create as BuiltinFn);
+        builtins.insert("gru_forward".to_string(), tensor_builtins::builtin_gru_forward as BuiltinFn);
         // Mixture of Experts
         builtins.insert("moe_create".to_string(), tensor_builtins::builtin_moe_create as BuiltinFn);
         builtins.insert("moe_forward".to_string(), tensor_builtins::builtin_moe_forward as BuiltinFn);
@@ -599,7 +636,9 @@ impl Interpreter {
         builtins.insert("avgpool2d".to_string(), tensor_builtins::builtin_avgpool2d as BuiltinFn);
         builtins.insert("batchnorm".to_string(), tensor_builtins::builtin_batchnorm as BuiltinFn);
         builtins.insert("layernorm".to_string(), tensor_builtins::builtin_layernorm as BuiltinFn);
+        builtins.insert("nn_layernorm".to_string(), tensor_builtins::builtin_layernorm as BuiltinFn);
         builtins.insert("dropout".to_string(), tensor_builtins::builtin_dropout as BuiltinFn);
+        builtins.insert("nn_dropout".to_string(), tensor_builtins::builtin_dropout as BuiltinFn);
         builtins.insert("layer_forward".to_string(), tensor_builtins::builtin_layer_forward as BuiltinFn);
 
         // Activation Functions - GPU Accelerated (v0.2.0)
@@ -612,6 +651,8 @@ impl Interpreter {
         Interpreter {
             env: Environment::new(),
             return_value: None,
+            break_loop: false,
+            continue_loop: false,
             graph: ComputationGraph::new(),
             builtins,
         }
@@ -642,6 +683,14 @@ impl Interpreter {
             Statement::If(if_stmt) => self.eval_if_statement(if_stmt),
             Statement::While(while_stmt) => self.eval_while_statement(while_stmt),
             Statement::For(for_stmt) => self.eval_for_statement(for_stmt),
+            Statement::Break => {
+                self.break_loop = true;
+                Ok(Value::Null)
+            }
+            Statement::Continue => {
+                self.continue_loop = true;
+                Ok(Value::Null)
+            }
         }
     }
 
@@ -655,11 +704,135 @@ impl Interpreter {
         // Evaluate new value
         let value = self.eval_expression(&stmt.value)?;
 
-        // Update the variable in the scope where it was declared
-        if self.env.update(&stmt.name, value.clone()) {
+        // Check if target is a simple identifier or indexed expression
+        match &stmt.target {
+            Expression::Identifier(name) => {
+                // Simple assignment: x = value
+                if self.env.update(name, value.clone()) {
+                    Ok(value)
+                } else {
+                    Err(format!("Cannot assign to undefined variable: {}", name))
+                }
+            }
+            Expression::Index { object, index } => {
+                // Indexed assignment: array[i] = value or array[i][j] = value
+                self.eval_indexed_assignment(object, index, value)
+            }
+            _ => Err("Invalid assignment target".to_string()),
+        }
+    }
+
+    fn eval_indexed_assignment(
+        &mut self,
+        object: &Expression,
+        index: &Expression,
+        value: Value,
+    ) -> Result<Value, String> {
+        // Evaluate the index
+        let index_val = self.eval_expression(index)?;
+        let idx = match index_val {
+            Value::Integer(i) => i as usize,
+            Value::Float(f) => f as usize,
+            _ => return Err("Array index must be a number".to_string()),
+        };
+
+        // Handle nested indexing: array[i][j] = value
+        if let Expression::Index {
+            object: nested_object,
+            index: nested_index,
+        } = object
+        {
+            // Get the root array name
+            let root_name = self.extract_root_variable(nested_object)?;
+            let mut root_array = self.env.get(&root_name).cloned()
+                .ok_or_else(|| format!("Undefined variable: {}", root_name))?;
+
+            // Navigate and mutate the nested structure
+            self.mutate_nested_array(&mut root_array, nested_object, nested_index, idx, value.clone())?;
+
+            // Update the root variable
+            self.env.update(&root_name, root_array);
+            Ok(value)
+        } else if let Expression::Identifier(name) = object {
+            // Single-level indexing: array[i] = value
+            let mut array = self.env.get(name).cloned()
+                .ok_or_else(|| format!("Undefined variable: {}", name))?;
+
+            match &mut array {
+                Value::Array(elements) => {
+                    if idx >= elements.len() {
+                        return Err(format!("Index {} out of bounds (len={})", idx, elements.len()));
+                    }
+                    elements[idx] = value.clone();
+                }
+                _ => return Err(format!("{} is not an array", name)),
+            }
+
+            self.env.update(name, array);
             Ok(value)
         } else {
-            Err(format!("Cannot assign to undefined variable: {}", stmt.name))
+            Err("Invalid indexed assignment target".to_string())
+        }
+    }
+
+    fn extract_root_variable(&self, expr: &Expression) -> Result<String, String> {
+        match expr {
+            Expression::Identifier(name) => Ok(name.clone()),
+            Expression::Index { object, .. } => self.extract_root_variable(object),
+            _ => Err("Cannot extract root variable from expression".to_string()),
+        }
+    }
+
+    fn mutate_nested_array(
+        &mut self,
+        current: &mut Value,
+        object: &Expression,
+        index: &Expression,
+        final_idx: usize,
+        value: Value,
+    ) -> Result<(), String> {
+        // Evaluate the current level's index
+        let idx_val = self.eval_expression(index)?;
+        let idx = match idx_val {
+            Value::Integer(i) => i as usize,
+            Value::Float(f) => f as usize,
+            _ => return Err("Array index must be a number".to_string()),
+        };
+
+        match current {
+            Value::Array(elements) => {
+                if idx >= elements.len() {
+                    return Err(format!("Index {} out of bounds", idx));
+                }
+
+                // Check if we need to recurse deeper
+                if let Expression::Index {
+                    object: nested_object,
+                    index: nested_index,
+                } = object
+                {
+                    // Recurse into the nested array
+                    self.mutate_nested_array(&mut elements[idx], nested_object, nested_index, final_idx, value)
+                } else {
+                    // Base case: we're at the target level
+                    // elements[idx] is already the target array element
+                    // final_idx is the index in this element
+                    match &mut elements[idx] {
+                        Value::Array(inner) => {
+                            if final_idx >= inner.len() {
+                                return Err(format!("Index {} out of bounds", final_idx));
+                            }
+                            inner[final_idx] = value;
+                            Ok(())
+                        }
+                        _ => {
+                            // This shouldn't happen in well-formed code
+                            Err("Expected array at this level".to_string())
+                        }
+                    }
+                }
+            }
+            _ => Err("Cannot index into non-array".to_string()),
         }
     }
 
@@ -725,6 +898,18 @@ impl Interpreter {
             for statement in &stmt.body {
                 result = self.eval_statement(statement)?;
 
+                // Check for break
+                if self.break_loop {
+                    self.break_loop = false; // Reset flag
+                    return Ok(result);
+                }
+
+                // Check for continue
+                if self.continue_loop {
+                    self.continue_loop = false; // Reset flag
+                    break; // Exit inner loop, continue outer loop
+                }
+
                 // Check for return statement
                 if self.return_value.is_some() {
                     return Ok(result);
@@ -752,6 +937,19 @@ impl Interpreter {
                     // Execute loop body
                     for statement in &stmt.body {
                         result = self.eval_statement(statement)?;
+
+                        // Check for break
+                        if self.break_loop {
+                            self.break_loop = false; // Reset flag
+                            self.env.pop_scope();
+                            return Ok(result);
+                        }
+
+                        // Check for continue
+                        if self.continue_loop {
+                            self.continue_loop = false; // Reset flag
+                            break; // Exit inner loop, continue outer loop
+                        }
 
                         // Check for return statement
                         if self.return_value.is_some() {
@@ -794,6 +992,27 @@ impl Interpreter {
                 let values: Result<Vec<Value>, String> =
                     elements.iter().map(|e| self.eval_expression(e)).collect();
                 Ok(Value::Array(values?))
+            }
+
+            Expression::ArrayRepeat { value, count } => {
+                // Evaluate the value to repeat
+                let val = self.eval_expression(value)?;
+
+                // Evaluate count (must be integer)
+                let count_val = self.eval_expression(count)?;
+                let count_int = match count_val {
+                    Value::Integer(n) => n as usize,
+                    Value::Float(n) => n as usize,
+                    _ => return Err(format!("Array repeat count must be integer, got {:?}", count_val)),
+                };
+
+                // Create array by repeating value
+                let mut array = Vec::new();
+                for _ in 0..count_int {
+                    array.push(val.clone());
+                }
+
+                Ok(Value::Array(array))
             }
 
             Expression::TensorLiteral(elements) => {
