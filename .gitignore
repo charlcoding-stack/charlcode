@@ -89,6 +89,23 @@ WEEKS_1-15_COMPLETION_STATUS.md
 BACKEND_EXPOSURE_STATUS.md
 BACKEND_COMPLETION_SUMMARY.md
 
+# AGI Project documentation and reports (development only)
+AGI_INDEX.md
+AGI_JOURNEY.md
+AGI_STATS.md
+README_AGI.md
+RELEASE_NOTES_*.md
+CHARL_TECHNICAL_ANALYSIS_*.md
+*_ANALYSIS.md
+*_ROADMAP.md
+*_PROGRESS.md
+PROGRESO_*.md
+MetaReal.md
+karapathy.md
+
+# AGI Project II (internal development, not for public repo)
+AGI_PROJECT_II/
+
 # Test files (development only)
 test_*.ch
 *_debug.ch

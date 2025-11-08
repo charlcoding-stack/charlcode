@@ -126,6 +126,8 @@ impl Parser {
             TokenType::If => self.parse_if_statement(),
             TokenType::While => self.parse_while_statement(),
             TokenType::For => self.parse_for_statement(),
+            TokenType::Break => Ok(Statement::Break),
+            TokenType::Continue => Ok(Statement::Continue),
             TokenType::Ident => {
                 // Check if this is an assignment (identifier = expression)
                 if self.peek_token_is(TokenType::Assign) {
@@ -181,8 +183,9 @@ impl Parser {
     }
 
     fn parse_assignment_statement(&mut self) -> Result<Statement, String> {
-        // Current token is the identifier
-        let name = self.current_token.literal.clone();
+        // Parse the target (can be identifier or indexed expression)
+        // Current token is the identifier, but it might be followed by [index]
+        let target = self.parse_expression(Precedence::Lowest)?;
 
         // Expect '='
         if !self.expect_peek(TokenType::Assign) {
@@ -198,7 +201,7 @@ impl Parser {
             self.advance();
         }
 
-        Ok(Statement::Assign(AssignStatement { name, value }))
+        Ok(Statement::Assign(AssignStatement { target, value }))
     }
 
     fn parse_return_statement(&mut self) -> Result<Statement, String> {
@@ -415,6 +418,24 @@ impl Parser {
     fn parse_expression_statement(&mut self) -> Result<Statement, String> {
         let expression = self.parse_expression(Precedence::Lowest)?;
 
+        // Check if this is actually an assignment: expr = value
+        if self.peek_token_is(TokenType::Assign) {
+            self.advance(); // consume '='
+            self.advance(); // move to value expression
+
+            let value = self.parse_expression(Precedence::Lowest)?;
+
+            // Optional semicolon
+            if self.peek_token_is(TokenType::Semicolon) {
+                self.advance();
+            }
+
+            return Ok(Statement::Assign(AssignStatement {
+                target: expression,
+                value,
+            }));
+        }
+
         // Optional semicolon
         if self.peek_token_is(TokenType::Semicolon) {
             self.advance();
@@ -598,7 +619,47 @@ impl Parser {
     }
 
     fn parse_array_literal(&mut self) -> Result<Expression, String> {
-        let elements = self.parse_expression_list(TokenType::RBracket)?;
+        // Array can be: [a, b, c] or [value; count]
+
+        // Empty array
+        if self.peek_token_is(TokenType::RBracket) {
+            self.advance();
+            return Ok(Expression::ArrayLiteral(vec![]));
+        }
+
+        // Parse first element
+        self.advance(); // move past '['
+        let first = self.parse_expression(Precedence::Lowest)?;
+
+        // Check for repeat syntax: [value; count]
+        if self.peek_token_is(TokenType::Semicolon) {
+            self.advance(); // consume ';'
+            self.advance(); // move to count expression
+            let count = self.parse_expression(Precedence::Lowest)?;
+
+            if !self.expect_peek(TokenType::RBracket) {
+                return Err("Expected ']' after array repeat count".to_string());
+            }
+
+            return Ok(Expression::ArrayRepeat {
+                value: Box::new(first),
+                count: Box::new(count),
+            });
+        }
+
+        // Regular array literal: [a, b, c]
+        let mut elements = vec![first];
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.advance(); // consume ','
+            self.advance(); // move to next element
+            elements.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(TokenType::RBracket) {
+            return Err("Expected ']' after array elements".to_string());
+        }
+
         Ok(Expression::ArrayLiteral(elements))
     }
 
@@ -825,10 +886,37 @@ impl Parser {
             TokenType::Bool => Ok(TypeAnnotation::Bool),
             TokenType::StringType => Ok(TypeAnnotation::String),
             TokenType::LBracket => {
-                // Array type: [element_type]
+                // Array type: [element_type] or [element_type; size]
                 self.advance(); // move to element type
                 let element_type = Box::new(self.parse_type_annotation()?);
 
+                // Check if there's a semicolon for sized array
+                if self.peek_token_is(TokenType::Semicolon) {
+                    self.advance(); // consume ';'
+                    self.advance(); // move to size
+
+                    // Parse size
+                    if let TokenType::Int = self.current_token.token_type {
+                        let size = self
+                            .current_token
+                            .literal
+                            .parse::<usize>()
+                            .map_err(|_| "Invalid array size".to_string())?;
+
+                        if !self.expect_peek(TokenType::RBracket) {
+                            return Err("Expected ']' after array size".to_string());
+                        }
+
+                        return Ok(TypeAnnotation::ArraySized {
+                            element_type,
+                            size,
+                        });
+                    } else {
+                        return Err("Expected integer for array size".to_string());
+                    }
+                }
+
+                // No semicolon, dynamic array
                 if !self.expect_peek(TokenType::RBracket) {
                     return Err("Expected ']' after array element type".to_string());
                 }

@@ -76,8 +76,12 @@ pub enum Op {
     Sigmoid(usize),       // Sigmoid activation
     Tanh(usize),          // Tanh activation
     Softmax(usize),       // Softmax activation
+    Embedding { input_id: usize, indices: Vec<i64> }, // Embedding lookup
+    Concat { input_ids: Vec<usize>, dim: usize }, // Concatenate tensors along dimension
     // Loss functions
     MSELoss(usize, usize), // Mean Squared Error: pred, target
+    CrossEntropyLoss(usize, usize), // Cross Entropy Loss: pred, target
+    CrossEntropyLogitsLoss(usize, usize), // Cross Entropy Loss with logits: logits, target
 }
 
 // Tensor data structure for autograd
@@ -264,8 +268,20 @@ impl ComputationGraph {
                 Op::Softmax(input_id) => {
                     self.backward_softmax(*node_id, *input_id, &node_grad)?;
                 }
+                Op::Embedding { input_id, indices } => {
+                    self.backward_embedding(*input_id, indices, &node_grad)?;
+                }
+                Op::Concat { input_ids, dim } => {
+                    self.backward_concat(input_ids, *dim, &node_grad)?;
+                }
                 Op::MSELoss(pred_id, target_id) => {
                     self.backward_mse_loss(*pred_id, *target_id, &node_grad)?;
+                }
+                Op::CrossEntropyLoss(pred_id, target_id) => {
+                    self.backward_cross_entropy_loss(*pred_id, *target_id, &node_grad)?;
+                }
+                Op::CrossEntropyLogitsLoss(logits_id, target_id) => {
+                    self.backward_cross_entropy_logits_loss(*logits_id, *target_id, &node_grad)?;
                 }
             }
         }
@@ -308,7 +324,7 @@ impl ComputationGraph {
         // Visit dependencies based on operation
         match &node.op {
             Op::Leaf => {}
-            Op::Add(l, r) | Op::Sub(l, r) | Op::Mul(l, r) | Op::Div(l, r) | Op::MatMul(l, r) | Op::MSELoss(l, r) => {
+            Op::Add(l, r) | Op::Sub(l, r) | Op::Mul(l, r) | Op::Div(l, r) | Op::MatMul(l, r) | Op::MSELoss(l, r) | Op::CrossEntropyLoss(l, r) | Op::CrossEntropyLogitsLoss(l, r) => {
                 self.visit(*l, visited, temp_mark, sorted)?;
                 self.visit(*r, visited, temp_mark, sorted)?;
             }
@@ -319,6 +335,14 @@ impl ComputationGraph {
                 self.visit(*input, visited, temp_mark, sorted)?;
                 self.visit(*weight, visited, temp_mark, sorted)?;
                 self.visit(*bias, visited, temp_mark, sorted)?;
+            }
+            Op::Embedding { input_id, .. } => {
+                self.visit(*input_id, visited, temp_mark, sorted)?;
+            }
+            Op::Concat { input_ids, .. } => {
+                for id in input_ids {
+                    self.visit(*id, visited, temp_mark, sorted)?;
+                }
             }
         }
 
@@ -761,6 +785,90 @@ impl ComputationGraph {
         Ok(())
     }
 
+    fn backward_embedding(
+        &mut self,
+        embedding_id: usize,
+        indices: &[i64],
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: output[i] = embedding_matrix[indices[i]]
+        // Backward: embedding_matrix.grad[indices[i]] += grad_output[i]
+
+        let embedding = self.get_node(embedding_id).unwrap();
+        let embedding_dim = embedding.shape[1];
+
+        if let Some(embedding_mut) = self.get_node_mut(embedding_id) {
+            if embedding_mut.requires_grad {
+                if let Some(ref mut embedding_grad) = embedding_mut.grad {
+                    // Scatter gradients back to the embedding matrix
+                    for (i, &idx) in indices.iter().enumerate() {
+                        let idx = idx as usize;
+                        let grad_start = i * embedding_dim;
+                        let emb_start = idx * embedding_dim;
+
+                        for j in 0..embedding_dim {
+                            embedding_grad[emb_start + j] += grad_output[grad_start + j];
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_concat(
+        &mut self,
+        input_ids: &[usize],
+        dim: usize,
+        grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: concat([t1, t2, ...], dim=1) concatenates along feature dimension
+        // Backward: split grad_output and send chunks to each input
+
+        if dim != 1 {
+            return Err(format!("backward_concat(): only dim=1 supported, got dim={}", dim));
+        }
+
+        // Get shapes of input tensors
+        let mut input_shapes = Vec::new();
+        for &id in input_ids {
+            let tensor = self.get_node(id).unwrap();
+            input_shapes.push(tensor.shape.clone());
+        }
+
+        let batch_size = input_shapes[0][0];
+
+        // For each input tensor, extract its portion of the gradient
+        let mut offset = 0;
+        for (i, &input_id) in input_ids.iter().enumerate() {
+            let features = input_shapes[i][1];
+
+            if let Some(input) = self.get_node_mut(input_id) {
+                if input.requires_grad {
+                    if let Some(ref mut input_grad) = input.grad {
+                        // Extract the gradient chunk for this tensor
+                        for batch_idx in 0..batch_size {
+                            let total_features: usize = input_shapes.iter().map(|s| s[1]).sum();
+                            let grad_row_start = batch_idx * total_features;
+                            let input_row_start = batch_idx * features;
+
+                            for feat_idx in 0..features {
+                                let grad_idx = grad_row_start + offset + feat_idx;
+                                let input_idx = input_row_start + feat_idx;
+                                input_grad[input_idx] += grad_output[grad_idx];
+                            }
+                        }
+                    }
+                }
+            }
+
+            offset += features;
+        }
+
+        Ok(())
+    }
+
     fn backward_mse_loss(
         &mut self,
         pred_id: usize,
@@ -779,6 +887,73 @@ impl ComputationGraph {
                 if let Some(ref mut pred_grad) = pred.grad {
                     for (i, (&p, &t)) in pred_data.iter().zip(target_data.iter()).enumerate() {
                         pred_grad[i] += 2.0 / n * (p - t);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_cross_entropy_loss(
+        &mut self,
+        pred_id: usize,
+        target_id: usize,
+        _grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: L = -mean(target * log(pred))
+        // Backward: dL/dpred = -target / pred / n
+        // With clipping to avoid division by zero
+
+        let pred_data = self.get_node(pred_id).unwrap().data.clone();
+        let target_data = self.get_node(target_id).unwrap().data.clone();
+        let n = pred_data.len() as f64;
+        let epsilon = 1e-10;
+
+        if let Some(pred) = self.get_node_mut(pred_id) {
+            if pred.requires_grad {
+                if let Some(ref mut pred_grad) = pred.grad {
+                    for (i, (&p, &t)) in pred_data.iter().zip(target_data.iter()).enumerate() {
+                        // Clip prediction to avoid division by zero
+                        let clipped_p = p.max(epsilon).min(1.0 - epsilon);
+                        // Gradient: -target / pred / n
+                        pred_grad[i] += -t / clipped_p / n;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn backward_cross_entropy_logits_loss(
+        &mut self,
+        logits_id: usize,
+        target_id: usize,
+        _grad_output: &[f64],
+    ) -> Result<(), String> {
+        // Forward: L = -mean(target * log(softmax(logits)))
+        // Backward: dL/dlogits = (softmax(logits) - target) / n
+        //
+        // This is the combined gradient of softmax + cross_entropy
+        // Much simpler than computing them separately!
+
+        let logits_data = self.get_node(logits_id).unwrap().data.clone();
+        let target_data = self.get_node(target_id).unwrap().data.clone();
+        let n = logits_data.len() as f64;
+
+        // Compute softmax(logits) for gradient
+        let max = logits_data.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let exp_values: Vec<f64> = logits_data.iter().map(|&x| (x - max).exp()).collect();
+        let sum: f64 = exp_values.iter().sum();
+        let softmax: Vec<f64> = exp_values.iter().map(|&x| x / sum).collect();
+
+        if let Some(logits) = self.get_node_mut(logits_id) {
+            if logits.requires_grad {
+                if let Some(ref mut logits_grad) = logits.grad {
+                    for (i, (&s, &t)) in softmax.iter().zip(target_data.iter()).enumerate() {
+                        // Gradient: (softmax - target) / n
+                        logits_grad[i] += (s - t) / n;
                     }
                 }
             }
@@ -1004,6 +1179,114 @@ pub fn linear(graph: &mut ComputationGraph, input: &Tensor, weight: &Tensor, bia
     Ok(result)
 }
 
+/// Embedding lookup: embedding_matrix[indices]
+pub fn embedding(graph: &mut ComputationGraph, embedding_matrix: &Tensor, indices: &[i64]) -> Result<Tensor, String> {
+    // Validate embedding matrix shape: [vocab_size, embedding_dim]
+    if embedding_matrix.shape.len() != 2 {
+        return Err(format!(
+            "embedding(): embedding matrix must be 2D, got shape {:?}",
+            embedding_matrix.shape
+        ));
+    }
+
+    let vocab_size = embedding_matrix.shape[0];
+    let embedding_dim = embedding_matrix.shape[1];
+
+    // Validate indices
+    for &idx in indices {
+        if idx < 0 || idx >= vocab_size as i64 {
+            return Err(format!(
+                "embedding(): index {} out of range [0, {})",
+                idx, vocab_size
+            ));
+        }
+    }
+
+    // Perform embedding lookup
+    let num_indices = indices.len();
+    let mut output_data = Vec::with_capacity(num_indices * embedding_dim);
+
+    for &idx in indices {
+        let idx_usize = idx as usize;
+        let start = idx_usize * embedding_dim;
+        let end = start + embedding_dim;
+        output_data.extend_from_slice(&embedding_matrix.data[start..end]);
+    }
+
+    // Output shape: [num_indices, embedding_dim]
+    let output_shape = vec![num_indices, embedding_dim];
+
+    let requires_grad = embedding_matrix.requires_grad;
+
+    let mut result = Tensor::new(output_data, output_shape);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![0.0; result.data.len()]);
+    }
+    result.op = Op::Embedding {
+        input_id: embedding_matrix.id,
+        indices: indices.to_vec(),
+    };
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+/// Concatenate tensors along a dimension (only dim=1 supported for now)
+pub fn concat(graph: &mut ComputationGraph, tensors: Vec<&Tensor>, dim: usize) -> Result<Tensor, String> {
+    if tensors.is_empty() {
+        return Err("concat(): need at least one tensor".to_string());
+    }
+
+    if dim != 1 {
+        return Err(format!("concat(): only dim=1 supported, got dim={}", dim));
+    }
+
+    // All tensors must have same shape except in concat dimension
+    let first_shape = &tensors[0].shape;
+    if first_shape.len() != 2 {
+        return Err(format!("concat(): only 2D tensors supported, got shape {:?}", first_shape));
+    }
+
+    let batch_size = first_shape[0];
+    for t in &tensors[1..] {
+        if t.shape.len() != 2 {
+            return Err(format!("concat(): all tensors must have same rank, got {:?}", t.shape));
+        }
+        if t.shape[0] != batch_size {
+            return Err(format!("concat(): batch size mismatch {} vs {}", t.shape[0], batch_size));
+        }
+    }
+
+    // Calculate output shape
+    let total_features: usize = tensors.iter().map(|t| t.shape[1]).sum();
+    let output_shape = vec![batch_size, total_features];
+
+    // Concatenate data
+    let mut output_data = Vec::with_capacity(batch_size * total_features);
+    for i in 0..batch_size {
+        for tensor in &tensors {
+            let features = tensor.shape[1];
+            let start = i * features;
+            let end = start + features;
+            output_data.extend_from_slice(&tensor.data[start..end]);
+        }
+    }
+
+    let requires_grad = tensors.iter().any(|t| t.requires_grad);
+    let input_ids: Vec<usize> = tensors.iter().map(|t| t.id).collect();
+
+    let mut result = Tensor::new(output_data, output_shape);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![0.0; result.data.len()]);
+    }
+    result.op = Op::Concat { input_ids, dim };
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
 /// ReLU activation: max(0, x)
 pub fn relu(graph: &mut ComputationGraph, input: &Tensor) -> Result<Tensor, String> {
     let data: Vec<f64> = input.data.iter().map(|&x| x.max(0.0)).collect();
@@ -1064,6 +1347,88 @@ pub fn mse_loss(graph: &mut ComputationGraph, pred: &Tensor, target: &Tensor) ->
         result.grad = Some(vec![1.0]); // Gradient of loss is 1.0
     }
     result.op = Op::MSELoss(pred.id, target.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+pub fn cross_entropy_loss(graph: &mut ComputationGraph, pred: &Tensor, target: &Tensor) -> Result<Tensor, String> {
+    if pred.shape != target.shape {
+        return Err(format!(
+            "cross_entropy_loss(): shape mismatch - pred: {:?}, target: {:?}",
+            pred.shape, target.shape
+        ));
+    }
+
+    // Cross Entropy Loss: -mean(target * log(pred))
+    // With clipping to avoid log(0)
+    let epsilon = 1e-10;
+
+    let ce: f64 = pred
+        .data
+        .iter()
+        .zip(target.data.iter())
+        .map(|(&p, &t)| {
+            let clipped_p = p.max(epsilon).min(1.0 - epsilon);
+            -t * clipped_p.ln()
+        })
+        .sum::<f64>()
+        / pred.data.len() as f64;
+
+    let requires_grad = pred.requires_grad;
+
+    let mut result = Tensor::scalar(ce);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![1.0]); // Gradient of loss is 1.0
+    }
+    result.op = Op::CrossEntropyLoss(pred.id, target.id);
+
+    graph.add_node(result.clone());
+    Ok(result)
+}
+
+pub fn cross_entropy_loss_with_logits(graph: &mut ComputationGraph, logits: &Tensor, target: &Tensor) -> Result<Tensor, String> {
+    if logits.shape != target.shape {
+        return Err(format!(
+            "cross_entropy_loss_with_logits(): shape mismatch - logits: {:?}, target: {:?}",
+            logits.shape, target.shape
+        ));
+    }
+
+    // Cross Entropy Loss with Logits: -mean(target * log(softmax(logits)))
+    // This combines softmax + cross_entropy for numerical stability and efficiency
+
+    // Compute softmax(logits)
+    let max = logits
+        .data
+        .iter()
+        .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+    let exp_values: Vec<f64> = logits.data.iter().map(|&x| (x - max).exp()).collect();
+    let sum: f64 = exp_values.iter().sum();
+    let softmax: Vec<f64> = exp_values.iter().map(|&x| x / sum).collect();
+
+    // Compute cross entropy loss
+    let epsilon = 1e-10;
+    let ce: f64 = softmax
+        .iter()
+        .zip(target.data.iter())
+        .map(|(&s, &t)| {
+            let clipped_s = s.max(epsilon).min(1.0 - epsilon);
+            -t * clipped_s.ln()
+        })
+        .sum::<f64>()
+        / logits.data.len() as f64;
+
+    let requires_grad = logits.requires_grad;
+
+    let mut result = Tensor::scalar(ce);
+    result.requires_grad = requires_grad;
+    if requires_grad {
+        result.grad = Some(vec![1.0]); // Gradient of loss is 1.0
+    }
+    result.op = Op::CrossEntropyLogitsLoss(logits.id, target.id);
 
     graph.add_node(result.clone());
     Ok(result)

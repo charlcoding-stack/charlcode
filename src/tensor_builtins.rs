@@ -138,6 +138,33 @@ pub fn builtin_tensor_shape(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// tensor_size(tensor: Tensor) -> int
+/// Returns the total number of elements in a tensor
+pub fn builtin_tensor_size(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_size() expects 1 argument: tensor_size(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            let total_size: usize = tensor.shape.iter().product();
+            Ok(Value::Integer(total_size as i64))
+        }
+        Value::GPUTensor(tensor) => {
+            let total_size: usize = tensor.tensor.shape.iter().product();
+            Ok(Value::Integer(total_size as i64))
+        }
+        Value::Tensor { shape, .. } => {
+            let total_size: usize = shape.iter().product();
+            Ok(Value::Integer(total_size as i64))
+        }
+        _ => Err(format!(
+            "tensor_size() expects a tensor, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
 /// tensor_add(a: Tensor, b: Tensor) -> Tensor
 /// Element-wise addition of two tensors
 pub fn builtin_tensor_add(args: Vec<Value>) -> Result<Value, String> {
@@ -404,6 +431,97 @@ pub fn builtin_tensor_mean(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// tensor_max(tensor: Tensor) -> float
+/// Returns the maximum value in a tensor
+pub fn builtin_tensor_max(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_max() expects 1 argument: tensor_max(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            if tensor.data.is_empty() {
+                return Err("tensor_max() cannot operate on empty tensor".to_string());
+            }
+            let max_val = tensor.data.iter()
+                .copied()
+                .fold(f64::NEG_INFINITY, f64::max);
+            Ok(Value::Float(max_val))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            if gpu_tensor.tensor.data.is_empty() {
+                return Err("tensor_max() cannot operate on empty tensor".to_string());
+            }
+            let max_val = gpu_tensor.tensor.data.iter()
+                .copied()
+                .fold(f64::NEG_INFINITY, f64::max);
+            Ok(Value::Float(max_val))
+        }
+        _ => Err(format!(
+            "tensor_max() expects a tensor, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// tensor_min(tensor: Tensor) -> float
+/// Returns the minimum value in a tensor
+pub fn builtin_tensor_min(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_min() expects 1 argument: tensor_min(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            if tensor.data.is_empty() {
+                return Err("tensor_min() cannot operate on empty tensor".to_string());
+            }
+            let min_val = tensor.data.iter()
+                .copied()
+                .fold(f64::INFINITY, f64::min);
+            Ok(Value::Float(min_val))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            if gpu_tensor.tensor.data.is_empty() {
+                return Err("tensor_min() cannot operate on empty tensor".to_string());
+            }
+            let min_val = gpu_tensor.tensor.data.iter()
+                .copied()
+                .fold(f64::INFINITY, f64::min);
+            Ok(Value::Float(min_val))
+        }
+        _ => Err(format!(
+            "tensor_min() expects a tensor, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// tensor_abs(tensor: Tensor) -> Tensor
+/// Returns element-wise absolute value
+pub fn builtin_tensor_abs(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_abs() expects 1 argument: tensor_abs(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            let data: Vec<f64> = tensor.data.iter().map(|x| x.abs()).collect();
+            let result = AutogradTensor::new(data, tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            let data: Vec<f64> = gpu_tensor.tensor.data.iter().map(|x| x.abs()).collect();
+            let cpu_tensor = AutogradTensor::new(data, gpu_tensor.tensor.shape.clone());
+            Ok(Value::AutogradTensor(cpu_tensor))
+        }
+        _ => Err(format!(
+            "tensor_abs() expects a tensor, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
 /// tensor_print(t: Tensor) -> ()
 /// Print tensor data and shape
 pub fn builtin_tensor_print(args: Vec<Value>) -> Result<Value, String> {
@@ -414,6 +532,16 @@ pub fn builtin_tensor_print(args: Vec<Value>) -> Result<Value, String> {
     match &args[0] {
         Value::AutogradTensor(tensor) => {
             println!("Tensor(shape: {:?}, data: {:?})", tensor.shape, tensor.data);
+            Ok(Value::Null)
+        }
+        Value::Tensor { data, shape } => {
+            // Extract float values from data
+            let float_data: Vec<f64> = data.iter().map(|v| match v {
+                Value::Float(f) => *f,
+                Value::Integer(i) => *i as f64,
+                _ => 0.0,
+            }).collect();
+            println!("Tensor(shape: {:?}, data: {:?})", shape, float_data);
             Ok(Value::Null)
         }
         _ => Err(format!(
@@ -435,6 +563,18 @@ pub fn builtin_tensor_item(args: Vec<Value>) -> Result<Value, String> {
         Value::AutogradTensor(tensor) => {
             let value = tensor.item()?;
             Ok(Value::Float(value))
+        }
+        Value::Tensor { data, shape } => {
+            // Check single element
+            let total_size: usize = shape.iter().product();
+            if total_size != 1 {
+                return Err(format!("tensor_item() requires a single-element tensor, got shape {:?}", shape));
+            }
+            match &data[0] {
+                Value::Float(f) => Ok(Value::Float(*f)),
+                Value::Integer(i) => Ok(Value::Float(*i as f64)),
+                _ => Err("tensor_item() expects numeric data".to_string()),
+            }
         }
         _ => Err(format!(
             "tensor_item() expects a tensor, got {}",
@@ -658,6 +798,63 @@ pub fn builtin_tensor_transpose(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// tensor_from_array(data: [number], shape: [int]) -> Tensor
+/// Create a tensor from a flat array of data with specified shape
+pub fn builtin_tensor_from_array(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("tensor_from_array() expects 2 arguments: tensor_from_array(data, shape)".to_string());
+    }
+
+    // Get data array
+    let data_vals = match &args[0] {
+        Value::Array(arr) => arr,
+        _ => return Err("tensor_from_array() expects first argument to be an array".to_string()),
+    };
+
+    // Convert to f64
+    let mut data = Vec::new();
+    for val in data_vals {
+        match val {
+            Value::Float(f) => data.push(*f),
+            Value::Integer(i) => data.push(*i as f64),
+            _ => return Err("tensor_from_array() data must contain numbers".to_string()),
+        }
+    }
+
+    // Get shape
+    let shape = match &args[1] {
+        Value::Array(shape_vals) => {
+            let mut shape = Vec::new();
+            for val in shape_vals {
+                match val {
+                    Value::Integer(i) => shape.push(*i as usize),
+                    _ => return Err("tensor_from_array() shape must contain integers".to_string()),
+                }
+            }
+            shape
+        }
+        _ => return Err("tensor_from_array() expects second argument to be an array".to_string()),
+    };
+
+    // Verify size matches
+    let total_elements: usize = shape.iter().product();
+    if data.len() != total_elements {
+        return Err(format!(
+            "tensor_from_array() data length {} doesn't match shape {:?} (expected {})",
+            data.len(),
+            shape,
+            total_elements
+        ));
+    }
+
+    // Create regular Tensor (not AutogradTensor)
+    let data_values: Vec<Value> = data.iter().map(|&f| Value::Float(f)).collect();
+    Ok(Value::Tensor {
+        data: data_values,
+        shape,
+    })
+}
+
 /// tensor_zeros(shape: [int]) -> Tensor
 /// Create a tensor filled with zeros
 pub fn builtin_tensor_zeros(args: Vec<Value>) -> Result<Value, String> {
@@ -750,6 +947,96 @@ pub fn builtin_tensor_randn(args: Vec<Value>) -> Result<Value, String> {
             Ok(Value::AutogradTensor(tensor))
         }
         _ => Err("tensor_randn() expects an array".to_string()),
+    }
+}
+
+/// tensor_rand(shape: [int]) -> Tensor
+/// Create a tensor with uniform random values in [0, 1]
+pub fn builtin_tensor_rand(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_rand() expects 1 argument: tensor_rand([shape])".to_string());
+    }
+
+    match &args[0] {
+        Value::Array(shape_values) => {
+            let shape: Vec<usize> = shape_values
+                .iter()
+                .map(|v| match v {
+                    Value::Integer(i) => Ok(*i as usize),
+                    _ => Err("Shape must contain integers".to_string()),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let total_size: usize = shape.iter().product();
+            let mut rng = rand::thread_rng();
+
+            // Generate uniform random values in [0, 1]
+            let data: Vec<f64> = (0..total_size)
+                .map(|_| rand::Rng::gen(&mut rng))
+                .collect();
+
+            let tensor = AutogradTensor::new(data, shape);
+            Ok(Value::AutogradTensor(tensor))
+        }
+        _ => Err("tensor_rand() expects an array".to_string()),
+    }
+}
+
+/// tensor_eye(n: int) -> Tensor
+/// Create an n×n identity matrix
+pub fn builtin_tensor_eye(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_eye() expects 1 argument: tensor_eye(n)".to_string());
+    }
+
+    match &args[0] {
+        Value::Integer(n) => {
+            let n_usize = *n as usize;
+            let total_size = n_usize * n_usize;
+            let mut data = vec![0.0; total_size];
+
+            // Set diagonal elements to 1.0
+            for i in 0..n_usize {
+                data[i * n_usize + i] = 1.0;
+            }
+
+            let tensor = AutogradTensor::new(data, vec![n_usize, n_usize]);
+            Ok(Value::AutogradTensor(tensor))
+        }
+        _ => Err("tensor_eye() expects an integer".to_string()),
+    }
+}
+
+/// tensor_full(shape: [int], value: float) -> Tensor
+/// Create a tensor filled with a specific value
+pub fn builtin_tensor_full(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("tensor_full() expects 2 arguments: tensor_full([shape], value)".to_string());
+    }
+
+    match &args[0] {
+        Value::Array(shape_values) => {
+            let fill_val = match &args[1] {
+                Value::Float(f) => *f,
+                Value::Integer(i) => *i as f64,
+                _ => return Err("Fill value must be numeric".to_string()),
+            };
+
+            let shape: Vec<usize> = shape_values
+                .iter()
+                .map(|v| match v {
+                    Value::Integer(i) => Ok(*i as usize),
+                    _ => Err("Shape must contain integers".to_string()),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let total_size: usize = shape.iter().product();
+            let data = vec![fill_val; total_size];
+
+            let tensor = AutogradTensor::new(data, shape);
+            Ok(Value::AutogradTensor(tensor))
+        }
+        _ => Err("tensor_full() expects (array, numeric)".to_string()),
     }
 }
 
@@ -1210,8 +1497,214 @@ pub fn builtin_nn_softmax(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// nn_gelu(x: Tensor) -> Tensor
+/// GELU activation function
+pub fn builtin_nn_gelu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("nn_gelu() expects 1 argument: nn_gelu(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            // GELU(x) = 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
+            let data: Vec<f64> = tensor.data.iter().map(|&x| {
+                let sqrt_2_over_pi = (2.0 / std::f64::consts::PI).sqrt();
+                let inner = sqrt_2_over_pi * (x + 0.044715 * x.powi(3));
+                0.5 * x * (1.0 + inner.tanh())
+            }).collect();
+            let result = AutogradTensor::new(data, tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            let data: Vec<f64> = gpu_tensor.tensor.data.iter().map(|&x| {
+                let sqrt_2_over_pi = (2.0 / std::f64::consts::PI).sqrt();
+                let inner = sqrt_2_over_pi * (x + 0.044715 * x.powi(3));
+                0.5 * x * (1.0 + inner.tanh())
+            }).collect();
+            let result = AutogradTensor::new(data, gpu_tensor.tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        _ => Err("nn_gelu() expects a tensor".to_string()),
+    }
+}
+
+/// nn_leaky_relu(x: Tensor, alpha: float) -> Tensor
+/// Leaky ReLU activation: f(x) = max(alpha*x, x)
+pub fn builtin_nn_leaky_relu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("nn_leaky_relu() expects 2 arguments: nn_leaky_relu(tensor, alpha)".to_string());
+    }
+
+    let alpha = match &args[1] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err("nn_leaky_relu() alpha must be numeric".to_string()),
+    };
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            let data: Vec<f64> = tensor.data.iter().map(|&x| {
+                if x > 0.0 { x } else { alpha * x }
+            }).collect();
+            let result = AutogradTensor::new(data, tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            let data: Vec<f64> = gpu_tensor.tensor.data.iter().map(|&x| {
+                if x > 0.0 { x } else { alpha * x }
+            }).collect();
+            let result = AutogradTensor::new(data, gpu_tensor.tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        _ => Err("nn_leaky_relu() expects a tensor".to_string()),
+    }
+}
+
+/// nn_elu(x: Tensor, alpha: float) -> Tensor
+/// ELU activation: f(x) = x if x > 0, alpha*(exp(x)-1) otherwise
+pub fn builtin_nn_elu(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("nn_elu() expects 2 arguments: nn_elu(tensor, alpha)".to_string());
+    }
+
+    let alpha = match &args[1] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err("nn_elu() alpha must be numeric".to_string()),
+    };
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            let data: Vec<f64> = tensor.data.iter().map(|&x| {
+                if x > 0.0 { x } else { alpha * (x.exp() - 1.0) }
+            }).collect();
+            let result = AutogradTensor::new(data, tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            let data: Vec<f64> = gpu_tensor.tensor.data.iter().map(|&x| {
+                if x > 0.0 { x } else { alpha * (x.exp() - 1.0) }
+            }).collect();
+            let result = AutogradTensor::new(data, gpu_tensor.tensor.shape.clone());
+            Ok(Value::AutogradTensor(result))
+        }
+        _ => Err("nn_elu() expects a tensor".to_string()),
+    }
+}
+
 /// nn_linear(input: Tensor, weight: Tensor, bias: Tensor) -> Tensor
 /// Linear/Dense layer: output = input @ weight + bias
+/// nn_linear_create(in_features, out_features) -> LinearLayer
+/// Create a Linear layer with Xavier initialization
+pub fn builtin_nn_linear_create(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("nn_linear_create() expects 2 arguments: nn_linear_create(in_features, out_features)".to_string());
+    }
+
+    let in_features = match &args[0] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("nn_linear_create: in_features must be a number".to_string()),
+    };
+
+    let out_features = match &args[1] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("nn_linear_create: out_features must be a number".to_string()),
+    };
+
+    use crate::nn::gpu_layers::{Linear, Initializer};
+    let layer = Linear::new(in_features, out_features, Initializer::Xavier);
+    Ok(Value::LinearLayer(Box::new(layer)))
+}
+
+/// nn_linear_forward(layer, input) -> output
+/// Forward pass through a Linear layer
+/// input: Tensor with shape [batch, in_features] or [in_features]
+/// output: Tensor with shape [batch, out_features] or [out_features]
+pub fn builtin_nn_linear_forward(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("nn_linear_forward() expects 2 arguments: nn_linear_forward(layer, input)".to_string());
+    }
+
+    let layer = match &args[0] {
+        Value::LinearLayer(l) => l,
+        _ => return Err("nn_linear_forward: first argument must be a LinearLayer".to_string()),
+    };
+
+    // Get input data and shape
+    let (input_data, input_shape) = match &args[1] {
+        Value::Tensor { data, shape } => {
+            let data_f64: Vec<f64> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => *f,
+                    Value::Integer(i) => *i as f64,
+                    _ => 0.0,
+                })
+                .collect();
+            (data_f64, shape.clone())
+        }
+        _ => return Err("nn_linear_forward: second argument must be a Tensor".to_string()),
+    };
+
+    // Handle 1D or 2D input
+    let (is_1d, batch, in_features) = if input_shape.len() == 1 {
+        (true, 1, input_shape[0])
+    } else if input_shape.len() == 2 {
+        (false, input_shape[0], input_shape[1])
+    } else {
+        return Err(format!(
+            "nn_linear_forward: input must be 1D or 2D, got shape {:?}",
+            input_shape
+        ));
+    };
+
+    if in_features != layer.in_features {
+        return Err(format!(
+            "nn_linear_forward: input features {} doesn't match layer input features {}",
+            in_features, layer.in_features
+        ));
+    }
+
+    let out_features = layer.out_features;
+
+    // Get weight and bias data
+    let weight_data = &layer.weight.tensor.data;
+    let bias_data = &layer.bias.tensor.data;
+
+    // Compute output: Y = X @ W + b
+    let mut result_data = vec![0.0; batch * out_features];
+    for i in 0..batch {
+        for j in 0..out_features {
+            let mut sum = 0.0;
+            for k in 0..in_features {
+                let x_val = if is_1d {
+                    input_data[k]
+                } else {
+                    input_data[i * in_features + k]
+                };
+                sum += x_val * weight_data[k * out_features + j];
+            }
+            result_data[i * out_features + j] = sum + bias_data[j];
+        }
+    }
+
+    // Convert to Value format
+    let result_values: Vec<Value> = result_data.iter().map(|&f| Value::Float(f)).collect();
+
+    let result_shape = if is_1d {
+        vec![out_features]
+    } else {
+        vec![batch, out_features]
+    };
+
+    Ok(Value::Tensor {
+        data: result_values,
+        shape: result_shape,
+    })
+}
+
 /// input shape: (batch, in_features) or (in_features,)
 /// weight shape: (in_features, out_features)
 /// bias shape: (out_features,)
@@ -1433,10 +1926,11 @@ pub fn builtin_loss_mse(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
-/// loss_cross_entropy(pred: Tensor, target: Tensor) -> float
-/// Cross Entropy Loss: -sum(target * log(pred))
-/// pred: probability distribution (output of softmax)
+/// loss_cross_entropy(pred: Tensor, target: Tensor) -> Tensor or float
+/// Cross Entropy Loss: -mean(target * log(pred))
+/// pred: probability distribution (output of softmax/sigmoid)
 /// target: one-hot encoded labels or probabilities
+/// Returns AutogradTensor if pred.requires_grad, else Float
 pub fn builtin_loss_cross_entropy(args: Vec<Value>) -> Result<Value, String> {
     if args.len() != 2 {
         return Err(
@@ -1454,29 +1948,106 @@ pub fn builtin_loss_cross_entropy(args: Vec<Value>) -> Result<Value, String> {
                 ));
             }
 
-            // Clip predictions to avoid log(0)
-            let epsilon = 1e-10;
+            // If pred requires grad, use autograd system and return Tensor
+            if pred.requires_grad {
+                crate::autograd::with_global_graph_mut(|graph| {
+                    if graph.get_node(pred.id).is_none() {
+                        graph.add_node(pred.clone());
+                    }
+                    if graph.get_node(target.id).is_none() {
+                        graph.add_node(target.clone());
+                    }
 
-            let ce: f64 = pred
-                .data
-                .iter()
-                .zip(target.data.iter())
-                .map(|(&p, &t)| {
-                    let clipped_p = p.max(epsilon).min(1.0 - epsilon);
-                    -t * clipped_p.ln()
+                    let result = crate::autograd::cross_entropy_loss(graph, pred, target)?;
+                    Ok(Value::AutogradTensor(result))
                 })
-                .sum();
-
-            // Average over batch if 2D
-            let n = if pred.shape.len() == 2 {
-                pred.shape[0]
             } else {
-                1
-            };
+                // Fast path: no gradients needed, return Float
+                let epsilon = 1e-10;
 
-            Ok(Value::Float(ce / n as f64))
+                let ce: f64 = pred
+                    .data
+                    .iter()
+                    .zip(target.data.iter())
+                    .map(|(&p, &t)| {
+                        let clipped_p = p.max(epsilon).min(1.0 - epsilon);
+                        -t * clipped_p.ln()
+                    })
+                    .sum::<f64>()
+                    / pred.data.len() as f64;
+
+                Ok(Value::Float(ce))
+            }
         }
         _ => Err("loss_cross_entropy() expects two tensors".to_string()),
+    }
+}
+
+/// nn_cross_entropy_logits(logits: Tensor, target: Tensor) -> Tensor or float
+/// Cross Entropy Loss with Logits: -mean(target * log(softmax(logits)))
+/// logits: raw output of last linear layer (NOT passed through softmax)
+/// target: one-hot encoded labels
+/// Returns AutogradTensor if logits.requires_grad, else Float
+/// More numerically stable and efficient than applying softmax separately
+pub fn builtin_nn_cross_entropy_logits(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(
+            "nn_cross_entropy_logits() expects 2 arguments: nn_cross_entropy_logits(logits, target)"
+                .to_string(),
+        );
+    }
+
+    match (&args[0], &args[1]) {
+        (Value::AutogradTensor(logits), Value::AutogradTensor(target)) => {
+            if logits.shape != target.shape {
+                return Err(format!(
+                    "nn_cross_entropy_logits(): shape mismatch - logits: {:?}, target: {:?}",
+                    logits.shape, target.shape
+                ));
+            }
+
+            // If logits requires grad, use autograd system and return Tensor
+            if logits.requires_grad {
+                crate::autograd::with_global_graph_mut(|graph| {
+                    if graph.get_node(logits.id).is_none() {
+                        graph.add_node(logits.clone());
+                    }
+                    if graph.get_node(target.id).is_none() {
+                        graph.add_node(target.clone());
+                    }
+
+                    let result = crate::autograd::cross_entropy_loss_with_logits(graph, logits, target)?;
+                    Ok(Value::AutogradTensor(result))
+                })
+            } else {
+                // Fast path: no gradients needed, return Float
+
+                // Compute softmax(logits)
+                let max = logits
+                    .data
+                    .iter()
+                    .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+                let exp_values: Vec<f64> = logits.data.iter().map(|&x| (x - max).exp()).collect();
+                let sum: f64 = exp_values.iter().sum();
+                let softmax: Vec<f64> = exp_values.iter().map(|&x| x / sum).collect();
+
+                // Compute cross entropy loss
+                let epsilon = 1e-10;
+                let ce: f64 = softmax
+                    .iter()
+                    .zip(target.data.iter())
+                    .map(|(&s, &t)| {
+                        let clipped_s = s.max(epsilon).min(1.0 - epsilon);
+                        -t * clipped_s.ln()
+                    })
+                    .sum::<f64>()
+                    / logits.data.len() as f64;
+
+                Ok(Value::Float(ce))
+            }
+        }
+        _ => Err("nn_cross_entropy_logits() expects two tensors".to_string()),
     }
 }
 
@@ -2724,8 +3295,12 @@ pub fn builtin_tensor_grad(args: Vec<Value>) -> Result<Value, String> {
             if let Some(updated_tensor) = crate::autograd::get_from_global_graph(tensor.id) {
                 match updated_tensor.grad {
                     Some(grad) => {
+                        // Return as Tensor, not Array
                         let grad_values: Vec<Value> = grad.iter().map(|&x| Value::Float(x)).collect();
-                        Ok(Value::Array(grad_values))
+                        Ok(Value::Tensor {
+                            data: grad_values,
+                            shape: updated_tensor.shape.clone(),
+                        })
                     }
                     None => Err("Tensor doesn't have gradients. Call backward() first or use tensor_with_grad().".to_string()),
                 }
@@ -2733,8 +3308,12 @@ pub fn builtin_tensor_grad(args: Vec<Value>) -> Result<Value, String> {
                 // Fallback to tensor's own gradient if not in graph
                 match &tensor.grad {
                     Some(grad) => {
+                        // Return as Tensor, not Array
                         let grad_values: Vec<Value> = grad.iter().map(|&x| Value::Float(x)).collect();
-                        Ok(Value::Array(grad_values))
+                        Ok(Value::Tensor {
+                            data: grad_values,
+                            shape: tensor.shape.clone(),
+                        })
                     }
                     None => Err("Tensor doesn't have gradients. Call backward() first or use tensor_with_grad().".to_string()),
                 }
@@ -2782,6 +3361,10 @@ pub fn builtin_tensor_get_data(args: Vec<Value>) -> Result<Value, String> {
                 .map(|&x| Value::Float(x))
                 .collect();
             Ok(Value::Array(data))
+        }
+        Value::Tensor { data, .. } => {
+            // Already in correct format
+            Ok(Value::Array(data.clone()))
         }
         Value::GPUTensor(gpu_tensor) => {
             let data: Vec<Value> = gpu_tensor.tensor.data.iter()
@@ -3036,6 +3619,42 @@ pub fn builtin_sqrt(args: Vec<Value>) -> Result<Value, String> {
     Ok(Value::Float(x.sqrt()))
 }
 
+/// exp(x) -> number
+/// Return e raised to the power of x
+pub fn builtin_exp(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("exp() expects 1 argument: exp(x)".to_string());
+    }
+
+    let x = match &args[0] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err(format!("exp() expects number, got {}", args[0].type_name())),
+    };
+
+    Ok(Value::Float(x.exp()))
+}
+
+/// log(x) -> number
+/// Return natural logarithm of x
+pub fn builtin_log(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("log() expects 1 argument: log(x)".to_string());
+    }
+
+    let x = match &args[0] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err(format!("log() expects number, got {}", args[0].type_name())),
+    };
+
+    if x <= 0.0 {
+        return Err(format!("log() of non-positive number: {}", x));
+    }
+
+    Ok(Value::Float(x.ln()))
+}
+
 /// abs(x) -> number
 /// Return absolute value of a number
 pub fn builtin_abs(args: Vec<Value>) -> Result<Value, String> {
@@ -3048,6 +3667,132 @@ pub fn builtin_abs(args: Vec<Value>) -> Result<Value, String> {
         Value::Integer(i) => Ok(Value::Integer(i.abs())),
         _ => Err(format!("abs() expects number, got {}", args[0].type_name())),
     }
+}
+
+/// sin(x) -> number
+/// Return sine of x (x in radians)
+pub fn builtin_sin(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("sin() expects 1 argument: sin(x)".to_string());
+    }
+    let x = match &args[0] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err(format!("sin() expects number, got {}", args[0].type_name())),
+    };
+    Ok(Value::Float(x.sin()))
+}
+
+/// cos(x) -> number
+/// Return cosine of x (x in radians)
+pub fn builtin_cos(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("cos() expects 1 argument: cos(x)".to_string());
+    }
+    let x = match &args[0] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err(format!("cos() expects number, got {}", args[0].type_name())),
+    };
+    Ok(Value::Float(x.cos()))
+}
+
+/// tan(x) -> number
+/// Return tangent of x (x in radians)
+pub fn builtin_tan(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tan() expects 1 argument: tan(x)".to_string());
+    }
+    let x = match &args[0] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err(format!("tan() expects number, got {}", args[0].type_name())),
+    };
+    Ok(Value::Float(x.tan()))
+}
+
+/// tensor_sin(tensor) -> tensor
+/// Apply sine element-wise to tensor
+pub fn builtin_tensor_sin(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_sin() expects 1 argument: tensor_sin(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::Tensor { data, shape } => {
+            let result_data: Vec<Value> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => Value::Float(f.sin()),
+                    Value::Integer(i) => Value::Float((*i as f64).sin()),
+                    _ => v.clone(),
+                })
+                .collect();
+            Ok(Value::Tensor {
+                data: result_data,
+                shape: shape.clone(),
+            })
+        }
+        Value::Float(f) => Ok(Value::Float(f.sin())),
+        Value::Integer(i) => Ok(Value::Float((*i as f64).sin())),
+        _ => Err(format!(
+            "tensor_sin() expects tensor or number, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// tensor_cos(tensor) -> tensor
+/// Apply cosine element-wise to tensor
+pub fn builtin_tensor_cos(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_cos() expects 1 argument: tensor_cos(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::Tensor { data, shape } => {
+            let result_data: Vec<Value> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => Value::Float(f.cos()),
+                    Value::Integer(i) => Value::Float((*i as f64).cos()),
+                    _ => v.clone(),
+                })
+                .collect();
+            Ok(Value::Tensor {
+                data: result_data,
+                shape: shape.clone(),
+            })
+        }
+        Value::Float(f) => Ok(Value::Float(f.cos())),
+        Value::Integer(i) => Ok(Value::Float((*i as f64).cos())),
+        _ => Err(format!(
+            "tensor_cos() expects tensor or number, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
+/// tensor_from_scalar(value) -> tensor
+/// Create a 1-element tensor from a scalar value
+pub fn builtin_tensor_from_scalar(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("tensor_from_scalar() expects 1 argument: tensor_from_scalar(value)".to_string());
+    }
+
+    let value = match &args[0] {
+        Value::Float(f) => Value::Float(*f),
+        Value::Integer(i) => Value::Float(*i as f64),
+        _ => return Err(format!(
+            "tensor_from_scalar() expects number, got {}",
+            args[0].type_name()
+        )),
+    };
+
+    Ok(Value::Tensor {
+        data: vec![value],
+        shape: vec![1],
+    })
 }
 
 // ============================================================================
@@ -3495,6 +4240,192 @@ pub fn builtin_attention_multi_head(args: Vec<Value>) -> Result<Value, String> {
 /// * Output tensor [batch, out_channels, out_height, out_width]
 ///
 /// # Example
+// ============================================================================
+// Embedding Layer
+// ============================================================================
+
+/// nn_embedding(indices, embedding_matrix) -> Tensor
+/// Embedding lookup layer with autograd support
+///
+/// # Arguments
+/// * `indices` - Tensor of integers [batch_size] or [batch_size, seq_len]
+/// * `embedding_matrix` - Tensor [vocab_size, embedding_dim] with gradients
+///
+/// # Returns
+/// * Embedded tensor [batch_size, embedding_dim] or [batch_size, seq_len, embedding_dim]
+///
+/// # Example
+/// ```charl
+/// // Embedding matrix: 100 vocab × 16 dims
+/// let emb = tensor_with_grad(tensor_randn([100, 16]), [100, 16])
+///
+/// // Indices: batch of 4 words
+/// let indices = tensor([5, 12, 3, 99], [4])
+///
+/// // Lookup embeddings
+/// let embedded = nn_embedding(indices, emb)  // [4, 16]
+/// ```
+pub fn builtin_nn_embedding(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(
+            "nn_embedding() expects 2 arguments: nn_embedding(indices, embedding_matrix)".to_string(),
+        );
+    }
+
+    // Extract indices as i64
+    let indices: Vec<i64> = match &args[0] {
+        Value::Tensor { data, .. } => {
+            data.iter().map(|v| v.to_float().unwrap_or(0.0) as i64).collect()
+        },
+        Value::AutogradTensor(t) => {
+            t.data.iter().map(|&x| x as i64).collect()
+        },
+        _ => return Err("nn_embedding(): first argument must be a tensor of indices".to_string()),
+    };
+
+    // Extract embedding matrix
+    let embedding_matrix = match &args[1] {
+        Value::AutogradTensor(emb) => emb,
+        _ => return Err("nn_embedding(): second argument must be an AutogradTensor (embedding matrix)".to_string()),
+    };
+
+    // If embedding matrix requires grad, use autograd system
+    if embedding_matrix.requires_grad {
+        // Ensure embedding matrix is in the global graph
+        crate::autograd::with_global_graph_mut(|graph| {
+            if graph.get_node(embedding_matrix.id).is_none() {
+                graph.add_node(embedding_matrix.clone());
+            }
+
+            // Use autograd embedding to record in graph
+            let result = crate::autograd::embedding(graph, embedding_matrix, &indices)?;
+            Ok(Value::AutogradTensor(result))
+        })
+    } else {
+        // Fast path: no gradients needed, compute directly
+        if embedding_matrix.shape.len() != 2 {
+            return Err(format!(
+                "nn_embedding(): embedding matrix must be 2D, got shape {:?}",
+                embedding_matrix.shape
+            ));
+        }
+
+        let vocab_size = embedding_matrix.shape[0];
+        let embedding_dim = embedding_matrix.shape[1];
+
+        // Validate and lookup
+        let mut output_data = Vec::with_capacity(indices.len() * embedding_dim);
+        for &idx in &indices {
+            if idx < 0 || idx >= vocab_size as i64 {
+                return Err(format!(
+                    "nn_embedding(): index {} out of range [0, {})",
+                    idx, vocab_size
+                ));
+            }
+            let idx_usize = idx as usize;
+            let start = idx_usize * embedding_dim;
+            let end = start + embedding_dim;
+            output_data.extend_from_slice(&embedding_matrix.data[start..end]);
+        }
+
+        let output_shape = vec![indices.len(), embedding_dim];
+        let result_tensor = AutogradTensor::new(output_data, output_shape);
+        Ok(Value::AutogradTensor(result_tensor))
+    }
+}
+
+/// tensor_concat(tensors: [Tensor], dim: int) -> Tensor
+/// Concatenate tensors along a dimension (dim=1 only for now)
+pub fn builtin_tensor_concat(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err(
+            "tensor_concat() expects 2 arguments: tensor_concat(tensors, dim)".to_string(),
+        );
+    }
+
+    // Extract tensor array
+    let tensors = match &args[0] {
+        Value::Array(arr) => arr,
+        _ => return Err("tensor_concat(): first argument must be an array of tensors".to_string()),
+    };
+
+    // Extract dim
+    let dim = args[1].to_float()? as usize;
+
+    if tensors.is_empty() {
+        return Err("tensor_concat(): need at least one tensor".to_string());
+    }
+
+    // Extract AutogradTensors
+    let mut tensor_refs = Vec::new();
+    for t in tensors {
+        match t {
+            Value::AutogradTensor(tensor) => {
+                tensor_refs.push(tensor);
+            }
+            _ => return Err("tensor_concat(): all elements must be AutogradTensors".to_string()),
+        }
+    }
+
+    // Check if any tensor requires grad
+    let requires_grad = tensor_refs.iter().any(|t| t.requires_grad);
+
+    if requires_grad {
+        // Use autograd system
+        crate::autograd::with_global_graph_mut(|graph| {
+            // Ensure all tensors are in the graph
+            for tensor in &tensor_refs {
+                if graph.get_node(tensor.id).is_none() {
+                    graph.add_node((*tensor).clone());
+                }
+            }
+
+            // Use autograd concat
+            let result = crate::autograd::concat(graph, tensor_refs.iter().map(|t| *t).collect(), dim)?;
+            Ok(Value::AutogradTensor(result))
+        })
+    } else {
+        // Fast path: no gradients needed
+        if dim != 1 {
+            return Err(format!("tensor_concat(): only dim=1 supported, got dim={}", dim));
+        }
+
+        // Check all tensors have same shape except in concat dimension
+        let first_shape = &tensor_refs[0].shape;
+        if first_shape.len() != 2 {
+            return Err(format!("tensor_concat(): only 2D tensors supported, got shape {:?}", first_shape));
+        }
+
+        let batch_size = first_shape[0];
+        for t in &tensor_refs[1..] {
+            if t.shape.len() != 2 {
+                return Err("tensor_concat(): all tensors must have same rank".to_string());
+            }
+            if t.shape[0] != batch_size {
+                return Err(format!("tensor_concat(): batch size mismatch {} vs {}", t.shape[0], batch_size));
+            }
+        }
+
+        // Calculate output shape
+        let total_features: usize = tensor_refs.iter().map(|t| t.shape[1]).sum();
+        let output_shape = vec![batch_size, total_features];
+
+        // Concatenate data
+        let mut output_data = Vec::with_capacity(batch_size * total_features);
+        for i in 0..batch_size {
+            for tensor in &tensor_refs {
+                let features = tensor.shape[1];
+                let start = i * features;
+                let end = start + features;
+                output_data.extend_from_slice(&tensor.data[start..end]);
+            }
+        }
+
+        let result_tensor = AutogradTensor::new(output_data, output_shape);
+        Ok(Value::AutogradTensor(result_tensor))
+    }
+}
+
 /// ```charl
 /// // Input: [1, 3, 32, 32] (1 image, 3 channels RGB, 32x32)
 /// let x = tensor_randn([1, 3, 32, 32])
@@ -3509,15 +4440,29 @@ pub fn builtin_nn_conv2d(args: Vec<Value>) -> Result<Value, String> {
     }
 
     // Extract input tensor and convert to GPU
-    let input_cpu = match &args[0] {
-        Value::AutogradTensor(t) => t,
+    let (input_data, input_shape) = match &args[0] {
+        Value::AutogradTensor(t) => (t.data.clone(), t.shape.clone()),
+        Value::Tensor { data, shape } => {
+            let data_f64: Vec<f64> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => *f,
+                    Value::Integer(i) => *i as f64,
+                    _ => 0.0,
+                })
+                .collect();
+            (data_f64, shape.clone())
+        }
         _ => return Err("nn_conv2d() input must be a tensor".to_string()),
     };
 
     // Validate 4D input
-    if input_cpu.shape.len() != 4 {
-        return Err(format!("nn_conv2d() requires 4D input [batch, channels, height, width], got {:?}", input_cpu.shape));
+    if input_shape.len() != 4 {
+        return Err(format!("nn_conv2d() requires 4D input [batch, channels, height, width], got {:?}", input_shape));
     }
+
+    // Create AutogradTensor from data if needed
+    let input_cpu = AutogradTensor::new(input_data, input_shape);
 
     // Extract parameters
     let in_channels = match &args[1] {
@@ -3610,15 +4555,29 @@ pub fn builtin_nn_maxpool2d(args: Vec<Value>) -> Result<Value, String> {
     }
 
     // Extract input tensor
-    let input_cpu = match &args[0] {
-        Value::AutogradTensor(t) => t,
+    let (input_data, input_shape) = match &args[0] {
+        Value::AutogradTensor(t) => (t.data.clone(), t.shape.clone()),
+        Value::Tensor { data, shape } => {
+            let data_f64: Vec<f64> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => *f,
+                    Value::Integer(i) => *i as f64,
+                    _ => 0.0,
+                })
+                .collect();
+            (data_f64, shape.clone())
+        }
         _ => return Err("nn_maxpool2d() input must be a tensor".to_string()),
     };
 
     // Validate 4D input
-    if input_cpu.shape.len() != 4 {
-        return Err(format!("nn_maxpool2d() requires 4D input [batch, channels, height, width], got {:?}", input_cpu.shape));
+    if input_shape.len() != 4 {
+        return Err(format!("nn_maxpool2d() requires 4D input [batch, channels, height, width], got {:?}", input_shape));
     }
+
+    // Create AutogradTensor from data if needed
+    let input_cpu = AutogradTensor::new(input_data, input_shape);
 
     // Extract parameters
     let kernel_size = match &args[1] {
@@ -4022,32 +4981,90 @@ pub fn builtin_adam_step(args: Vec<Value>) -> Result<Value, String> {
         return Err("adam_step() expects 2 arguments: adam_step(optimizer, params)".to_string());
     }
 
-    let opt = match &args[0] {
-        Value::AdamOptimizer(o) => o,
+    // Extract optimizer (needs to be mutable)
+    let opt_value = &args[0];
+    let mut opt = match opt_value {
+        Value::AdamOptimizer(o) => (**o).clone(),
         _ => return Err("adam_step() first argument must be AdamOptimizer".to_string()),
     };
 
+    // Extract params array
     let params_arr = match &args[1] {
         Value::Array(arr) => arr,
         _ => return Err("adam_step() second argument must be array of tensors".to_string()),
     };
 
-    let mut tensors: Vec<AutogradTensor> = Vec::new();
+    // Increment timestep (Adam needs this)
+    opt.t += 1;
+    let t = opt.t;
+
+    let mut updated_values: Vec<Value> = Vec::new();
+
     for p in params_arr {
         match p {
-            Value::AutogradTensor(t) => tensors.push(t.clone()),
+            Value::AutogradTensor(param) => {
+                if !param.requires_grad {
+                    return Err("adam_step(): all parameters must have requires_grad=true".to_string());
+                }
+
+                // Get gradient from global graph (same as SGD)
+                let grad = if let Some(updated_tensor) = crate::autograd::get_from_global_graph(param.id) {
+                    match updated_tensor.grad {
+                        Some(g) => g,
+                        None => return Err("adam_step(): parameter has no gradient. Did you call tensor_backward()?".to_string()),
+                    }
+                } else {
+                    match &param.grad {
+                        Some(g) => g.clone(),
+                        None => return Err("adam_step(): parameter has no gradient. Did you call tensor_backward()?".to_string()),
+                    }
+                };
+
+                let param_id = param.id;
+
+                // Initialize moments if not exists
+                if !opt.m.contains_key(&param_id) {
+                    opt.m.insert(param_id, vec![0.0; param.data.len()]);
+                    opt.v.insert(param_id, vec![0.0; param.data.len()]);
+                }
+
+                let m = opt.m.get_mut(&param_id).unwrap();
+                let v = opt.v.get_mut(&param_id).unwrap();
+
+                // Compute Adam updates
+                let mut updated_data = Vec::with_capacity(param.data.len());
+                for i in 0..param.data.len() {
+                    let g = grad[i];
+
+                    // Update biased first moment estimate
+                    m[i] = opt.beta1 * m[i] + (1.0 - opt.beta1) * g;
+
+                    // Update biased second moment estimate
+                    v[i] = opt.beta2 * v[i] + (1.0 - opt.beta2) * g * g;
+
+                    // Bias correction
+                    let m_hat = m[i] / (1.0 - opt.beta1.powi(t as i32));
+                    let v_hat = v[i] / (1.0 - opt.beta2.powi(t as i32));
+
+                    // Update parameters
+                    let new_val = param.data[i] - opt.lr * m_hat / (v_hat.sqrt() + opt.epsilon);
+                    updated_data.push(new_val);
+                }
+
+                // Create new tensor with gradients enabled (same as SGD)
+                let updated_tensor = crate::autograd::Tensor::with_grad(
+                    updated_data,
+                    param.shape.clone()
+                );
+
+                // Add to global graph so it can be used in next forward pass
+                crate::autograd::add_to_global_graph(updated_tensor.clone());
+
+                updated_values.push(Value::AutogradTensor(updated_tensor));
+            }
             _ => return Err("adam_step() params must be array of AutogradTensor".to_string()),
         }
     }
-
-    let mut tensor_refs: Vec<&mut AutogradTensor> = tensors.iter_mut().collect();
-    let mut optimizer = (**opt).clone();
-    optimizer.step(&mut tensor_refs);
-
-    // Convert updated tensors back to Value array
-    let updated_values: Vec<Value> = tensors.into_iter()
-        .map(Value::AutogradTensor)
-        .collect();
 
     Ok(Value::Array(updated_values))
 }
@@ -4322,8 +5339,8 @@ pub fn builtin_linformer_create(args: Vec<Value>) -> Result<Value, String> {
 /// let output = linformer_forward(layer, Q, K, V)
 /// ```
 pub fn builtin_linformer_forward(args: Vec<Value>) -> Result<Value, String> {
-    if args.len() != 4 {
-        return Err("linformer_forward() expects 4 arguments: linformer_forward(layer, Q, K, V)".to_string());
+    if args.len() != 2 && args.len() != 4 {
+        return Err("linformer_forward() expects 2 or 4 arguments: linformer_forward(layer, input) or linformer_forward(layer, Q, K, V)".to_string());
     }
 
     let layer = match &args[0] {
@@ -4331,16 +5348,52 @@ pub fn builtin_linformer_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("linformer_forward() first argument must be LinformerLayer".to_string()),
     };
 
-    // Extract Q, K, V as Vec<Vec<f32>>
-    let Q = tensor_to_vec2d(&args[1])?;
-    let K = tensor_to_vec2d(&args[2])?;
-    let V = tensor_to_vec2d(&args[3])?;
+    // Check if input is 2D or 3D
+    if args.len() == 2 {
+        // Self-attention mode: input is used for Q=K=V
+        let input_tensor = match &args[1] {
+            Value::AutogradTensor(t) => t,
+            _ => return Err("linformer_forward() input must be a tensor".to_string()),
+        };
 
-    // Forward pass
-    let output = layer.forward(&Q, &K, &V);
+        match input_tensor.shape.len() {
+            2 => {
+                // 2D: [seq_len, features]
+                let qkv = tensor_to_vec2d(&args[1])?;
+                let output = layer.forward(&qkv, &qkv, &qkv);
+                vec2d_to_tensor(output)
+            }
+            3 => {
+                // 3D: [batch, seq_len, features]
+                let batch_size = input_tensor.shape[0];
+                let seq_len = input_tensor.shape[1];
+                let features = input_tensor.shape[2];
+                let mut all_outputs = Vec::new();
 
-    // Convert back to tensor
-    vec2d_to_tensor(output)
+                for b in 0..batch_size {
+                    let start_idx = b * seq_len * features;
+                    let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                    let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+                    let qkv = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                    let output_2d = layer.forward(&qkv, &qkv, &qkv);
+                    for row in output_2d {
+                        all_outputs.extend(row.iter().map(|&x| x as f64));
+                    }
+                }
+
+                let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+                Ok(Value::AutogradTensor(result_tensor))
+            }
+            _ => Err(format!("linformer_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+        }
+    } else {
+        // Separate Q, K, V mode (4 arguments)
+        let q = tensor_to_vec2d(&args[1])?;
+        let k = tensor_to_vec2d(&args[2])?;
+        let v = tensor_to_vec2d(&args[3])?;
+        let output = layer.forward(&q, &k, &v);
+        vec2d_to_tensor(output)
+    }
 }
 
 /// performer_create(d_model, num_features) -> PerformerLayer
@@ -4389,8 +5442,8 @@ pub fn builtin_performer_create(args: Vec<Value>) -> Result<Value, String> {
 /// let output = performer_forward(layer, Q, K, V)
 /// ```
 pub fn builtin_performer_forward(args: Vec<Value>) -> Result<Value, String> {
-    if args.len() != 4 {
-        return Err("performer_forward() expects 4 arguments: performer_forward(layer, Q, K, V)".to_string());
+    if args.len() != 2 && args.len() != 4 {
+        return Err("performer_forward() expects 2 or 4 arguments: performer_forward(layer, input) or performer_forward(layer, Q, K, V)".to_string());
     }
 
     let layer = match &args[0] {
@@ -4398,12 +5451,52 @@ pub fn builtin_performer_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("performer_forward() first argument must be PerformerLayer".to_string()),
     };
 
-    let Q = tensor_to_vec2d(&args[1])?;
-    let K = tensor_to_vec2d(&args[2])?;
-    let V = tensor_to_vec2d(&args[3])?;
+    // Check if input is 2D or 3D
+    if args.len() == 2 {
+        // Self-attention mode: input is used for Q=K=V
+        let input_tensor = match &args[1] {
+            Value::AutogradTensor(t) => t,
+            _ => return Err("performer_forward() input must be a tensor".to_string()),
+        };
 
-    let output = layer.forward(&Q, &K, &V);
-    vec2d_to_tensor(output)
+        match input_tensor.shape.len() {
+            2 => {
+                // 2D: [seq_len, features]
+                let qkv = tensor_to_vec2d(&args[1])?;
+                let output = layer.forward(&qkv, &qkv, &qkv);
+                vec2d_to_tensor(output)
+            }
+            3 => {
+                // 3D: [batch, seq_len, features]
+                let batch_size = input_tensor.shape[0];
+                let seq_len = input_tensor.shape[1];
+                let features = input_tensor.shape[2];
+                let mut all_outputs = Vec::new();
+
+                for b in 0..batch_size {
+                    let start_idx = b * seq_len * features;
+                    let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                    let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+                    let qkv = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                    let output_2d = layer.forward(&qkv, &qkv, &qkv);
+                    for row in output_2d {
+                        all_outputs.extend(row.iter().map(|&x| x as f64));
+                    }
+                }
+
+                let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+                Ok(Value::AutogradTensor(result_tensor))
+            }
+            _ => Err(format!("performer_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+        }
+    } else {
+        // Separate Q, K, V mode (4 arguments)
+        let q = tensor_to_vec2d(&args[1])?;
+        let k = tensor_to_vec2d(&args[2])?;
+        let v = tensor_to_vec2d(&args[3])?;
+        let output = layer.forward(&q, &k, &v);
+        vec2d_to_tensor(output)
+    }
 }
 
 // Helper functions for tensor conversion
@@ -4489,9 +5582,39 @@ pub fn builtin_fnet_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("fnet_forward() first argument must be FNetLayer".to_string()),
     };
 
-    let input = tensor_to_vec2d(&args[1])?;
-    let output = layer.forward(&input);
-    vec2d_to_tensor(output)
+    let input_tensor = match &args[1] {
+        Value::AutogradTensor(t) => t,
+        _ => return Err("fnet_forward() input must be a tensor".to_string()),
+    };
+
+    match input_tensor.shape.len() {
+        2 => {
+            let input = tensor_to_vec2d(&args[1])?;
+            let output = layer.forward(&input);
+            vec2d_to_tensor(output)
+        }
+        3 => {
+            let batch_size = input_tensor.shape[0];
+            let seq_len = input_tensor.shape[1];
+            let features = input_tensor.shape[2];
+            let mut all_outputs = Vec::new();
+
+            for b in 0..batch_size {
+                let start_idx = b * seq_len * features;
+                let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+                let input_2d = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                let output_2d = layer.forward(&input_2d);
+                for row in output_2d {
+                    all_outputs.extend(row.iter().map(|&x| x as f64));
+                }
+            }
+
+            let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("fnet_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+    }
 }
 
 /// rwkv_create(d_model) -> RWKVLayer
@@ -4544,9 +5667,39 @@ pub fn builtin_rwkv_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("rwkv_forward() first argument must be RWKVLayer".to_string()),
     };
 
-    let input = tensor_to_vec2d(&args[1])?;
-    let output = layer.forward_sequence(&input);
-    vec2d_to_tensor(output)
+    let input_tensor = match &args[1] {
+        Value::AutogradTensor(t) => t,
+        _ => return Err("rwkv_forward() input must be a tensor".to_string()),
+    };
+
+    match input_tensor.shape.len() {
+        2 => {
+            let input = tensor_to_vec2d(&args[1])?;
+            let output = layer.forward_sequence(&input);
+            vec2d_to_tensor(output)
+        }
+        3 => {
+            let batch_size = input_tensor.shape[0];
+            let seq_len = input_tensor.shape[1];
+            let features = input_tensor.shape[2];
+            let mut all_outputs = Vec::new();
+
+            for b in 0..batch_size {
+                let start_idx = b * seq_len * features;
+                let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+                let input_2d = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                let output_2d = layer.forward_sequence(&input_2d);
+                for row in output_2d {
+                    all_outputs.extend(row.iter().map(|&x| x as f64));
+                }
+            }
+
+            let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("rwkv_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+    }
 }
 
 // ============================================================================
@@ -4611,9 +5764,45 @@ pub fn builtin_mamba_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("mamba_forward() first argument must be MambaLayer".to_string()),
     };
 
-    let input = tensor_to_vec2d(&args[1])?;
-    let output = layer.forward_sequence(&input);
-    vec2d_to_tensor(output)
+    // Handle both 2D and 3D tensors
+    let input_tensor = match &args[1] {
+        Value::AutogradTensor(t) => t,
+        _ => return Err("mamba_forward() input must be a tensor".to_string()),
+    };
+
+    match input_tensor.shape.len() {
+        2 => {
+            // 2D tensor [seq_len, features]
+            let input = tensor_to_vec2d(&args[1])?;
+            let output = layer.forward_sequence(&input);
+            vec2d_to_tensor(output)
+        }
+        3 => {
+            // 3D tensor [batch, seq_len, features]
+            let batch_size = input_tensor.shape[0];
+            let seq_len = input_tensor.shape[1];
+            let features = input_tensor.shape[2];
+
+            let mut all_outputs = Vec::new();
+
+            for b in 0..batch_size {
+                let start_idx = b * seq_len * features;
+                let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+
+                let input_2d = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                let output_2d = layer.forward_sequence(&input_2d);
+
+                for row in output_2d {
+                    all_outputs.extend(row.iter().map(|&x| x as f64));
+                }
+            }
+
+            let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("mamba_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+    }
 }
 
 // ============================================================================
@@ -4684,9 +5873,50 @@ pub fn builtin_s4_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("s4_forward() first argument must be S4Layer".to_string()),
     };
 
-    let input = tensor_to_vec2d(&args[1])?;
-    let output = layer.forward_sequence(&input);
-    vec2d_to_tensor(output)
+    // Handle both 2D and 3D tensors
+    let input_tensor = match &args[1] {
+        Value::AutogradTensor(t) => t,
+        _ => return Err("s4_forward() input must be a tensor".to_string()),
+    };
+
+    match input_tensor.shape.len() {
+        2 => {
+            // 2D tensor [seq_len, features] - single sequence
+            let input = tensor_to_vec2d(&args[1])?;
+            let output = layer.forward_sequence(&input);
+            vec2d_to_tensor(output)
+        }
+        3 => {
+            // 3D tensor [batch, seq_len, features] - process each batch
+            let batch_size = input_tensor.shape[0];
+            let seq_len = input_tensor.shape[1];
+            let features = input_tensor.shape[2];
+
+            let mut all_outputs = Vec::new();
+
+            // Process each batch element
+            for b in 0..batch_size {
+                // Extract batch element [seq_len, features]
+                let start_idx = b * seq_len * features;
+                let batch_data: Vec<f64> = input_tensor.data[start_idx..start_idx + seq_len * features].to_vec();
+                let batch_tensor = AutogradTensor::new(batch_data, vec![seq_len, features]);
+
+                // Forward through S4
+                let input_2d = tensor_to_vec2d(&Value::AutogradTensor(batch_tensor))?;
+                let output_2d = layer.forward_sequence(&input_2d);
+
+                // Flatten and add to results
+                for row in output_2d {
+                    all_outputs.extend(row.iter().map(|&x| x as f64));
+                }
+            }
+
+            // Return 3D tensor [batch, seq_len, features]
+            let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+            Ok(Value::AutogradTensor(result_tensor))
+        }
+        _ => Err(format!("s4_forward() expects 2D or 3D tensor, got shape {:?}", input_tensor.shape))
+    }
 }
 
 // ============================================================================
@@ -4752,7 +5982,7 @@ pub fn builtin_moe_forward(args: Vec<Value>) -> Result<Value, String> {
         _ => return Err("moe_forward() first argument must be MoELayer".to_string()),
     };
 
-    // Handle both 1D and 2D inputs
+    // Handle 1D, 2D and 3D inputs
     match &args[1] {
         Value::AutogradTensor(t) => {
             if t.shape.len() == 1 {
@@ -4763,15 +5993,37 @@ pub fn builtin_moe_forward(args: Vec<Value>) -> Result<Value, String> {
                 let tensor = AutogradTensor::new(output_f64, t.shape.clone());
                 Ok(Value::AutogradTensor(tensor))
             } else if t.shape.len() == 2 {
-                // Batch input
+                // Batch input [batch, features]
                 let input_2d = tensor_to_vec2d(&args[1])?;
                 let mut outputs = Vec::new();
                 for row in input_2d {
                     outputs.push(layer.forward(&row));
                 }
                 vec2d_to_tensor(outputs)
+            } else if t.shape.len() == 3 {
+                // 3D input [batch, seq_len, features]
+                // Process each position in each sequence through MoE
+                let batch_size = t.shape[0];
+                let seq_len = t.shape[1];
+                let features = t.shape[2];
+                let mut all_outputs = Vec::new();
+
+                for b in 0..batch_size {
+                    for s in 0..seq_len {
+                        let start_idx = (b * seq_len + s) * features;
+                        let input_vec: Vec<f32> = t.data[start_idx..start_idx + features]
+                            .iter()
+                            .map(|&x| x as f32)
+                            .collect();
+                        let output_vec = layer.forward(&input_vec);
+                        all_outputs.extend(output_vec.iter().map(|&x| x as f64));
+                    }
+                }
+
+                let result_tensor = AutogradTensor::new(all_outputs, vec![batch_size, seq_len, features]);
+                Ok(Value::AutogradTensor(result_tensor))
             } else {
-                Err(format!("moe_forward() expects 1D or 2D tensor, got shape {:?}", t.shape))
+                Err(format!("moe_forward() expects 1D, 2D or 3D tensor, got shape {:?}", t.shape))
             }
         }
         _ => Err(format!("moe_forward() expects AutogradTensor, got {}", args[1].type_name())),
@@ -7683,5 +8935,176 @@ pub fn builtin_working_memory_consolidate(args: Vec<Value>) -> Result<Value, Str
 
     wm.consolidate();
     Ok(Value::WorkingMemorySystem(Box::new(wm)))
+}
+
+// ===========================================================================
+// LSTM AND GRU - RECURRENT NEURAL NETWORKS
+// ===========================================================================
+
+/// lstm_create(input_size, hidden_size) -> LSTM
+/// Create an LSTM layer
+pub fn builtin_lstm_create(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("lstm_create requires 2 arguments: lstm_create(input_size, hidden_size)".to_string());
+    }
+
+    let input_size = match &args[0] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("lstm_create: input_size must be a number".to_string()),
+    };
+
+    let hidden_size = match &args[1] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("lstm_create: hidden_size must be a number".to_string()),
+    };
+
+    use crate::nn::{LSTM, Initializer};
+    let lstm = LSTM::new(input_size, hidden_size, Initializer::Xavier);
+    Ok(Value::LSTM(Box::new(lstm)))
+}
+
+/// lstm_forward(lstm, input) -> output
+/// Forward pass through LSTM
+/// input: [batch, seq_len, input_size]
+/// output: [batch, seq_len, hidden_size]
+pub fn builtin_lstm_forward(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("lstm_forward requires 2 arguments: lstm_forward(lstm, input)".to_string());
+    }
+
+    let lstm = match &args[0] {
+        Value::LSTM(l) => l,
+        _ => return Err("lstm_forward: first argument must be an LSTM".to_string()),
+    };
+
+    let (input_data, input_shape) = match &args[1] {
+        Value::AutogradTensor(t) => (t.data.clone(), t.shape.clone()),
+        Value::Tensor { data, shape } => {
+            let data_f64: Vec<f64> = data
+                .iter()
+                .map(|v| match v {
+                    Value::Float(f) => *f,
+                    Value::Integer(i) => *i as f64,
+                    _ => 0.0,
+                })
+                .collect();
+            (data_f64, shape.clone())
+        }
+        _ => return Err("lstm_forward: input must be a tensor".to_string()),
+    };
+
+    if input_shape.len() != 3 {
+        return Err(format!("lstm_forward: input must be 3D [batch, seq_len, input_size], got {:?}", input_shape));
+    }
+
+    let batch_size = input_shape[0];
+    let seq_len = input_shape[1];
+    let input_size = input_shape[2];
+
+    if input_size != lstm.input_size {
+        return Err(format!("lstm_forward: input_size mismatch: expected {}, got {}", lstm.input_size, input_size));
+    }
+
+    let hidden_size = lstm.hidden_size;
+    let mut output_data = Vec::with_capacity(batch_size * seq_len * hidden_size);
+
+    // Process each batch
+    for b in 0..batch_size {
+        let mut h_t = vec![0.0; hidden_size];
+        let mut c_t = vec![0.0; hidden_size];
+
+        // Process sequence
+        for t in 0..seq_len {
+            let x_t_start = b * seq_len * input_size + t * input_size;
+            let x_t = &input_data[x_t_start..x_t_start + input_size];
+
+            let (h_next, c_next) = lstm.step(x_t, &h_t, &c_t);
+            h_t = h_next;
+            c_t = c_next;
+
+            output_data.extend_from_slice(&h_t);
+        }
+    }
+
+    let output = AutogradTensor::new(output_data, vec![batch_size, seq_len, hidden_size]);
+    Ok(Value::AutogradTensor(output))
+}
+
+/// gru_create(input_size, hidden_size) -> GRU
+/// Create a GRU layer
+pub fn builtin_gru_create(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("gru_create requires 2 arguments: gru_create(input_size, hidden_size)".to_string());
+    }
+
+    let input_size = match &args[0] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("gru_create: input_size must be a number".to_string()),
+    };
+
+    let hidden_size = match &args[1] {
+        Value::Integer(i) => *i as usize,
+        Value::Float(f) => *f as usize,
+        _ => return Err("gru_create: hidden_size must be a number".to_string()),
+    };
+
+    use crate::nn::{GRU, Initializer};
+    let gru = GRU::new(input_size, hidden_size, Initializer::Xavier);
+    Ok(Value::GRU(Box::new(gru)))
+}
+
+/// gru_forward(gru, input) -> output
+/// Forward pass through GRU
+/// input: [batch, seq_len, input_size]
+/// output: [batch, seq_len, hidden_size]
+pub fn builtin_gru_forward(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("gru_forward requires 2 arguments: gru_forward(gru, input)".to_string());
+    }
+
+    let gru = match &args[0] {
+        Value::GRU(g) => g,
+        _ => return Err("gru_forward: first argument must be a GRU".to_string()),
+    };
+
+    let (input_data, input_shape) = match &args[1] {
+        Value::AutogradTensor(t) => (t.data.clone(), t.shape.clone()),
+        _ => return Err("gru_forward: input must be a tensor".to_string()),
+    };
+
+    if input_shape.len() != 3 {
+        return Err(format!("gru_forward: input must be 3D [batch, seq_len, input_size], got {:?}", input_shape));
+    }
+
+    let batch_size = input_shape[0];
+    let seq_len = input_shape[1];
+    let input_size = input_shape[2];
+
+    if input_size != gru.input_size {
+        return Err(format!("gru_forward: input_size mismatch: expected {}, got {}", gru.input_size, input_size));
+    }
+
+    let hidden_size = gru.hidden_size;
+    let mut output_data = Vec::with_capacity(batch_size * seq_len * hidden_size);
+
+    // Process each batch
+    for b in 0..batch_size {
+        let mut h_t = vec![0.0; hidden_size];
+
+        // Process sequence
+        for t in 0..seq_len {
+            let x_t_start = b * seq_len * input_size + t * input_size;
+            let x_t = &input_data[x_t_start..x_t_start + input_size];
+
+            h_t = gru.step(x_t, &h_t);
+            output_data.extend_from_slice(&h_t);
+        }
+    }
+
+    let output = AutogradTensor::new(output_data, vec![batch_size, seq_len, hidden_size]);
+    Ok(Value::AutogradTensor(output))
 }
 

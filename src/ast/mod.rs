@@ -16,6 +16,8 @@ pub enum Statement {
     If(IfStatement),
     While(WhileStatement),
     For(ForStatement),
+    Break,    // Exit from loop
+    Continue, // Skip to next iteration
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,7 +29,7 @@ pub struct LetStatement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssignStatement {
-    pub name: String,
+    pub target: Expression, // Can be Identifier or Index (for array[i] = value)
     pub value: Expression,
 }
 
@@ -83,6 +85,10 @@ pub enum Expression {
     BooleanLiteral(bool),
     StringLiteral(String),
     ArrayLiteral(Vec<Expression>),
+    ArrayRepeat {
+        value: Box<Expression>,
+        count: Box<Expression>,
+    }, // [value; count] - e.g., [0.0; 100]
     TensorLiteral(Vec<Expression>),
 
     // Binary operations
@@ -207,7 +213,11 @@ pub enum TypeAnnotation {
     Float64,
     Bool,
     String,
-    Array(Box<TypeAnnotation>), // [int32], [float32], etc.
+    Array(Box<TypeAnnotation>), // [int32], [float32], etc. (dynamic size)
+    ArraySized {
+        element_type: Box<TypeAnnotation>,
+        size: usize,
+    }, // [float32; 10], [[int32; 5]; 100]
     Tensor {
         dtype: Box<TypeAnnotation>,
         shape: Vec<usize>,

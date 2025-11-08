@@ -295,6 +295,8 @@ impl TypeChecker {
 
                 Ok(Type::Void)
             }
+            Statement::Break => Ok(Type::Void),
+            Statement::Continue => Ok(Type::Void),
         }
     }
 
@@ -394,6 +396,19 @@ impl TypeChecker {
             Expression::Index { object, index } => self.check_index_expression(object, index),
 
             Expression::ArrayLiteral(elements) => self.check_array_literal(elements),
+
+            Expression::ArrayRepeat { value, count } => {
+                // Infer type of repeated value
+                let element_type = self.infer_expression(value)?;
+
+                // Count must be integer
+                let count_type = self.infer_expression(count)?;
+                if !count_type.is_integer() {
+                    return Err(format!("Array repeat count must be integer, got {}", count_type.to_string()));
+                }
+
+                Ok(Type::Array(Box::new(element_type)))
+            }
 
             Expression::TensorLiteral(elements) => {
                 self.check_array_literal(elements) // Same as array for now
@@ -750,6 +765,9 @@ impl TypeChecker {
             TypeAnnotation::Array(element_type) => Type::Array(Box::new(
                 self.type_annotation_to_type(element_type),
             )),
+            TypeAnnotation::ArraySized { element_type, size: _ } => Type::Array(Box::new(
+                self.type_annotation_to_type(element_type),
+            )), // Size is for type checking only, runtime type is still Array
             TypeAnnotation::Tensor { dtype, shape } => Type::Tensor {
                 dtype: Box::new(self.type_annotation_to_type(dtype)),
                 shape: Shape::Static(shape.clone()),
