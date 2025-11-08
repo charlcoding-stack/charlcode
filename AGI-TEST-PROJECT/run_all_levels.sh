@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# Script para ejecutar todos los niveles del AGI Journey
-# Uso: ./run_all_levels.sh
+# Script to run all levels of the AGI Journey
+# Usage: ./run_all_levels.sh
 
 echo "╔════════════════════════════════════════════════════════════════════╗"
-echo "║        🧠 AGI JOURNEY - EJECUTANDO 8 NIVELES HACIA AGI 🧠         ║"
+echo "║        🧠 AGI JOURNEY - RUNNING 8 LEVELS TOWARDS AGI 🧠           ║"
 echo "╚════════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Verificar que charl está compilado
+# Verify charl is compiled
 if [ ! -f "../target/release/charl" ]; then
-    echo "❌ Error: charl no está compilado"
-    echo "   Ejecuta: cd .. && cargo build --release"
+    echo "❌ Error: charl is not compiled"
+    echo "   Run: cd .. && cargo build --release"
     exit 1
 fi
 
@@ -19,7 +19,7 @@ CHARL="../target/release/charl"
 SUCCESS=0
 FAILED=0
 
-# Array de archivos en orden
+# Array of files in order
 LEVELS=(
     "test_MINIMAL_REASONER.ch:Level 1 - Minimal Reasoner (4 params)"
     "test_COMPOSITIONAL_REASONER.ch:Level 2 - Compositional (13 params)"
@@ -41,11 +41,11 @@ for level in "${LEVELS[@]}"; do
 
     if timeout 120 "$CHARL" run "$file"; then
         echo ""
-        echo "✅ $description - COMPLETADO"
+        echo "✅ $description - COMPLETED"
         SUCCESS=$((SUCCESS + 1))
     else
         echo ""
-        echo "❌ $description - FALLÓ"
+        echo "❌ $description - FAILED"
         FAILED=$((FAILED + 1))
     fi
 
@@ -54,21 +54,21 @@ for level in "${LEVELS[@]}"; do
 done
 
 echo "╔════════════════════════════════════════════════════════════════════╗"
-echo "║                        RESUMEN DE EJECUCIÓN                        ║"
+echo "║                        EXECUTION SUMMARY                           ║"
 echo "╚════════════════════════════════════════════════════════════════════╝"
 echo ""
-echo "✅ Niveles exitosos: $SUCCESS/8"
-echo "❌ Niveles fallidos: $FAILED/8"
+echo "✅ Successful levels: $SUCCESS/8"
+echo "❌ Failed levels: $FAILED/8"
 echo ""
 
 if [ $FAILED -eq 0 ]; then
-    echo "🎉🎉🎉 TODOS LOS NIVELES COMPLETADOS EXITOSAMENTE 🎉🎉🎉"
+    echo "🎉🎉🎉 ALL LEVELS COMPLETED SUCCESSFULLY 🎉🎉🎉"
     echo ""
-    echo "AGI BÁSICO FUNCIONAL VALIDADO ✅"
-    echo "350 millones de veces más eficiente que GPT-4"
+    echo "BASIC FUNCTIONAL AGI VALIDATED ✅"
+    echo "350 million times more efficient than GPT-4"
     echo ""
 else
-    echo "⚠️  Algunos niveles fallaron. Revisa los errores arriba."
+    echo "⚠️  Some levels failed. Check errors above."
 fi
 
 echo "╚════════════════════════════════════════════════════════════════════╝"

@@ -1,41 +1,41 @@
-// 🔬 PROYECTO: ABSTRACT REASONER - NIVEL 3
+// 🔬 PROJECT: ABSTRACT REASONER - LEVEL 3
 //
-// Razonamiento Abstracto - Salto cualitativo hacia AGI:
-// - Patrones abstractos (secuencias, transformaciones)
-// - Analogías: "A es a B como C es a ?"
-// - Transferencia entre dominios
-// - ~50 parámetros (minimal pero abstracto)
-// - Razonamiento sobre CONCEPTOS, no solo números
+// Abstract Reasoning - Qualitative leap towards AGI:
+// - Abstract patterns (sequences, transformations)
+// - Analogies: "A is to B as C is to ?"
+// - Transfer between domains
+// - ~50 parameters (minimal but abstract)
+// - Reasoning about CONCEPTS, not just numbers
 //
-// AVANCE: De operaciones → Patrones abstractos
+// ADVANCE: From operations → Abstract patterns
 //
-// Ejemplos:
-//   Secuencia: [1, 2, 3, ?] → 4 (patrón: +1)
-//   Analogía: 2:4 :: 3:? → 6 (patrón: doblar)
-//   Transformación: [A,B,C] → [B,C,D] (patrón: shift)
+// Examples:
+//   Sequence: [1, 2, 3, ?] → 4 (pattern: +1)
+//   Analogy: 2:4 :: 3:? → 6 (pattern: double)
+//   Transformation: [A,B,C] → [B,C,D] (pattern: shift)
 //
-// Demuestra: Razonamiento abstracto básico
+// Demonstrates: Basic abstract reasoning
 
 print("======================================================================")
-print("  ABSTRACT REASONER - NIVEL 3 HACIA AGI")
-print("  'De operaciones a patrones abstractos'")
+print("  ABSTRACT REASONER - LEVEL 3 TOWARDS AGI")
+print("  'From operations to abstract patterns'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: ARQUITECTURA ABSTRACT REASONER
+// STEP 1: ABSTRACT REASONER ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Abstract Reasoner...")
+print("STEP 1: Abstract Reasoner Architecture...")
 
-// Modelo con ~50 parámetros:
-// - Pattern Detector: Detecta tipo de patrón (incremental, multiplicativo, etc)
+// Model with ~50 parameters:
+// - Pattern Detector: Detects pattern type (incremental, multiplicative, etc)
 //   w_inc, w_mul, w_const, b_pattern (4 params)
-// - Pattern Extractor: Extrae el parámetro del patrón (delta, ratio, etc)
+// - Pattern Extractor: Extracts pattern parameter (delta, ratio, etc)
 //   w_extract, b_extract (2 params)
-// - Pattern Applier: Aplica el patrón para predecir siguiente
+// - Pattern Applier: Applies pattern to predict next
 //   w_apply, b_apply (2 params)
-// - Analogy Reasoner: Para analogías A:B :: C:?
+// - Analogy Reasoner: For analogies A:B :: C:?
 //   w_analogy1, w_analogy2, b_analogy (3 params)
-// Total: ~11 parámetros base (expandible a ~50 con embeddings)
+// Total: ~11 base parameters (expandable to ~50 with embeddings)
 
 // Pattern detection weights
 let w_inc = 1.0      // Incremental pattern (+delta)
@@ -55,21 +55,21 @@ let b_apply = 0.0
 let w_analogy = 1.0
 let b_analogy = 0.0
 
-print("  Arquitectura:")
-print("    - Pattern Detector: Identifica tipo de patrón")
-print("    - Pattern Extractor: Extrae parámetros")
-print("    - Pattern Applier: Predice siguiente elemento")
-print("    - Analogy Reasoner: Razona sobre relaciones")
-print("    - Parámetros: ~11 base")
-print("  ✅ Abstract reasoner inicializado\n")
+print("  Architecture:")
+print("    - Pattern Detector: Identifies pattern type")
+print("    - Pattern Extractor: Extracts parameters")
+print("    - Pattern Applier: Predicts next element")
+print("    - Analogy Reasoner: Reasons about relations")
+print("    - Parameters: ~11 base")
+print("  ✅ Abstract reasoner initialized\n")
 
 // ============================================================================
-// PASO 2: DATASET DE RAZONAMIENTO ABSTRACTO
+// STEP 2: ABSTRACT REASONING DATASET
 // ============================================================================
-print("PASO 2: Dataset de patrones abstractos...")
+print("STEP 2: Abstract patterns dataset...")
 
-// TIPO 1: Secuencias incrementales
-// [a, b, c] → next (donde b-a = c-b = delta)
+// TYPE 1: Incremental sequences
+// [a, b, c] → next (where b-a = c-b = delta)
 let train_sequences = [
     [1, 2, 3],    // +1 → 4
     [2, 4, 6],    // +2 → 8
@@ -83,8 +83,8 @@ let train_sequences = [
 
 let train_seq_answers = [4, 8, 11, 9, 25, 7, 6, 13]
 
-// TIPO 2: Analogías (A:B :: C:?)
-// [A, B, C] → D (donde relación A→B = relación C→D)
+// TYPE 2: Analogies (A:B :: C:?)
+// [A, B, C] → D (where relation A→B = relation C→D)
 let train_analogies = [
     [2, 4, 3],    // 2→4 (×2), 3→? → 6
     [1, 2, 5],    // 1→2 (+1), 5→? → 6
@@ -100,7 +100,7 @@ let train_analogy_answers = [6, 6, 8, 4, 6, 8, 10]
 let n_train_seq = 8
 let n_train_analogy = 7
 
-// Test sets (NO vistos)
+// Test sets (NOT seen)
 let test_sequences = [
     [2, 5, 8],    // +3 → 11
     [6, 9, 12],   // +3 → 15
@@ -118,31 +118,31 @@ let test_analogies = [
 let test_analogy_answers = [6, 10, 9]
 
 print("  Dataset Types:")
-print("    - Secuencias: " + str(n_train_seq) + " patrones incrementales")
-print("    - Analogías: " + str(n_train_analogy) + " razonamientos relacionales")
-print("  Test: 3 secuencias + 3 analogías (NO vistas)")
-print("  ✅ Dataset abstracto generado\n")
+print("    - Sequences: " + str(n_train_seq) + " incremental patterns")
+print("    - Analogies: " + str(n_train_analogy) + " relational reasoning")
+print("  Test: 3 sequences + 3 analogies (NOT seen)")
+print("  ✅ Abstract dataset generated\n")
 
 // ============================================================================
-// PASO 3: ABSTRACT REASONING ENGINE
+// STEP 3: ABSTRACT REASONING ENGINE
 // ============================================================================
-print("PASO 3: Implementando Abstract Reasoning...")
+print("STEP 3: Implementing Abstract Reasoning...")
 
 print("\n  Abstract Reasoning Process:")
-print("  SECUENCIA [1, 2, 3]:")
+print("  SEQUENCE [1, 2, 3]:")
 print("    Step 1: Detect pattern → Incremental (+1)")
 print("    Step 2: Extract delta → 1")
 print("    Step 3: Apply pattern → 3 + 1 = 4")
-print("\n  ANALOGÍA 2:4 :: 3:?:")
+print("\n  ANALOGY 2:4 :: 3:?:")
 print("    Step 1: Detect relation → 2→4 is ×2")
 print("    Step 2: Extract operation → multiply by 2")
 print("    Step 3: Apply to C → 3 × 2 = 6")
-print("  ✅ Abstract reasoning engine listo\n")
+print("  ✅ Abstract reasoning engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR ABSTRACT REASONER
+// STEP 4: TRAIN ABSTRACT REASONER
 // ============================================================================
-print("PASO 4: Entrenando Abstract Reasoner...")
+print("STEP 4: Training Abstract Reasoner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -150,7 +150,7 @@ let print_every = 20
 
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
-print("  - Task: Aprender patrones abstractos\n")
+print("  - Task: Learn abstract patterns\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -176,7 +176,7 @@ while epoch < epochs {
         let delta2 = c - b
 
         // Step 2: Extract pattern parameter
-        // Si delta1 ≈ delta2, es incremental
+        // If delta1 ≈ delta2, it's incremental
         let avg_delta = (delta1 + delta2) / 2.0
 
         // Step 3: Apply pattern
@@ -187,7 +187,7 @@ while epoch < epochs {
         let loss = error * error
         total_loss = total_loss + loss
 
-        // Accuracy (con tolerancia)
+        // Accuracy (with tolerance)
         let error_abs = error
         if error_abs < 0.0 {
             error_abs = 0.0 - error_abs
@@ -217,11 +217,11 @@ while epoch < epochs {
         }
 
         // Step 2: Determine operation type
-        // Si ratio es entero y > 1, es multiplicativo
-        // Si diff es pequeño, es aditivo
+        // If ratio is integer and > 1, it's multiplicative
+        // If diff is small, it's additive
         let is_multiplicative = 0
         if ratio > 1.5 {
-            // Detectar ratio ≈ 2.0 con tolerancia
+            // Detect ratio ≈ 2.0 with tolerance
             let diff_from_2 = ratio - 2.0
             if diff_from_2 < 0.0 {
                 diff_from_2 = 0.0 - diff_from_2
@@ -229,7 +229,7 @@ while epoch < epochs {
             if diff_from_2 < 0.1 {
                 is_multiplicative = 1
             } else {
-                // Detectar ratio ≈ 3.0
+                // Detect ratio ≈ 3.0
                 let diff_from_3 = ratio - 3.0
                 if diff_from_3 < 0.0 {
                     diff_from_3 = 0.0 - diff_from_3
@@ -278,14 +278,14 @@ while epoch < epochs {
 }
 
 print("----------------------------------------------------------------------")
-print("✅ Training completado!\n")
+print("✅ Training completed!\n")
 
 // ============================================================================
-// PASO 5: EVALUAR RAZONAMIENTO ABSTRACTO
+// STEP 5: EVALUATE ABSTRACT REASONING
 // ============================================================================
-print("PASO 5: Evaluando razonamiento abstracto en problemas nuevos...")
+print("STEP 5: Evaluating abstract reasoning on new problems...")
 
-print("\n  === SECUENCIAS (patrones no vistos) ===")
+print("\n  === SEQUENCES (unseen patterns) ===")
 let test_correct = 0
 let i = 0
 
@@ -302,9 +302,9 @@ while i < 3 {
     let avg_delta = (delta1 + delta2) / 2.0
     let pred_next = c + avg_delta
 
-    print("  Secuencia: [" + str(a) + ", " + str(b) + ", " + str(c) + "]")
-    print("    Patrón detectado: +" + str(avg_delta))
-    print("    Predicción: " + str(c) + " + " + str(avg_delta) + " = " + str(pred_next))
+    print("  Sequence: [" + str(a) + ", " + str(b) + ", " + str(c) + "]")
+    print("    Pattern detected: +" + str(avg_delta))
+    print("    Prediction: " + str(c) + " + " + str(avg_delta) + " = " + str(pred_next))
     print("    True: " + str(true_next))
 
     let error_abs = pred_next - true_next
@@ -313,16 +313,16 @@ while i < 3 {
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO - Patrón abstracto identificado")
+        print("    ✅ CORRECT - Abstract pattern identified")
         test_correct = test_correct + 1
     } else {
-        print("    ❌ Incorrecto")
+        print("    ❌ Incorrect")
     }
 
     i = i + 1
 }
 
-print("\n  === ANALOGÍAS (relaciones no vistas) ===")
+print("\n  === ANALOGIES (unseen relations) ===")
 i = 0
 
 while i < 3 {
@@ -341,7 +341,7 @@ while i < 3 {
 
     let is_multiplicative = 0
     if ratio > 1.5 {
-        // Detectar ratio ≈ 2.0 con tolerancia
+        // Detect ratio ≈ 2.0 with tolerance
         let diff_from_2 = ratio - 2.0
         if diff_from_2 < 0.0 {
             diff_from_2 = 0.0 - diff_from_2
@@ -349,7 +349,7 @@ while i < 3 {
         if diff_from_2 < 0.1 {
             is_multiplicative = 1
         } else {
-            // Detectar ratio ≈ 3.0
+            // Detect ratio ≈ 3.0
             let diff_from_3 = ratio - 3.0
             if diff_from_3 < 0.0 {
                 diff_from_3 = 0.0 - diff_from_3
@@ -367,13 +367,13 @@ while i < 3 {
         pred_D = C + diff
     }
 
-    print("  Analogía: " + str(A) + ":" + str(B) + " :: " + str(C) + ":?")
+    print("  Analogy: " + str(A) + ":" + str(B) + " :: " + str(C) + ":?")
     if is_multiplicative == 1 {
-        print("    Relación detectada: ×" + str(ratio))
+        print("    Relation detected: ×" + str(ratio))
     } else {
-        print("    Relación detectada: +" + str(diff))
+        print("    Relation detected: +" + str(diff))
     }
-    print("    Predicción: " + str(pred_D))
+    print("    Prediction: " + str(pred_D))
     print("    True: " + str(true_D))
 
     let error_abs = pred_D - true_D
@@ -382,10 +382,10 @@ while i < 3 {
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO - Analogía razonada")
+        print("    ✅ CORRECT - Analogy reasoned")
         test_correct = test_correct + 1
     } else {
-        print("    ❌ Incorrecto")
+        print("    ❌ Incorrect")
     }
 
     i = i + 1
@@ -394,56 +394,56 @@ while i < 3 {
 let test_accuracy = (test_correct * 100) / 6
 
 print("\n  Test Accuracy: " + str(test_accuracy) + "% (" + str(test_correct) + "/6)")
-print("  ✅ Razonamiento abstracto evaluado\n")
+print("  ✅ Abstract reasoning evaluated\n")
 
 // ============================================================================
-// PASO 6: ANÁLISIS DE ABSTRACCIÓN
+// STEP 6: ABSTRACTION ANALYSIS
 // ============================================================================
-print("PASO 6: Análisis del razonamiento abstracto...")
+print("STEP 6: Abstract reasoning analysis...")
 
-print("\n  Capacidades de Level 3:")
-print("    ✅ Detectar patrones (incremental, multiplicativo)")
-print("    ✅ Razonar sobre relaciones (A→B)")
-print("    ✅ Transferir conocimiento (aplicar relación a C→D)")
-print("    ✅ Abstracción: No memoriza, identifica ESTRUCTURA")
+print("\n  Level 3 capabilities:")
+print("    ✅ Detect patterns (incremental, multiplicative)")
+print("    ✅ Reason about relations (A→B)")
+print("    ✅ Transfer knowledge (apply relation to C→D)")
+print("    ✅ Abstraction: Doesn't memorize, identifies STRUCTURE")
 
-print("\n  Vs niveles anteriores:")
-print("    Level 1: Operación simple → count +1")
-print("    Level 2: Composición → combine ops")
-print("    Level 3: Abstracción → identify patterns")
+print("\n  Vs previous levels:")
+print("    Level 1: Simple operation → count +1")
+print("    Level 2: Composition → combine ops")
+print("    Level 3: Abstraction → identify patterns")
 
-print("\n  Ejemplo de Abstracción:")
+print("\n  Abstraction Example:")
 print("    Input: [2, 5, 8]")
-print("    No memoriza: '2,5,8 → 11'")
-print("    SÍ razona: 'Delta=3, patrón +3, apply → 8+3=11'")
-print("    ✅ Razonamiento abstracto sobre ESTRUCTURA")
+print("    Doesn't memorize: '2,5,8 → 11'")
+print("    DOES reason: 'Delta=3, pattern +3, apply → 8+3=11'")
+print("    ✅ Abstract reasoning about STRUCTURE")
 
 // ============================================================================
-// RESUMEN FINAL
+// FINAL SUMMARY
 // ============================================================================
 print("\n======================================================================")
-print("  RESUMEN - ABSTRACT REASONER (NIVEL 3)")
+print("  SUMMARY - ABSTRACT REASONER (LEVEL 3)")
 print("======================================================================")
-print("✅ Parámetros: ~11 (minimal!)")
-print("✅ Abstracción: Patrones + Analogías")
+print("✅ Parameters: ~11 (minimal!)")
+print("✅ Abstraction: Patterns + Analogies")
 print("✅ Train Accuracy: ~" + str(accuracy) + "%")
 print("✅ Test Accuracy: " + str(test_accuracy) + "%")
-print("✅ Transferencia: Entre secuencias y analogías")
-print("\n  AVANCES HACIA AGI:")
-print("  1. ✅ Level 1: Operación simple")
-print("  2. ✅ Level 2: Composición")
-print("  3. ✅ Level 3: Abstracción → HECHO")
-print("  4. ⏭️  Level 4: Meta-razonamiento")
-print("\n  SALTO CUALITATIVO:")
-print("  - De números → Patrones")
-print("  - De operaciones → Relaciones")
-print("  - De memorizar → Abstraer")
-print("  - De específico → General")
-print("\n  PRINCIPIOS AGI DEMOSTRADOS:")
-print("  - Pattern Recognition: Detecta estructuras")
-print("  - Analogical Reasoning: Transfiere relaciones")
-print("  - Generalization: Aplica a casos nuevos")
-print("  - Abstraction: Razona sobre conceptos")
-print("\n🎉 ABSTRACT REASONING FUNCIONA - NIVEL 3 COMPLETADO!")
-print("  'De operaciones concretas a patrones abstractos'")
+print("✅ Transfer: Between sequences and analogies")
+print("\n  PROGRESS TOWARDS AGI:")
+print("  1. ✅ Level 1: Simple operation")
+print("  2. ✅ Level 2: Composition")
+print("  3. ✅ Level 3: Abstraction → DONE")
+print("  4. ⏭️  Level 4: Meta-reasoning")
+print("\n  QUALITATIVE LEAP:")
+print("  - From numbers → Patterns")
+print("  - From operations → Relations")
+print("  - From memorizing → Abstracting")
+print("  - From specific → General")
+print("\n  DEMONSTRATED AGI PRINCIPLES:")
+print("  - Pattern Recognition: Detects structures")
+print("  - Analogical Reasoning: Transfers relations")
+print("  - Generalization: Applies to new cases")
+print("  - Abstraction: Reasons about concepts")
+print("\n🎉 ABSTRACT REASONING WORKS - LEVEL 3 COMPLETED!")
+print("  'From concrete operations to abstract patterns'")
 print("======================================================================\n")

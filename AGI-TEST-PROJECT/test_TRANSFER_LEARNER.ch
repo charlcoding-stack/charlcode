@@ -1,70 +1,70 @@
-// 🔬 PROYECTO: TRANSFER LEARNER - NIVEL 5
+// 🔬 PROJECT: TRANSFER LEARNER - LEVEL 5
 //
-// Transfer Learning - Transferir conocimiento entre dominios:
-// - Aprender en dominio A (números)
-// - Transferir a dominio B (símbolos/conceptos)
-// - Mapear features entre dominios
-// - Generalizar abstracciones
-// - ~100 parámetros
+// Transfer Learning - Transfer knowledge between domains:
+// - Learn in domain A (numbers)
+// - Transfer to domain B (symbols/concepts)
+// - Map features between domains
+// - Generalize abstractions
+// - ~100 parameters
 //
-// AVANCE: De razonar en un dominio → Transferir entre dominios
+// ADVANCE: From reasoning in one domain → Transfer between domains
 //
-// Problema Transfer:
-//   Domain A (Números): 2 + 3 = 5
-//   Learn: Concepto de "suma"
-//   Domain B (Símbolos): "pequeño" + "grande" = "mediano"
-//   Transfer: Mismo concepto, diferente representación
+// Transfer Problem:
+//   Domain A (Numbers): 2 + 3 = 5
+//   Learn: Concept of "addition"
+//   Domain B (Symbols): "small" + "large" = "medium"
+//   Transfer: Same concept, different representation
 //
-// Demuestra: Transfer learning básico hacia AGI
+// Demonstrates: Basic transfer learning towards AGI
 
 print("======================================================================")
-print("  TRANSFER LEARNER - NIVEL 5 HACIA AGI")
-print("  'Transferir conocimiento entre dominios'")
+print("  TRANSFER LEARNER - LEVEL 5 TOWARDS AGI")
+print("  'Transfer knowledge between domains'")
 print("======================================================================\n")
 
 // ============================================================================
-// PASO 1: ARQUITECTURA TRANSFER LEARNER
+// STEP 1: TRANSFER LEARNER ARCHITECTURE
 // ============================================================================
-print("PASO 1: Arquitectura Transfer Learner...")
+print("STEP 1: Transfer Learner Architecture...")
 
-// Transfer Learning Model con ~100 parámetros:
-// - Domain Encoder A: Extrae features del dominio numérico
+// Transfer Learning Model with ~100 parameters:
+// - Domain Encoder A: Extract features from numeric domain
 //   w_enc_a (20 params)
-// - Domain Encoder B: Extrae features del dominio simbólico
+// - Domain Encoder B: Extract features from symbolic domain
 //   w_enc_b (20 params)
-// - Shared Representation: Espacio abstracto común
+// - Shared Representation: Common abstract space
 //   w_shared (30 params)
-// - Transfer Module: Mapea conocimiento entre dominios
+// - Transfer Module: Map knowledge between domains
 //   w_transfer (20 params)
-// - Domain Decoder: Reconstruye en dominio target
+// - Domain Decoder: Reconstruct in target domain
 //   w_dec (10 params)
-// Total: ~100 parámetros
+// Total: ~100 parameters
 
-// Weights simplificados
-let w_enc_a = 1.0    // Encoder para dominio numérico
-let w_enc_b = 0.8    // Encoder para dominio simbólico
-let w_shared = 1.0   // Representación compartida
-let w_transfer = 1.0 // Módulo de transferencia
+// Simplified weights
+let w_enc_a = 1.0    // Encoder for numeric domain
+let w_enc_b = 0.8    // Encoder for symbolic domain
+let w_shared = 1.0   // Shared representation
+let w_transfer = 1.0 // Transfer module
 let w_dec = 1.0      // Decoder
 
-print("  Arquitectura Transfer:")
-print("    DOMAIN A (Numérico):")
+print("  Transfer Architecture:")
+print("    DOMAIN A (Numeric):")
 print("      Encoder A → Shared Representation")
-print("    DOMAIN B (Simbólico):")
+print("    DOMAIN B (Symbolic):")
 print("      Encoder B → Shared Representation")
 print("    TRANSFER:")
 print("      Shared Representation → Knowledge Transfer")
 print("      Transfer Module → Domain Decoder")
-print("    Parámetros: ~100")
-print("  ✅ Transfer learner inicializado\n")
+print("    Parameters: ~100")
+print("  ✅ Transfer learner initialized\n")
 
 // ============================================================================
-// PASO 2: DATASET MULTI-DOMINIO
+// STEP 2: MULTI-DOMAIN DATASET
 // ============================================================================
-print("PASO 2: Dataset multi-dominio para transfer...")
+print("STEP 2: Multi-domain dataset for transfer...")
 
-// DOMAIN A: Operaciones numéricas
-// Formato: [domain, op, a, b, result]
+// DOMAIN A: Numeric operations
+// Format: [domain, op, a, b, result]
 // domain: 0=numeric, 1=symbolic
 // op: 0=ADD, 1=SUB, 2=COMPARE
 
@@ -76,58 +76,58 @@ let train_domain_a = [
     [0, 1, 8, 3, 5],    // 8 - 3 = 5
     [0, 1, 10, 4, 6],   // 10 - 4 = 6
     [0, 1, 7, 2, 5],    // 7 - 2 = 5
-    [0, 2, 5, 3, 1],    // 5 > 3 → 1 (mayor)
-    [0, 2, 2, 6, 0],    // 2 < 6 → 0 (menor)
-    [0, 2, 4, 4, 2]     // 4 = 4 → 2 (igual)
+    [0, 2, 5, 3, 1],    // 5 > 3 → 1 (greater)
+    [0, 2, 2, 6, 0],    // 2 < 6 → 0 (less)
+    [0, 2, 4, 4, 2]     // 4 = 4 → 2 (equal)
 ]
 
-// DOMAIN B: Operaciones simbólicas
-// Mapeo: 0=pequeño, 1=mediano, 2=grande
-// ADD: pequeño+pequeño=pequeño, pequeño+mediano=mediano, etc.
-// SUB: grande-pequeño=mediano, etc.
-// COMPARE: grande>pequeño, etc.
+// DOMAIN B: Symbolic operations
+// Mapping: 0=small, 1=medium, 2=large
+// ADD: small+small=small, small+medium=medium, etc.
+// SUB: large-small=medium, etc.
+// COMPARE: large>small, etc.
 
 let train_domain_b = [
     // Symbolic operations (encoded as numbers)
-    [1, 0, 0, 0, 0],    // pequeño + pequeño = pequeño
-    [1, 0, 0, 1, 1],    // pequeño + mediano = mediano
-    [1, 0, 1, 1, 2],    // mediano + mediano = grande
-    [1, 1, 2, 0, 1],    // grande - pequeño = mediano
-    [1, 1, 2, 1, 1],    // grande - mediano = mediano
-    [1, 1, 1, 0, 0],    // mediano - pequeño = pequeño
-    [1, 2, 2, 0, 1],    // grande > pequeño → 1 (mayor)
-    [1, 2, 0, 2, 0],    // pequeño < grande → 0 (menor)
-    [1, 2, 1, 1, 2]     // mediano = mediano → 2 (igual)
+    [1, 0, 0, 0, 0],    // small + small = small
+    [1, 0, 0, 1, 1],    // small + medium = medium
+    [1, 0, 1, 1, 2],    // medium + medium = large
+    [1, 1, 2, 0, 1],    // large - small = medium
+    [1, 1, 2, 1, 1],    // large - medium = medium
+    [1, 1, 1, 0, 0],    // medium - small = small
+    [1, 2, 2, 0, 1],    // large > small → 1 (greater)
+    [1, 2, 0, 2, 0],    // small < large → 0 (less)
+    [1, 2, 1, 1, 2]     // medium = medium → 2 (equal)
 ]
 
 let n_train_a = 9
 let n_train_b = 9
 
-// Test set: Transfer desde numeric a symbolic
+// Test set: Transfer from numeric to symbolic
 let test_transfer = [
-    // Aprende en numérico, aplica en simbólico
-    [1, 0, 0, 2, 2],    // pequeño + grande = grande
-    [1, 1, 2, 2, 0],    // grande - grande = pequeño
-    [1, 2, 1, 0, 1],    // mediano > pequeño → 1
+    // Learn in numeric, apply in symbolic
+    [1, 0, 0, 2, 2],    // small + large = large
+    [1, 1, 2, 2, 0],    // large - large = small
+    [1, 2, 1, 0, 1],    // medium > small → 1
     [0, 0, 3, 7, 10]    // 3 + 7 = 10 (numeric unseen)
 ]
 
 let test_answers = [2, 0, 1, 10]
 
-print("  Dataset Multi-Dominio:")
-print("    DOMAIN A (Numérico): 9 operaciones")
-print("      - Suma, resta, comparación con números")
-print("    DOMAIN B (Simbólico): 9 operaciones")
-print("      - Suma, resta, comparación con conceptos")
-print("    Mapeo: 0=pequeño, 1=mediano, 2=grande")
-print("  Test: 4 problemas de transferencia")
-print("  Desafío: Aprender en A, aplicar en B")
-print("  ✅ Dataset multi-dominio generado\n")
+print("  Multi-Domain Dataset:")
+print("    DOMAIN A (Numeric): 9 operations")
+print("      - Addition, subtraction, comparison with numbers")
+print("    DOMAIN B (Symbolic): 9 operations")
+print("      - Addition, subtraction, comparison with concepts")
+print("    Mapping: 0=small, 1=medium, 2=large")
+print("  Test: 4 transfer problems")
+print("  Challenge: Learn in A, apply in B")
+print("  ✅ Multi-domain dataset generated\n")
 
 // ============================================================================
-// PASO 3: TRANSFER LEARNING ENGINE
+// STEP 3: TRANSFER LEARNING ENGINE
 // ============================================================================
-print("PASO 3: Implementando Transfer Learning...")
+print("STEP 3: Implementing Transfer Learning...")
 
 print("\n  Transfer Learning Process:")
 print("  Phase 1: Learn in Domain A (Numeric)")
@@ -137,16 +137,16 @@ print("    Abstract: Map to shared representation")
 print("    Learn: Concept of 'addition'")
 print("")
 print("  Phase 2: Transfer to Domain B (Symbolic)")
-print("    Input: [pequeño, +, grande]")
+print("    Input: [small, +, large]")
 print("    Encode: Extract symbolic features")
 print("    Transfer: Apply learned 'addition' concept")
 print("    Decode: Output in symbolic domain")
-print("  ✅ Transfer engine listo\n")
+print("  ✅ Transfer engine ready\n")
 
 // ============================================================================
-// PASO 4: ENTRENAR CON TRANSFER LEARNING
+// STEP 4: TRAIN WITH TRANSFER LEARNING
 // ============================================================================
-print("PASO 4: Entrenando Transfer Learner...")
+print("STEP 4: Training Transfer Learner...")
 
 let learning_rate = 0.01
 let epochs = 100
@@ -154,7 +154,7 @@ let print_every = 20
 
 print("  - Learning rate: " + str(learning_rate))
 print("  - Epochs: " + str(epochs))
-print("  - Task: Transfer entre dominios\n")
+print("  - Task: Transfer between domains\n")
 
 print("Training progress:")
 print("----------------------------------------------------------------------")
@@ -230,7 +230,7 @@ while epoch < epochs {
         let sample = train_domain_b[i]
         let domain = sample[0]
         let op = sample[1]
-        let a = sample[2]  // 0=pequeño, 1=mediano, 2=grande
+        let a = sample[2]  // 0=small, 1=medium, 2=large
         let b = sample[3]
         let true_result = sample[4]
 
@@ -249,12 +249,12 @@ while epoch < epochs {
             // ADD (conceptual)
             let sum_val = a + b
             if sum_val <= 0 {
-                pred_result = 0.0  // pequeño
+                pred_result = 0.0  // small
             } else {
                 if sum_val <= 2 {
-                    pred_result = 1.0  // mediano
+                    pred_result = 1.0  // medium
                 } else {
-                    pred_result = 2.0  // grande
+                    pred_result = 2.0  // large
                 }
             }
         } else {
@@ -314,12 +314,12 @@ while epoch < epochs {
 }
 
 print("----------------------------------------------------------------------")
-print("✅ Training completado!\n")
+print("✅ Training completed!\n")
 
 // ============================================================================
-// PASO 5: EVALUAR TRANSFER LEARNING
+// STEP 5: EVALUATE TRANSFER LEARNING
 // ============================================================================
-print("PASO 5: Evaluando transfer learning en dominios cruzados...")
+print("STEP 5: Evaluating transfer learning on cross-domain...")
 
 print("\n  Test Set (Transfer Domain A → B):")
 let test_correct = 0
@@ -418,34 +418,34 @@ while i < 4 {
 
     if domain == 1 {
         if a == 0 {
-            a_str = "pequeño"
+            a_str = "small"
         } else {
             if a == 1 {
-                a_str = "mediano"
+                a_str = "medium"
             } else {
-                a_str = "grande"
+                a_str = "large"
             }
         }
 
         if b == 0 {
-            b_str = "pequeño"
+            b_str = "small"
         } else {
             if b == 1 {
-                b_str = "mediano"
+                b_str = "medium"
             } else {
-                b_str = "grande"
+                b_str = "large"
             }
         }
 
         let pred_int = pred_result + 0.5
         if pred_int == 0 {
-            result_str = "pequeño"
+            result_str = "small"
         } else {
             if pred_int == 1 {
-                result_str = "mediano"
+                result_str = "medium"
             } else {
                 if pred_int == 2 {
-                    result_str = "grande"
+                    result_str = "large"
                 } else {
                     result_str = str(pred_result)
                 }
@@ -464,10 +464,10 @@ while i < 4 {
     }
 
     if error_abs < 0.5 {
-        print("    ✅ CORRECTO - Transfer exitoso")
+        print("    ✅ CORRECT - Transfer successful")
         test_correct = test_correct + 1
     } else {
-        print("    ❌ Incorrecto")
+        print("    ❌ Incorrect")
     }
 
     i = i + 1
@@ -476,63 +476,63 @@ while i < 4 {
 let test_accuracy = (test_correct * 100) / 4
 
 print("\n  Test Accuracy: " + str(test_accuracy) + "% (" + str(test_correct) + "/4)")
-print("  ✅ Transfer learning evaluado\n")
+print("  ✅ Transfer learning evaluated\n")
 
 // ============================================================================
-// PASO 6: ANÁLISIS DE TRANSFER LEARNING
+// STEP 6: TRANSFER LEARNING ANALYSIS
 // ============================================================================
-print("PASO 6: Análisis de transfer learning...")
+print("STEP 6: Transfer learning analysis...")
 
-print("\n  Capacidades de Transfer:")
-print("    ✅ Aprender en dominio numérico")
-print("    ✅ Extraer representación abstracta")
-print("    ✅ Transferir a dominio simbólico")
-print("    ✅ Aplicar conocimiento en nuevo dominio")
+print("\n  Transfer Capabilities:")
+print("    ✅ Learn in numeric domain")
+print("    ✅ Extract abstract representation")
+print("    ✅ Transfer to symbolic domain")
+print("    ✅ Apply knowledge in new domain")
 
-print("\n  Jerarquía de Dominios:")
+print("\n  Domain Hierarchy:")
 print("    DOMAIN A (Source):")
-print("      Numérico: 2 + 3 = 5")
+print("      Numeric: 2 + 3 = 5")
 print("    SHARED REPRESENTATION:")
-print("      Concepto abstracto: 'combinar elementos'")
+print("      Abstract concept: 'combine elements'")
 print("    DOMAIN B (Target):")
-print("      Simbólico: pequeño + grande = grande")
+print("      Symbolic: small + large = large")
 
-print("\n  Ejemplo de Transfer:")
+print("\n  Transfer Example:")
 print("    Learn: 2 + 3 = 5 (numeric)")
-print("    Abstract: 'suma combina magnitudes'")
-print("    Transfer: pequeño + mediano = mediano")
-print("    ✅ Mismo concepto, diferente dominio")
+print("    Abstract: 'addition combines magnitudes'")
+print("    Transfer: small + medium = medium")
+print("    ✅ Same concept, different domain")
 
 // ============================================================================
-// RESUMEN FINAL
+// FINAL SUMMARY
 // ============================================================================
 print("\n======================================================================")
-print("  RESUMEN - TRANSFER LEARNER (NIVEL 5)")
+print("  SUMMARY - TRANSFER LEARNER (LEVEL 5)")
 print("======================================================================")
-print("✅ Parámetros: ~100")
-print("✅ Dominios: 2 (Numérico + Simbólico)")
+print("✅ Parameters: ~100")
+print("✅ Domains: 2 (Numeric + Symbolic)")
 print("✅ Transfer: Cross-domain knowledge")
 print("✅ Train Accuracy: ~" + str(accuracy) + "%")
 print("✅ Test Accuracy: " + str(test_accuracy) + "%")
-print("\n  PROGRESO HACIA AGI:")
-print("  1. ✅ Level 1: Operación simple")
-print("  2. ✅ Level 2: Composición")
-print("  3. ✅ Level 3: Abstracción")
-print("  4. ✅ Level 4: Meta-razonamiento")
-print("  5. ✅ Level 5: Transfer Learning → HECHO")
+print("\n  PROGRESS TOWARDS AGI:")
+print("  1. ✅ Level 1: Simple operation")
+print("  2. ✅ Level 2: Composition")
+print("  3. ✅ Level 3: Abstraction")
+print("  4. ✅ Level 4: Meta-reasoning")
+print("  5. ✅ Level 5: Transfer Learning → DONE")
 print("  6. ⏭️  Level 6: Causal Reasoning")
 print("  7. ⏭️  Level 7: Planning & Goals")
 print("  8. ⏭️  Level 8: Self-Reflection (AGI)")
-print("\n  SALTO CONCEPTUAL:")
-print("  - De un dominio → Múltiples dominios")
-print("  - De específico → Abstracto transferible")
-print("  - De aprender → Transferir conocimiento")
-print("  - De local → Universal")
-print("\n  PRINCIPIOS AGI:")
-print("  - Cross-domain Transfer: Aplicar en nuevos contextos")
-print("  - Abstract Representation: Espacio compartido")
-print("  - Knowledge Reuse: No reaprender desde cero")
-print("  - Domain Adaptation: Ajustar a nuevos dominios")
-print("\n🎉 TRANSFER LEARNING FUNCIONA - NIVEL 5 COMPLETADO!")
-print("  '62.5% del camino hacia AGI (Level 8)'")
+print("\n  CONCEPTUAL LEAP:")
+print("  - From one domain → Multiple domains")
+print("  - From specific → Transferable abstract")
+print("  - From learning → Transfer knowledge")
+print("  - From local → Universal")
+print("\n  AGI PRINCIPLES:")
+print("  - Cross-domain Transfer: Apply in new contexts")
+print("  - Abstract Representation: Shared space")
+print("  - Knowledge Reuse: Don't relearn from scratch")
+print("  - Domain Adaptation: Adjust to new domains")
+print("\n🎉 TRANSFER LEARNING WORKS - LEVEL 5 COMPLETED!")
+print("  '62.5% of the way to AGI (Level 8)'")
 print("======================================================================\n")
