@@ -156,6 +156,12 @@ pub enum Expression {
         tuple: Box<Expression>,
         index: usize,
     },
+
+    // Type casting: expression as type
+    Cast {
+        expression: Box<Expression>,
+        target_type: String,
+    },
 }
 
 /// Pattern for match expressions
@@ -213,6 +219,7 @@ pub enum TypeAnnotation {
     Float64,
     Bool,
     String,
+    Concept, // Symbolic AI concept type
     Array(Box<TypeAnnotation>), // [int32], [float32], etc. (dynamic size)
     ArraySized {
         element_type: Box<TypeAnnotation>,

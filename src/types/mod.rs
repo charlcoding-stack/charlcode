@@ -12,6 +12,7 @@ pub enum Type {
     Float64,
     Bool,
     String,
+    Concept, // Symbolic AI concept type
     Array(Box<Type>), // [int32], [float32], etc.
     Tensor {
         dtype: Box<Type>,
@@ -122,6 +123,7 @@ impl Type {
             Type::Float64 => "float64".to_string(),
             Type::Bool => "bool".to_string(),
             Type::String => "string".to_string(),
+            Type::Concept => "concept".to_string(),
             Type::Array(element_type) => format!("[{}]", element_type.to_string()),
             Type::Tensor { dtype, shape } => {
                 let shape_str = match shape {
@@ -538,6 +540,17 @@ impl TypeChecker {
                     )),
                 }
             }
+
+            Expression::Cast { expression: _, target_type } => {
+                // Infer the type based on the target_type string
+                match target_type.as_str() {
+                    "int32" => Ok(Type::Int32),
+                    "int64" => Ok(Type::Int64),
+                    "float32" | "float64" => Ok(Type::Float64),
+                    "bool" => Ok(Type::Bool),
+                    _ => Err(format!("Unknown cast target type: {}", target_type)),
+                }
+            }
         }
     }
 
@@ -762,6 +775,7 @@ impl TypeChecker {
             TypeAnnotation::Float64 => Type::Float64,
             TypeAnnotation::Bool => Type::Bool,
             TypeAnnotation::String => Type::String,
+            TypeAnnotation::Concept => Type::Concept,
             TypeAnnotation::Array(element_type) => Type::Array(Box::new(
                 self.type_annotation_to_type(element_type),
             )),

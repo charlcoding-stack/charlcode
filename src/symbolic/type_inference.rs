@@ -33,6 +33,7 @@ pub enum InferredType {
     Float,
     Bool,
     String,
+    Concept, // Symbolic AI concept type
     Void,
 
     /// Array type: [element_type]
@@ -85,6 +86,7 @@ impl InferredType {
             TypeAnnotation::Float32 | TypeAnnotation::Float64 => InferredType::Float,
             TypeAnnotation::Bool => InferredType::Bool,
             TypeAnnotation::String => InferredType::String,
+            TypeAnnotation::Concept => InferredType::Concept,
             TypeAnnotation::Array(element_type) => {
                 InferredType::Array(Box::new(InferredType::from_ast(element_type)))
             }
@@ -109,6 +111,7 @@ impl std::fmt::Display for InferredType {
             InferredType::Float => write!(f, "float"),
             InferredType::Bool => write!(f, "bool"),
             InferredType::String => write!(f, "string"),
+            InferredType::Concept => write!(f, "concept"),
             InferredType::Void => write!(f, "void"),
             InferredType::Array(element_type) => write!(f, "[{}]", element_type),
             InferredType::Tensor(Some(shape)) => write!(f, "tensor{:?}", shape),

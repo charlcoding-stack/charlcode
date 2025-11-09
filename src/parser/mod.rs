@@ -9,14 +9,15 @@ enum Precedence {
     Lowest = 0,
     Logical = 1,     // and, or
     Range = 2,       // ..
-    Equals = 3,      // ==, !=
-    LessGreater = 4, // <, >, <=, >=
-    Sum = 5,         // +, -
-    Product = 6,     // *, /, %
-    MatMul = 7,      // @
-    Prefix = 8,      // -x, !x
-    Call = 9,        // fn(x)
-    Index = 10,      // arr[i]
+    Cast = 3,        // as (type casting)
+    Equals = 4,      // ==, !=
+    LessGreater = 5, // <, >, <=, >=
+    Sum = 6,         // +, -
+    Product = 7,     // *, /, %
+    MatMul = 8,      // @
+    Prefix = 9,      // -x, !x
+    Call = 10,       // fn(x)
+    Index = 11,      // arr[i]
 }
 
 pub struct Parser {
@@ -86,6 +87,7 @@ impl Parser {
         match token_type {
             TokenType::And | TokenType::Or => Precedence::Logical,
             TokenType::DotDot | TokenType::DotDotEqual => Precedence::Range,
+            TokenType::As => Precedence::Cast,
             TokenType::Equal | TokenType::NotEqual => Precedence::Equals,
             TokenType::LessThan
             | TokenType::LessEqual
@@ -510,6 +512,7 @@ impl Parser {
             | TokenType::Or => self.parse_binary_expression(left),
             TokenType::DotDot => self.parse_range_expression(left),
             TokenType::DotDotEqual => self.parse_inclusive_range_expression(left),
+            TokenType::As => self.parse_cast_expression(left),
             TokenType::LParen => self.parse_call_expression(left),
             TokenType::LBracket => self.parse_index_expression(left),
             TokenType::Dot => self.parse_tuple_index_expression(left),
@@ -557,6 +560,32 @@ impl Parser {
         Ok(Expression::InclusiveRange {
             start: Box::new(left),
             end: Box::new(right),
+        })
+    }
+
+    fn parse_cast_expression(&mut self, left: Expression) -> Result<Expression, String> {
+        // Current token is 'as'
+        self.advance(); // consume 'as'
+
+        // Parse the target type (int32, float32, etc.)
+        let target_type = match &self.current_token.token_type {
+            TokenType::Int32 => "int32".to_string(),
+            TokenType::Int64 => "int64".to_string(),
+            TokenType::Float32 => "float32".to_string(),
+            TokenType::Float64 => "float64".to_string(),
+            TokenType::Bool => "bool".to_string(),
+            TokenType::Ident => self.current_token.literal.clone(), // For custom types
+            _ => {
+                return Err(format!(
+                    "Expected type after 'as', got {:?}",
+                    self.current_token.token_type
+                ))
+            }
+        };
+
+        Ok(Expression::Cast {
+            expression: Box::new(left),
+            target_type,
         })
     }
 
@@ -885,6 +914,7 @@ impl Parser {
             TokenType::Float64 => Ok(TypeAnnotation::Float64),
             TokenType::Bool => Ok(TypeAnnotation::Bool),
             TokenType::StringType => Ok(TypeAnnotation::String),
+            TokenType::ConceptType => Ok(TypeAnnotation::Concept),
             TokenType::LBracket => {
                 // Array type: [element_type] or [element_type; size]
                 self.advance(); // move to element type

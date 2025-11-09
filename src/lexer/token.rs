@@ -75,6 +75,7 @@ pub enum TokenType {
     Continue, // continue
     True,     // true
     False,    // false
+    As,       // as (type casting)
 
     // Type keywords
     Int32,   // int32
@@ -84,6 +85,7 @@ pub enum TokenType {
     Bool,    // bool
     StringType, // string (type annotation)
     Tensor,  // tensor
+    ConceptType, // concept (symbolic AI type)
 
     // AI/ML specific keywords
     Model,      // model
@@ -119,6 +121,7 @@ impl TokenType {
             "continue" => TokenType::Continue,
             "true" => TokenType::True,
             "false" => TokenType::False,
+            "as" => TokenType::As,
             "and" => TokenType::And,
             "or" => TokenType::Or,
             "not" => TokenType::Not,
@@ -131,6 +134,7 @@ impl TokenType {
             "bool" => TokenType::Bool,
             "string" => TokenType::StringType,
             "tensor" => TokenType::Tensor,
+            "concept" => TokenType::ConceptType,
 
             // AI/ML keywords
             "model" => TokenType::Model,
