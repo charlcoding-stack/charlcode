@@ -68,6 +68,9 @@ teoria.md
 !docs/SPECIFICATION.md
 !examples/README.md
 !vscode-charl/README.md
+!AGI_PROJECT_III/CURRENT_STATUS.md
+!AGI_PROJECT_III/ROADMAP.md
+!AGI_PROJECT_III/LEVEL_7_FINAL_REPORT.md
 
 # Session and progress files (keep locally but not in repo)
 ROADMAP.md
@@ -77,6 +80,7 @@ VSCODE_INTEGRATION.md
 RELEASE_CHECKLIST.md
 WINDOWS_BUILD_ISSUES.md
 CHARL_CONTEXT.md
+!AGI_PROJECT_III/ROADMAP.md
 COMPLETE_DOCUMENTATION.md
 LLVM_BACKEND_PLAN.md
 PROGRESS_SESSION_*.md
@@ -115,7 +119,6 @@ karapathy.md
 
 # AGI Projects (internal development, not for public repo)
 AGI_PROJECT_II/
-AGI_PROJECT_III/
 
 # Test files (development only - but allow AGI-TEST-PROJECT tests)
 test_*.ch
