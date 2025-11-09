@@ -933,27 +933,60 @@ impl ComputationGraph {
         _grad_output: &[f64],
     ) -> Result<(), String> {
         // Forward: L = -mean(target * log(softmax(logits)))
-        // Backward: dL/dlogits = (softmax(logits) - target) / n
+        // Backward: dL/dlogits = (softmax(logits) - target) / batch_size
         //
         // This is the combined gradient of softmax + cross_entropy
-        // Much simpler than computing them separately!
+        // For 2D tensors [batch_size, num_classes], apply row-wise softmax
 
         let logits_data = self.get_node(logits_id).unwrap().data.clone();
+        let logits_shape = self.get_node(logits_id).unwrap().shape.clone();
         let target_data = self.get_node(target_id).unwrap().data.clone();
-        let n = logits_data.len() as f64;
 
-        // Compute softmax(logits) for gradient
-        let max = logits_data.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        let exp_values: Vec<f64> = logits_data.iter().map(|&x| (x - max).exp()).collect();
-        let sum: f64 = exp_values.iter().sum();
-        let softmax: Vec<f64> = exp_values.iter().map(|&x| x / sum).collect();
+        let batch_size = if logits_shape.len() == 2 {
+            logits_shape[0]
+        } else if logits_shape.len() == 1 {
+            1
+        } else {
+            return Err("cross_entropy_logits: expected 1D or 2D tensor".to_string());
+        };
+
+        let num_classes = if logits_shape.len() == 2 {
+            logits_shape[1]
+        } else {
+            logits_shape[0]
+        };
+
+        let mut softmax = vec![0.0; logits_data.len()];
+
+        // Compute row-wise softmax
+        for b in 0..batch_size {
+            let start = b * num_classes;
+            let end = start + num_classes;
+            let row = &logits_data[start..end];
+
+            // Find max for numerical stability
+            let max = row.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+            // Compute exp and sum
+            let mut exp_sum = 0.0;
+            for i in 0..num_classes {
+                let exp_val = (row[i] - max).exp();
+                softmax[start + i] = exp_val;
+                exp_sum += exp_val;
+            }
+
+            // Normalize
+            for i in 0..num_classes {
+                softmax[start + i] /= exp_sum;
+            }
+        }
 
         if let Some(logits) = self.get_node_mut(logits_id) {
             if logits.requires_grad {
                 if let Some(ref mut logits_grad) = logits.grad {
                     for (i, (&s, &t)) in softmax.iter().zip(target_data.iter()).enumerate() {
-                        // Gradient: (softmax - target) / n
-                        logits_grad[i] += (s - t) / n;
+                        // Gradient: (softmax - target) / batch_size
+                        logits_grad[i] += (s - t) / batch_size as f64;
                     }
                 }
             }
@@ -1398,28 +1431,56 @@ pub fn cross_entropy_loss_with_logits(graph: &mut ComputationGraph, logits: &Ten
 
     // Cross Entropy Loss with Logits: -mean(target * log(softmax(logits)))
     // This combines softmax + cross_entropy for numerical stability and efficiency
+    // For 2D tensors [batch_size, num_classes], apply softmax row-wise
 
-    // Compute softmax(logits)
-    let max = logits
-        .data
-        .iter()
-        .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+    let batch_size = if logits.shape.len() == 2 {
+        logits.shape[0]
+    } else if logits.shape.len() == 1 {
+        1
+    } else {
+        return Err("cross_entropy_loss_with_logits() expects 1D or 2D tensor".to_string());
+    };
 
-    let exp_values: Vec<f64> = logits.data.iter().map(|&x| (x - max).exp()).collect();
-    let sum: f64 = exp_values.iter().sum();
-    let softmax: Vec<f64> = exp_values.iter().map(|&x| x / sum).collect();
+    let num_classes = if logits.shape.len() == 2 {
+        logits.shape[1]
+    } else {
+        logits.shape[0]
+    };
 
-    // Compute cross entropy loss
+    let mut softmax = vec![0.0; logits.data.len()];
+
+    // Compute row-wise softmax
+    for b in 0..batch_size {
+        let start = b * num_classes;
+        let end = start + num_classes;
+        let row = &logits.data[start..end];
+
+        // Find max for numerical stability
+        let max = row.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+
+        // Compute exp and sum
+        let mut exp_sum = 0.0;
+        for i in 0..num_classes {
+            let exp_val = (row[i] - max).exp();
+            softmax[start + i] = exp_val;
+            exp_sum += exp_val;
+        }
+
+        // Normalize
+        for i in 0..num_classes {
+            softmax[start + i] /= exp_sum;
+        }
+    }
+
+    // Compute cross entropy loss (average over batch)
     let epsilon = 1e-10;
-    let ce: f64 = softmax
-        .iter()
-        .zip(target.data.iter())
-        .map(|(&s, &t)| {
-            let clipped_s = s.max(epsilon).min(1.0 - epsilon);
-            -t * clipped_s.ln()
-        })
-        .sum::<f64>()
-        / logits.data.len() as f64;
+    let mut total_loss = 0.0;
+    for i in 0..logits.data.len() {
+        let s = softmax[i].max(epsilon).min(1.0 - epsilon);
+        let t = target.data[i];
+        total_loss += -t * s.ln();
+    }
+    let ce = total_loss / batch_size as f64;
 
     let requires_grad = logits.requires_grad;
 

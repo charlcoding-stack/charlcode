@@ -254,6 +254,10 @@ impl AstToGraphConverter {
                 self.process_expression(count);
             }
 
+            Expression::Cast { expression, target_type: _ } => {
+                self.process_expression(expression);
+            }
+
             // Literals don't need processing
             Expression::Identifier(_)
             | Expression::IntegerLiteral(_)
@@ -380,6 +384,11 @@ impl AstToGraphConverter {
             Expression::ArrayRepeat { value, count } => {
                 self.extract_expression_dependencies(value, dependent_id, relation.clone());
                 self.extract_expression_dependencies(count, dependent_id, relation);
+            }
+
+            Expression::Cast { expression, target_type: _ } => {
+                // Cast depends on the expression being casted
+                self.extract_expression_dependencies(expression, dependent_id, relation);
             }
 
             // Literals don't have dependencies

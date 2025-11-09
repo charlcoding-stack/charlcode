@@ -522,6 +522,51 @@ pub fn builtin_tensor_abs(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// argmax(tensor: Tensor) -> int32
+/// Returns the index of the maximum value in a tensor
+pub fn builtin_argmax(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 1 {
+        return Err("argmax() expects 1 argument: argmax(tensor)".to_string());
+    }
+
+    match &args[0] {
+        Value::AutogradTensor(tensor) => {
+            if tensor.data.is_empty() {
+                return Err("argmax() cannot operate on empty tensor".to_string());
+            }
+            let (max_idx, _) = tensor.data.iter()
+                .enumerate()
+                .fold((0, f64::NEG_INFINITY), |(max_idx, max_val), (idx, &val)| {
+                    if val > max_val {
+                        (idx, val)
+                    } else {
+                        (max_idx, max_val)
+                    }
+                });
+            Ok(Value::Integer(max_idx as i64))
+        }
+        Value::GPUTensor(gpu_tensor) => {
+            if gpu_tensor.tensor.data.is_empty() {
+                return Err("argmax() cannot operate on empty tensor".to_string());
+            }
+            let (max_idx, _) = gpu_tensor.tensor.data.iter()
+                .enumerate()
+                .fold((0, f64::NEG_INFINITY), |(max_idx, max_val), (idx, &val)| {
+                    if val > max_val {
+                        (idx, val)
+                    } else {
+                        (max_idx, max_val)
+                    }
+                });
+            Ok(Value::Integer(max_idx as i64))
+        }
+        _ => Err(format!(
+            "argmax() expects a tensor, got {}",
+            args[0].type_name()
+        )),
+    }
+}
+
 /// tensor_print(t: Tensor) -> ()
 /// Print tensor data and shape
 pub fn builtin_tensor_print(args: Vec<Value>) -> Result<Value, String> {
@@ -847,12 +892,9 @@ pub fn builtin_tensor_from_array(args: Vec<Value>) -> Result<Value, String> {
         ));
     }
 
-    // Create regular Tensor (not AutogradTensor)
-    let data_values: Vec<Value> = data.iter().map(|&f| Value::Float(f)).collect();
-    Ok(Value::Tensor {
-        data: data_values,
-        shape,
-    })
+    // Create AutogradTensor (for compatibility with nn_linear and other ops)
+    let tensor = AutogradTensor::new(data, shape);
+    Ok(Value::AutogradTensor(tensor))
 }
 
 /// tensor_zeros(shape: [int]) -> Tensor
@@ -950,6 +992,65 @@ pub fn builtin_tensor_randn(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// tensor_randn_seeded(shape: [int], seed: int) -> Tensor
+/// Create a tensor with random normal values using a specific seed for reproducibility
+///
+/// # Arguments
+/// * `shape` - Shape of the tensor
+/// * `seed` - Seed for the random number generator (for reproducible results)
+///
+/// # Example
+/// ```charl
+/// let w = tensor_randn_seeded([2, 8], 42)  // Always generates same values
+/// ```
+pub fn builtin_tensor_randn_seeded(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("tensor_randn_seeded() expects 2 arguments: tensor_randn_seeded(shape, seed)".to_string());
+    }
+
+    // Parse shape
+    let shape = match &args[0] {
+        Value::Array(shape_vals) => {
+            let mut shape = Vec::new();
+            for val in shape_vals {
+                match val {
+                    Value::Integer(i) => shape.push(*i as usize),
+                    _ => return Err("tensor_randn_seeded() shape must contain integers".to_string()),
+                }
+            }
+            shape
+        }
+        _ => return Err("tensor_randn_seeded() first argument must be an array".to_string()),
+    };
+
+    // Parse seed
+    let seed = match &args[1] {
+        Value::Integer(s) => *s as u64,
+        _ => return Err("tensor_randn_seeded() second argument must be an integer".to_string()),
+    };
+
+    let total_elements: usize = shape.iter().product();
+
+    // Generate random normal values using Box-Muller transform with seeded RNG
+    let mut data = Vec::with_capacity(total_elements);
+
+    // Use StdRng with seed for reproducibility
+    use rand::SeedableRng;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+    for _ in 0..total_elements {
+        // Box-Muller transform to generate normal distribution
+        use rand::Rng;
+        let u1: f64 = rng.gen();
+        let u2: f64 = rng.gen();
+        let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+        data.push(z0);
+    }
+
+    let tensor = AutogradTensor::new(data, shape);
+    Ok(Value::AutogradTensor(tensor))
+}
+
 /// tensor_rand(shape: [int]) -> Tensor
 /// Create a tensor with uniform random values in [0, 1]
 pub fn builtin_tensor_rand(args: Vec<Value>) -> Result<Value, String> {
@@ -980,6 +1081,127 @@ pub fn builtin_tensor_rand(args: Vec<Value>) -> Result<Value, String> {
         }
         _ => Err("tensor_rand() expects an array".to_string()),
     }
+}
+
+/// tensor_get(tensor, indices) -> float
+/// Get value at specified indices
+/// Example: tensor_get(tensor([[1,2],[3,4]]), [0, 1]) -> 2.0
+pub fn builtin_tensor_get(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 2 {
+        return Err("tensor_get() expects 2 arguments: tensor_get(tensor, [indices])".to_string());
+    }
+
+    let tensor = match &args[0] {
+        Value::AutogradTensor(t) => t,
+        _ => return Err("tensor_get() expects a tensor as first argument".to_string()),
+    };
+
+    let indices = match &args[1] {
+        Value::Array(arr) => arr
+            .iter()
+            .map(|v| match v {
+                Value::Integer(i) => Ok(*i as usize),
+                _ => Err("Indices must be integers".to_string()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tensor_get() expects an array of indices as second argument".to_string()),
+    };
+
+    // Validate indices length matches tensor dimensions
+    if indices.len() != tensor.shape.len() {
+        return Err(format!(
+            "Index length {} doesn't match tensor dimensions {}",
+            indices.len(),
+            tensor.shape.len()
+        ));
+    }
+
+    // Validate indices are in bounds
+    for (i, &idx) in indices.iter().enumerate() {
+        if idx >= tensor.shape[i] {
+            return Err(format!(
+                "Index {} out of bounds for dimension {} (size {})",
+                idx, i, tensor.shape[i]
+            ));
+        }
+    }
+
+    // Compute flat index (row-major order)
+    let mut flat_idx = 0;
+    let mut stride = 1;
+    for i in (0..indices.len()).rev() {
+        flat_idx += indices[i] * stride;
+        if i > 0 {
+            stride *= tensor.shape[i];
+        }
+    }
+
+    Ok(Value::Float(tensor.data[flat_idx]))
+}
+
+/// tensor_set(tensor, indices, value) -> tensor
+/// Set value at specified indices (modifies tensor in-place and returns it)
+/// Example: tensor_set(tensor([[1,2],[3,4]]), [0, 1], 99.0) -> [[1,99],[3,4]]
+pub fn builtin_tensor_set(args: Vec<Value>) -> Result<Value, String> {
+    if args.len() != 3 {
+        return Err("tensor_set() expects 3 arguments: tensor_set(tensor, [indices], value)".to_string());
+    }
+
+    let mut tensor = match &args[0] {
+        Value::AutogradTensor(t) => t.clone(),
+        _ => return Err("tensor_set() expects a tensor as first argument".to_string()),
+    };
+
+    let indices = match &args[1] {
+        Value::Array(arr) => arr
+            .iter()
+            .map(|v| match v {
+                Value::Integer(i) => Ok(*i as usize),
+                _ => Err("Indices must be integers".to_string()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("tensor_set() expects an array of indices as second argument".to_string()),
+    };
+
+    let value = match &args[2] {
+        Value::Float(f) => *f,
+        Value::Integer(i) => *i as f64,
+        _ => return Err("tensor_set() expects a numeric value as third argument".to_string()),
+    };
+
+    // Validate indices length matches tensor dimensions
+    if indices.len() != tensor.shape.len() {
+        return Err(format!(
+            "Index length {} doesn't match tensor dimensions {}",
+            indices.len(),
+            tensor.shape.len()
+        ));
+    }
+
+    // Validate indices are in bounds
+    for (i, &idx) in indices.iter().enumerate() {
+        if idx >= tensor.shape[i] {
+            return Err(format!(
+                "Index {} out of bounds for dimension {} (size {})",
+                idx, i, tensor.shape[i]
+            ));
+        }
+    }
+
+    // Compute flat index (row-major order)
+    let mut flat_idx = 0;
+    let mut stride = 1;
+    for i in (0..indices.len()).rev() {
+        flat_idx += indices[i] * stride;
+        if i > 0 {
+            stride *= tensor.shape[i];
+        }
+    }
+
+    // Modify tensor data
+    tensor.data[flat_idx] = value;
+
+    Ok(Value::AutogradTensor(tensor))
 }
 
 /// tensor_eye(n: int) -> Tensor
@@ -3323,8 +3545,8 @@ pub fn builtin_tensor_grad(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
-/// tensor_zero_grad(t: Tensor) -> Null
-/// Zero out the gradients of a tensor
+/// tensor_zero_grad(t: Tensor) -> Tensor
+/// Zero out the gradients of a tensor and return the tensor
 pub fn builtin_tensor_zero_grad(args: Vec<Value>) -> Result<Value, String> {
     if args.len() != 1 {
         return Err("tensor_zero_grad() expects 1 argument: tensor_zero_grad(tensor)".to_string());
@@ -3332,12 +3554,15 @@ pub fn builtin_tensor_zero_grad(args: Vec<Value>) -> Result<Value, String> {
 
     match &args[0] {
         Value::AutogradTensor(tensor) => {
+            // Zero the gradients in the global graph
             crate::autograd::with_global_graph_mut(|graph| {
                 if let Some(node) = graph.get_node_mut(tensor.id) {
                     node.zero_grad();
                 }
             });
-            Ok(Value::Null)
+
+            // Return the tensor (not Null) so it can be used in subsequent operations
+            Ok(Value::AutogradTensor(tensor.clone()))
         }
         _ => Err(format!("tensor_zero_grad() expects a tensor, got {}", args[0].type_name())),
     }

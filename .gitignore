@@ -113,8 +113,9 @@ karapathy.md
 !AGI-TEST-PROJECT/AGI_STATS.md
 !AGI-TEST-PROJECT/README_AGI.md
 
-# AGI Project II (internal development, not for public repo)
+# AGI Projects (internal development, not for public repo)
 AGI_PROJECT_II/
+AGI_PROJECT_III/
 
 # Test files (development only - but allow AGI-TEST-PROJECT tests)
 test_*.ch

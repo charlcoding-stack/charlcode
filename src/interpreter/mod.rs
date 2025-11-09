@@ -355,6 +355,7 @@ impl Interpreter {
         builtins.insert("tensor_max".to_string(), tensor_builtins::builtin_tensor_max as BuiltinFn);
         builtins.insert("tensor_min".to_string(), tensor_builtins::builtin_tensor_min as BuiltinFn);
         builtins.insert("tensor_abs".to_string(), tensor_builtins::builtin_tensor_abs as BuiltinFn);
+        builtins.insert("argmax".to_string(), tensor_builtins::builtin_argmax as BuiltinFn);
 
         // Shape operations
         builtins.insert("tensor_reshape".to_string(), tensor_builtins::builtin_tensor_reshape as BuiltinFn);
@@ -365,7 +366,10 @@ impl Interpreter {
         builtins.insert("tensor_zeros".to_string(), tensor_builtins::builtin_tensor_zeros as BuiltinFn);
         builtins.insert("tensor_ones".to_string(), tensor_builtins::builtin_tensor_ones as BuiltinFn);
         builtins.insert("tensor_randn".to_string(), tensor_builtins::builtin_tensor_randn as BuiltinFn);
+        builtins.insert("tensor_randn_seeded".to_string(), tensor_builtins::builtin_tensor_randn_seeded as BuiltinFn);
         builtins.insert("tensor_rand".to_string(), tensor_builtins::builtin_tensor_rand as BuiltinFn);
+        builtins.insert("tensor_get".to_string(), tensor_builtins::builtin_tensor_get as BuiltinFn);
+        builtins.insert("tensor_set".to_string(), tensor_builtins::builtin_tensor_set as BuiltinFn);
         builtins.insert("tensor_eye".to_string(), tensor_builtins::builtin_tensor_eye as BuiltinFn);
         builtins.insert("tensor_full".to_string(), tensor_builtins::builtin_tensor_full as BuiltinFn);
 
@@ -573,6 +577,18 @@ impl Interpreter {
         builtins.insert("gnn_forward".to_string(), tensor_builtins::builtin_gnn_forward as BuiltinFn);
         builtins.insert("gnn_forward_multilayer".to_string(), tensor_builtins::builtin_gnn_forward_multilayer as BuiltinFn);
 
+        // Additional KG & GNN functions (Phase 2 - Full Backend Exposure)
+        builtins.insert("kg_add_node".to_string(), crate::kg_gnn_builtins::builtin_kg_add_node as BuiltinFn);
+        builtins.insert("kg_add_edge".to_string(), crate::kg_gnn_builtins::builtin_kg_add_edge as BuiltinFn);
+        builtins.insert("kg_neighbors".to_string(), crate::kg_gnn_builtins::builtin_kg_neighbors as BuiltinFn);
+        builtins.insert("kg_node_count".to_string(), crate::kg_gnn_builtins::builtin_kg_node_count as BuiltinFn);
+        builtins.insert("kg_edge_count".to_string(), crate::kg_gnn_builtins::builtin_kg_edge_count as BuiltinFn);
+        builtins.insert("kg_degree".to_string(), crate::kg_gnn_builtins::builtin_kg_degree as BuiltinFn);
+        builtins.insert("kg_shortest_path".to_string(), crate::kg_gnn_builtins::builtin_kg_shortest_path as BuiltinFn);
+        builtins.insert("gnn_gcn_layer".to_string(), crate::kg_gnn_builtins::builtin_gnn_gcn_layer as BuiltinFn);
+        builtins.insert("gnn_aggregate".to_string(), crate::kg_gnn_builtins::builtin_gnn_aggregate as BuiltinFn);
+        builtins.insert("gnn_node_classification".to_string(), crate::kg_gnn_builtins::builtin_gnn_node_classification as BuiltinFn);
+
         // Symbolic AI (Week 29-30)
         builtins.insert("rule_create".to_string(), tensor_builtins::builtin_rule_create as BuiltinFn);
         builtins.insert("rule_engine_create".to_string(), tensor_builtins::builtin_rule_engine_create as BuiltinFn);
@@ -588,11 +604,37 @@ impl Interpreter {
         builtins.insert("fuzzy_or".to_string(), tensor_builtins::builtin_fuzzy_or as BuiltinFn);
         builtins.insert("fuzzy_not".to_string(), tensor_builtins::builtin_fuzzy_not as BuiltinFn);
         builtins.insert("fuzzy_get_value".to_string(), tensor_builtins::builtin_fuzzy_get_value as BuiltinFn);
-        builtins.insert("concept_create".to_string(), tensor_builtins::builtin_concept_create as BuiltinFn);
-        builtins.insert("concept_graph_create".to_string(), tensor_builtins::builtin_concept_graph_create as BuiltinFn);
-        builtins.insert("concept_graph_add".to_string(), tensor_builtins::builtin_concept_graph_add as BuiltinFn);
+        builtins.insert("concept_create".to_string(), crate::symbolic_builtins::builtin_concept_create as BuiltinFn);
+        builtins.insert("concept_graph_create".to_string(), crate::symbolic_builtins::builtin_concept_graph_create as BuiltinFn);
+        builtins.insert("concept_graph_add".to_string(), crate::symbolic_builtins::builtin_concept_graph_add as BuiltinFn);
         builtins.insert("concept_graph_count".to_string(), tensor_builtins::builtin_concept_graph_count as BuiltinFn);
-        builtins.insert("concept_similarity".to_string(), tensor_builtins::builtin_concept_similarity as BuiltinFn);
+        builtins.insert("concept_similarity".to_string(), crate::symbolic_builtins::builtin_concept_similarity as BuiltinFn);
+
+        // Additional Symbolic AI functions (Phase 1 - Full Backend Exposure)
+        // First-Order Logic - Formula constructors
+        builtins.insert("fol_predicate".to_string(), crate::symbolic_builtins::builtin_fol_predicate as BuiltinFn);
+        builtins.insert("fol_variable".to_string(), crate::symbolic_builtins::builtin_fol_variable as BuiltinFn);
+        builtins.insert("fol_constant".to_string(), crate::symbolic_builtins::builtin_fol_constant as BuiltinFn);
+        builtins.insert("fol_function".to_string(), crate::symbolic_builtins::builtin_fol_function as BuiltinFn);
+        builtins.insert("fol_not".to_string(), crate::symbolic_builtins::builtin_fol_not as BuiltinFn);
+        builtins.insert("fol_and".to_string(), crate::symbolic_builtins::builtin_fol_and as BuiltinFn);
+        builtins.insert("fol_or".to_string(), crate::symbolic_builtins::builtin_fol_or as BuiltinFn);
+        builtins.insert("fol_implies".to_string(), crate::symbolic_builtins::builtin_fol_implies as BuiltinFn);
+        builtins.insert("fol_forall".to_string(), crate::symbolic_builtins::builtin_fol_forall as BuiltinFn);
+        builtins.insert("fol_exists".to_string(), crate::symbolic_builtins::builtin_fol_exists as BuiltinFn);
+        // First-Order Logic - Solver operations
+        builtins.insert("fol_solver_add_fact".to_string(), crate::symbolic_builtins::builtin_fol_solver_add_fact as BuiltinFn);
+        builtins.insert("fol_solver_add_rule".to_string(), crate::symbolic_builtins::builtin_fol_solver_add_rule as BuiltinFn);
+        builtins.insert("fol_solver_prove".to_string(), crate::symbolic_builtins::builtin_fol_solver_prove as BuiltinFn);
+        // Concept Learning - Additional operations
+        builtins.insert("concept_add_property".to_string(), crate::symbolic_builtins::builtin_concept_add_property as BuiltinFn);
+        builtins.insert("concept_graph_add_concept".to_string(), crate::symbolic_builtins::builtin_concept_graph_add as BuiltinFn);
+        // Differentiable Logic - Fuzzy operations
+        builtins.insert("fuzzy_value".to_string(), crate::symbolic_builtins::builtin_fuzzy_value as BuiltinFn);
+        builtins.insert("fuzzy_implies".to_string(), crate::symbolic_builtins::builtin_fuzzy_implies as BuiltinFn);
+        builtins.insert("fuzzy_to_bool".to_string(), crate::symbolic_builtins::builtin_fuzzy_to_bool as BuiltinFn);
+        builtins.insert("fuzzy_to_float".to_string(), crate::symbolic_builtins::builtin_fuzzy_to_float as BuiltinFn);
+        builtins.insert("soft_unify_strings".to_string(), crate::symbolic_builtins::builtin_soft_unify_strings as BuiltinFn);
 
         // Advanced Reasoning: Tree-of-Thoughts & Working Memory
         builtins.insert("tot_create".to_string(), tensor_builtins::builtin_tot_create as BuiltinFn);
@@ -615,6 +657,33 @@ impl Interpreter {
         builtins.insert("optim_sgd_momentum_step".to_string(), tensor_builtins::builtin_optim_sgd_momentum_step as BuiltinFn);
         builtins.insert("optim_adam_step".to_string(), tensor_builtins::builtin_optim_adam_step as BuiltinFn);
         builtins.insert("tensor_clip_grad".to_string(), tensor_builtins::builtin_tensor_clip_grad as BuiltinFn);
+
+        // Advanced Backend Functions (Phases 2-6: Complete Exposure)
+        // Meta-Learning - Curriculum & Task Sampling
+        builtins.insert("curriculum_create".to_string(), crate::advanced_builtins::builtin_curriculum_create as BuiltinFn);
+        builtins.insert("task_difficulty".to_string(), crate::advanced_builtins::builtin_task_difficulty as BuiltinFn);
+        builtins.insert("task_sample_batch".to_string(), crate::advanced_builtins::builtin_task_sample_batch as BuiltinFn);
+        builtins.insert("meta_adapt_lr".to_string(), crate::advanced_builtins::builtin_meta_adapt_lr as BuiltinFn);
+        builtins.insert("few_shot_classify".to_string(), crate::advanced_builtins::builtin_few_shot_classify as BuiltinFn);
+        // Advanced Reasoning - Causal & Abductive
+        builtins.insert("causal_graph_create".to_string(), crate::advanced_builtins::builtin_causal_graph_create as BuiltinFn);
+        builtins.insert("causal_add_edge".to_string(), crate::advanced_builtins::builtin_causal_add_edge as BuiltinFn);
+        builtins.insert("causal_intervene".to_string(), crate::advanced_builtins::builtin_causal_intervene as BuiltinFn);
+        builtins.insert("abductive_explain".to_string(), crate::advanced_builtins::builtin_abductive_explain as BuiltinFn);
+        builtins.insert("counterfactual_generate".to_string(), crate::advanced_builtins::builtin_counterfactual_generate as BuiltinFn);
+        // Operator Fusion - Pattern Detection
+        builtins.insert("fusion_detect_patterns".to_string(), crate::advanced_builtins::builtin_fusion_detect_patterns as BuiltinFn);
+        builtins.insert("fusion_apply_pattern".to_string(), crate::advanced_builtins::builtin_fusion_apply_pattern as BuiltinFn);
+        builtins.insert("fusion_estimate_speedup".to_string(), crate::advanced_builtins::builtin_fusion_estimate_speedup as BuiltinFn);
+        // Multimodal - Temporal & Audio
+        builtins.insert("temporal_sequence_create".to_string(), crate::advanced_builtins::builtin_temporal_sequence_create as BuiltinFn);
+        builtins.insert("temporal_align".to_string(), crate::advanced_builtins::builtin_temporal_align as BuiltinFn);
+        builtins.insert("audio_spectrogram".to_string(), crate::advanced_builtins::builtin_audio_spectrogram as BuiltinFn);
+        builtins.insert("audio_mfcc".to_string(), crate::advanced_builtins::builtin_audio_mfcc as BuiltinFn);
+        // Enhanced Reasoning - Memory & Planning
+        builtins.insert("memory_consolidate_threshold".to_string(), crate::advanced_builtins::builtin_memory_consolidate_threshold as BuiltinFn);
+        builtins.insert("planning_create_goal".to_string(), crate::advanced_builtins::builtin_planning_create_goal as BuiltinFn);
+        builtins.insert("planning_search".to_string(), crate::advanced_builtins::builtin_planning_search as BuiltinFn);
 
         // Autograd helpers (backward pass computation)
         builtins.insert("autograd_compute_linear_grad".to_string(), tensor_builtins::builtin_autograd_compute_linear_grad as BuiltinFn);
@@ -1065,6 +1134,11 @@ impl Interpreter {
             Expression::TupleIndex { tuple, index } => {
                 self.eval_tuple_index_expression(tuple, *index)
             }
+
+            Expression::Cast {
+                expression,
+                target_type,
+            } => self.eval_cast_expression(expression, target_type),
         }
     }
 
@@ -1745,6 +1819,36 @@ impl Interpreter {
                 "Cannot index type {} with tuple index syntax",
                 tuple_value.type_name()
             )),
+        }
+    }
+
+    fn eval_cast_expression(
+        &mut self,
+        expression: &Expression,
+        target_type: &str,
+    ) -> Result<Value, String> {
+        let value = self.eval_expression(expression)?;
+
+        match target_type {
+            "int32" | "int64" => match value {
+                Value::Integer(i) => Ok(Value::Integer(i)),
+                Value::Float(f) => Ok(Value::Integer(f as i64)),
+                Value::Boolean(b) => Ok(Value::Integer(if b { 1 } else { 0 })),
+                _ => Err(format!("Cannot cast {} to {}", value.type_name(), target_type)),
+            },
+            "float32" | "float64" => match value {
+                Value::Integer(i) => Ok(Value::Float(i as f64)),
+                Value::Float(f) => Ok(Value::Float(f)),
+                Value::Boolean(b) => Ok(Value::Float(if b { 1.0 } else { 0.0 })),
+                _ => Err(format!("Cannot cast {} to {}", value.type_name(), target_type)),
+            },
+            "bool" => match value {
+                Value::Integer(i) => Ok(Value::Boolean(i != 0)),
+                Value::Float(f) => Ok(Value::Boolean(f != 0.0)),
+                Value::Boolean(b) => Ok(Value::Boolean(b)),
+                _ => Err(format!("Cannot cast {} to {}", value.type_name(), target_type)),
+            },
+            _ => Err(format!("Unknown cast target type: {}", target_type)),
         }
     }
 }
