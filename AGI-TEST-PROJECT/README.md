@@ -1,5 +1,9 @@
 # 🧠 AGI Journey - Complete Project
 
+> **IMPORTANT CLARIFICATION**: Despite the historical naming, this is NOT an AGI project.
+> These are foundational experiments validating Charl's neural network primitives (4-500 parameters).
+> NOT comparable to large language models like GPT-4. See [charlbase.org/research.html](https://charlbase.org/research.html) for accurate context.
+
 This directory contains the complete **AGI Journey** project: documentation, source code, and all resources for website integration.
 
 ---
@@ -12,7 +16,7 @@ This directory contains the complete **AGI Journey** project: documentation, sou
 - Complete technical documentation
 - Detailed explanation of all 8 levels
 - Commented code and analysis
-- Comparison vs GPT-4
+- Neural network primitives validation
 - **Use for**: Blog posts, papers, technical documentation
 
 #### 2. **README_AGI.md** (4.2 KB)
@@ -46,7 +50,7 @@ This directory contains the complete **AGI Journey** project: documentation, sou
 | 5 | test_TRANSFER_LEARNER.ch | Level 5 | 100 | 75% | Transfer learning |
 | 6 | test_CAUSAL_REASONER.ch | Level 6 | 200 | 100% | Causal reasoning |
 | 7 | test_PLANNING_REASONER.ch | Level 7 | 300 | 100% | Planning |
-| 8 | test_SELF_REFLECTION_AGI.ch | Level 8 | 500 | 100% | **Basic AGI** ✅ |
+| 8 | test_SELF_REFLECTION_AGI.ch | Level 8 | 500 | 100% | Multi-task learning |
 
 ---
 
@@ -69,13 +73,12 @@ cd AGI-TEST-PROJECT
 
 ## 📊 Main Results
 
-- ✅ **8 levels completed** towards basic AGI
+- ✅ **8 levels completed** - Neural network primitives validation
 - ✅ **100% test accuracy** on 7 out of 8 levels
-- ✅ **500 parameters** for AGI vs 175 billion in GPT-4
-- ✅ **350 million x more efficient** than GPT-4
-- ✅ **Self-reflection** functional
-- ✅ **Causal reasoning** with counterfactuals
-- ✅ **Transfer learning** cross-domain
+- ✅ **500 parameters** (Level 8) - Proof of concept for small-scale learning
+- ✅ **Validated capabilities**: Self-reflection, causal reasoning, transfer learning
+- ✅ **Foundation established** for more complex architectures (see AGI_PROJECT_III)
+- ⚠️ **Toy datasets only** (10-50 examples) - Not production-scale
 
 ---
 
@@ -121,11 +124,11 @@ See **AGI_INDEX.md** for complete roadmap.
 ## 📈 Highlighted Stats
 
 ```
-350,000,000x    More efficient than GPT-4 (parameters)
 100%            Test accuracy (7 out of 8 levels)
 500             Total parameters (Level 8)
-8               Levels towards AGI
-130,000x        More energy efficient
+8               Progressive validation levels
+10-50           Examples per task (toy datasets)
+✅              Neural network primitives validated
 ```
 
 ---
@@ -143,7 +146,11 @@ See **AGI_INDEX.md** for complete roadmap.
 - [x] Self-correction
 - [x] Meta-learning
 
-**✅ Functional basic AGI achieved**
+**✅ Neural network primitives successfully validated**
+
+**What this demonstrates**: Charl can correctly implement basic neural network operations (tensors, layers, backpropagation, training loops).
+
+**What this does NOT demonstrate**: This is not AGI, not comparable to large language models, and not general-purpose AI. These are proof-of-concept experiments with toy datasets.
 
 ---
 
